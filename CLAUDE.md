@@ -26,7 +26,7 @@ Docs and repo hygiene are done. **No code yet.** Key check on 2026-09-30:
 
 - **Token Factory inference: works.** Base `https://api.tokenfactory.nebius.com/v1`. Exact Nemotron IDs are in `docs/00-constraints-and-open-items.md`. Nano is a reasoning model: pass `chat_template_kwargs: {"enable_thinking": false}` for cheap calls, and never use a tiny `max_tokens` with reasoning on (empty content).
 - **Tavily: works.**
-- **Sandboxes: BLOCKED.** The key authenticates but `whoami` shows every permission `false` (`spawn`, `list`, ...). Nothing in Sandboxes can run until the owner gets Sandboxes grants for the project. Also check the token's `token_expiration` from `GET .../sandboxes/v1/whoami`: it must outlive Dec 15, 2026.
+- **Sandboxes: BLOCKED.** The key authenticates but `whoami` shows every permission `false` (`spawn`, `list`, ...). Nothing in Sandboxes can run until the owner gets Sandboxes grants for the project. Note that `token_expiration` in `whoami` is a rolling five-minute value, not the key's lifetime; the key itself must be valid through Dec 15, 2026 (check in the console).
 
 First thing in a new session: run `whoami` (status and permissions only, never print keys). If `spawn` is still `false`, do not start Sandboxes work; work on the parts that do not need it (stages 1-4, the eval harness, UI). Then the week-1 spikes:
 
