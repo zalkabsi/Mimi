@@ -24,7 +24,7 @@ Date of research: 2026-09-29. Deadline: 2026-10-30 10:00 AM PT (about 4 weeks).
 | E10 | Token Factory **Sandboxes** (ConTree): microVM per run with its own kernel, git-like branching (fork from a checkpoint, parallel runs, rollback), 50 simultaneous operations, no inbound network, 180-day image retention, ~2-5 s microVM start | [docs overview](https://docs.tokenfactory.nebius.com/sandboxes/overview), [SDK](https://github.com/nebius/contree-sdk) |
 | E11 | `contree-sdk 0.3.6` source (read directly): run request fields are `command, image, hostname, args, shell, env, cwd, disposable, stdin, timeout, truncate_output_at, files, preserve_env`. **No network-isolation option.** `disposable=false` returns a result image UUID (a snapshot); runs from the same image UUID are independent forks. Per-run `resources.cost` and `elapsed_time` are returned | PyPI wheel `contree_sdk-0.3.6` |
 | E12 | Nemotron 3: Nano 30B, Super 120B (12B active), Ultra 550B (55B active, released 2026-06-04, up to 1M context, hybrid Mamba-Transformer MoE). Reasoning on/off/low-effort with optional budget; tool calling supported. Reported Token Factory prices per 1M tokens (input/output): Ultra $1.00/$3.00, Super $0.30/$0.90, Nano $0.06/$0.24 | [NVIDIA blog](https://developer.nvidia.com/blog/nvidia-nemotron-3-ultra-powers-faster-more-efficient-reasoning-for-long-running-agents/), [Token Factory endpoints page](https://tokenfactory.nebius.com/endpoints) |
-| E13 | Tavily "Best Use of Tavily" needs "a functional, runtime call to the Tavily API"; search should be load-bearing | community repos summarising the rules |
+| E13 | Official Rules §8: "Best Use of Tavily" ($3,000) is open to eligible submissions "that make a functional, runtime call to the Tavily API as part of its solution". Tavily engineers are on the judging panel. Only one Bonus award per project | Official Rules (pasted by owner, 2026-09-30) |
 | E14 | ClawHavoc: 1,184 malicious OpenClaw skills reported; 135,000+ exposed instances. Scanners already exist: Cisco Skill Scanner, Snyk Agent Scan, VirusTotal Code Insight, Permiso SandyClaw (dynamic sandbox detonation), NVIDIA Skill-Spector, SkillSentry | [SC World](https://www.scworld.com/news/openclaw-agents-targeted-with-341-malicious-clawhub-skills), [Snyk](https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/) |
 | E15 | Agent observability and failure attribution is crowded: LangSmith, Braintrust, Langfuse, Arize, Galileo, Docent, Microsoft AgentRx, and AgentDebugX (literally Detect, Attribute, Recover, Rerun) | [AgentRx](https://www.microsoft.com/en-us/research/blog/systematic-debugging-for-ai-agents-introducing-the-agentrx-framework/), [AgentDebugX](https://arxiv.org/html/2607.18754) |
 | E16 | Health-insurance denials: 64-80% overturned when challenged, under 1% appealed (one study: 11.5% of Medicare Advantage denials appealed, 80.7% overturned). Already served by Counterforce Health, Claimable, and open-source FightHealthInsurance | [Healthcare Dive](https://www.healthcaredive.com/news/insurance-denials-overturned-appeal-new-york-study-JAMA/817490/), [Counterforce](https://www.counterforcehealth.org/) |
@@ -51,7 +51,7 @@ Legend: yes / partial / no.
 
 | Concept | Real problem (evidence) | Differentiated | Demo in 3 min | Feasible in 4 wks | Uncrowded here | Track |
 |---|---|---|---|---|---|---|
-| **A. Assay**: execution-based verification of vulnerability reports for maintainers | **yes** (E1-E3, E9) | **partial** (E4 closed, E5 static, E6 assumes true) | **yes** | **partial** | **yes** (E20: nothing doing this) | 2 (or 1) |
+| **A. Mimi**: execution-based verification of vulnerability reports for maintainers | **yes** (E1-E3, E9) | **partial** (E4 closed, E5 static, E6 assumes true) | **yes** | **partial** | **yes** (E20: nothing doing this) | 2 (or 1) |
 | B. Envsmith: branching sandbox env bootstrapper, measured on EnvBench-style repos | yes (E17) | partial (research prior art; product gap) | partial (installs are not dramatic) | partial | partial | 1 |
 | C. Flakeproof | yes | no (E18) | yes | partial | no | 1 |
 | D. CI repair | yes | no | yes | yes | **no** (E20) | 1 |
@@ -60,13 +60,13 @@ Legend: yes / partial / no.
 | G. Appeals agent | yes (E16) | no | yes | yes | no | 2 |
 | H. Tariff classifier | yes | no (E19) | yes | partial | partial | 2 |
 
-### Finalist A: Assay (full profile)
+### Finalist A: Mimi (full profile)
 
 - **Problem.** Maintainers get vulnerability reports they cannot cheaply verify. Valid rate about 5% at curl; GitHub's private reports up more than 10x in five months; each bad report costs 30 minutes to hours of several people (E1-E3). Volunteer projects cannot buy closed triage SaaS.
 - **Target user.** Open-source maintainers and small security teams who receive reports by GitHub advisory, email or a bounty platform. Secondary: bounty-program triagers.
 - **Existing alternatives.** Elastic internal pipeline (closed, Claude, own product only, E4). HackerOne Hai Triage / Bugcrowd AI Triage (platform SaaS). GitHub Taskflow agent (GitHub-run, limited scope, E3). SlopCheck (static grounding; **wrong on 29.4% of confirmed vulns**, E5). CVE-Genie (research; assumes the CVE is true, E6).
 - **Gap.** No open, self-hostable tool that (1) *executes* the claim against the exact affected version, (2) is safe to run reporter-supplied PoC code, and (3) treats "could not reproduce" as a **quantified negative result** instead of a verdict. E5 shows why (3) matters: a wrong "this is slop" verdict on a real bug is the costly error.
-- **Product.** A maintainer inbox. Paste or forward a report; Assay returns an **evidence dossier** and a triage tier, never an auto-close. Tiers: Confirmed (PoC works on affected version and stops working on the fixed version), Likely, Needs human (could not build or inconclusive), Contradicted (executed evidence against the claim, with stated hypothesis coverage). It also drafts the reply (ask for the missing info, or acknowledge with the repro).
+- **Product.** A maintainer inbox. Paste or forward a report; Mimi returns an **evidence dossier** and a triage tier, never an auto-close. Tiers: Confirmed (PoC works on affected version and stops working on the fixed version), Likely, Needs human (could not build or inconclusive), Contradicted (executed evidence against the claim, with stated hypothesis coverage). It also drafts the reply (ask for the missing info, or acknowledge with the repro).
 - **Non-obvious idea.** *Negative-result coverage.* The system enumerates the ways the claim could be true (versions, configs, inputs, code paths), forks the already-built sandbox once per hypothesis, and reports "0 of N hypotheses triggered the claimed behavior, covering these configurations" instead of "not reproduced." Building once and forking N times is exactly what Sandboxes branching is for (E10, E11).
 - **AI architecture.** Routed Nemotron pipeline: Nano for claim extraction and log summarisation, Super for research synthesis / oracle interpretation / reply drafting, Ultra (reasoning on) for hypothesis generation and adjudicating ambiguous evidence. Deterministic oracles (exit code, signal, marker file, output regex) decide wherever possible; the LLM does not grade its own reproduction if a deterministic check exists.
 - **NVIDIA role.** Nemotron 3 is the reasoning and tool-using core, with the Nano/Super/Ultra split as a real cost/latency lever (E12). The eval includes an all-Ultra versus routed ablation, so any claim is measured.
@@ -89,19 +89,28 @@ Given a repo URL, an agent brings up a working, tested environment in a branchin
 
 ## Decision
 
-**Build Assay. Recommended track: Track 2 (Best Apps and Agents).**
+**Build Mimi. Recommended track: Track 2 (Best Apps and Agents).**
 
 Why A over B: it has a verified, recent, accelerating problem (E1-E3), a named user, a demo with a clear "this used to take hours" moment, an evaluation with public ground truth (E8) and a measurable safety property (false-reject rate on real vulnerabilities), and a technical idea (negative-result coverage via forked sandboxes) that maps directly onto what Sandboxes do differently from a plain container.
 
-Why Track 2 rather than Track 1: the user of Assay is a maintainer running an inbox, not a developer driving a coding agent; the Track 2 brief explicitly rewards Nemotron model routing and we have real cost data to show for it; Track 1 holds at least six near-identical sandbox repair entries (E20). The trade-off is a wider Track 2 field. The track is chosen at submission, so this can be revisited.
+Why Track 2 rather than Track 1: the user of Mimi is a maintainer running an inbox, not a developer driving a coding agent; the Track 2 brief explicitly rewards Nemotron model routing and we have real cost data to show for it; Track 1 holds at least six near-identical sandbox repair entries (E20). The trade-off is a wider Track 2 field. The track is chosen at submission, so this can be revisited.
 
 ### Pivot triggers (decide by end of week 1, Oct 5)
 
-Switch to Envsmith, or narrow Assay, if any of these hold after the day-1 spikes and a 10-case pilot:
+Switch to Envsmith, or narrow Mimi, if any of these hold after the day-1 spikes and a 10-case pilot:
 
 - Fewer than 5 of 10 real public npm vulnerabilities reach a confirmed reproduction with an oracle, using Ultra with unrestricted retries.
 - Per-hypothesis fork runs cannot be made offline *and* we judge the residual risk unacceptable for the hosted demo (then the hosted demo becomes replay-only and the live path is documented for self-hosting).
 - Sandboxes cannot fork from a saved image at the concurrency we need (50 operations) without failures.
+
+### Update 2026-09-30: owner confirmations and what the Rules changed
+
+- **Confirmed by owner:** build this project; team is solo; license Apache-2.0; project name is **Mimi** (same as the repo).
+- **Track 2 fits the official text well.** The Rules describe Track 2 as Nemotron via Token Factory, "Ultra when you need serious reasoning, and let Nano or Super handle the fast, everyday calls". Mimi's stage routing is that. The organisers also say a "multi-step autonomous workflow that chains tools end to end stands out more", which is what the pipeline is.
+- **Tie-break order favours engineering and design** (Technological Implementation, then Design, then Impact, then Idea). Given the moderate novelty noted above, the plan leans on rigor and a finished product rather than on a novelty claim.
+- **Judge access until Dec 15 "free and without any restriction"** forces a judge credential, a costless demo mode, and predictable hosting. See `00-constraints-and-open-items.md`.
+- **One bonus award only.** Target Best Use of Tavily. Feedback is still mandatory.
+- **Solo scope cuts:** npm only, one UI flow, evaluation sized to about $50 of credits. See `02-architecture.md`.
 
 ### What would change my mind about the decision itself
 

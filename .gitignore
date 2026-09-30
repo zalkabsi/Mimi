@@ -1,0 +1,35 @@
+# Secrets: never commit keys (hackathon rule of thumb: check the repo before submitting)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Local data and eval artifacts
+*.db
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+data/raw/
+eval/runs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

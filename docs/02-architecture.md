@@ -1,10 +1,10 @@
-# Assay: architecture and build plan (Phases 5-7, draft)
+# Mimi: architecture and build plan (Phases 5-7, draft)
 
-Status: **draft for review**. Working title "Assay" (name availability and trademarks not checked). Assumptions marked **VERIFY** are spikes for week 1; see `00-constraints-and-open-items.md`.
+Status: **draft for review**. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Assumptions marked **VERIFY** are spikes for week 1; see `00-constraints-and-open-items.md`.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Assay reproduces the claim in isolated sandboxes at the exact affected version and tells the maintainer what is proven, what is contradicted, and how hard it looked.
+Every vulnerability report gets a verdict with receipts: Mimi reproduces the claim in isolated sandboxes at the exact affected version and tells the maintainer what is proven, what is contradicted, and how hard it looked.
 
 ## Principles
 
@@ -66,10 +66,10 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 | Inference | OpenAI-compatible client to Token Factory (**VERIFY** base URL and model IDs) | One thin `LLMClient` with per-stage model choice, retry, token and latency logging. |
 | Frontend | Vite + React + Tailwind, SSE for live stage events | Polished inbox and timeline matter for the Design criterion. |
 | Storage | SQLite (WAL) | Single file, trivial for judges to run, enough for this scale. |
-| Auth | None for demo mode (seeded inbox, read-only, replayable). "Try your own" behind a simple access code with per-session budget cap | Judges must not pay or hit walls; the tool executes code, so unauthenticated free execution is off. |
+| Auth / access | Three tiers: (1) **demo mode**, no login: seeded inbox with recorded runs, read-only, costs nothing; (2) **judge credential**, published in the testing instructions, with its own reserved budget and no rate limit (Rules require access "free of charge and without any restriction" through Dec 15); (3) public "try your own" behind a per-session budget cap | The tool executes code and spends credits, so anonymous unlimited execution is off. Judges get an unrestricted path via the credential; demo mode keeps the product demonstrable if live credits run out. |
 | Memory / RAG | None | Not needed: research is live search, grounding is direct source access. Add nothing sophisticated for its own sake. |
 | Observability | Structured JSON event per stage (model, tokens, latency, sandbox run ids, cost) stored in SQLite and shown in the UI timeline; the same data feeds the eval report | Cost and latency numbers in the video come from here. |
-| Deployment | Frontend static host; backend on a small VM/PaaS; secrets in env | Hosting on Nebius AI Cloud is possible but adds nothing to the product, so it is not in scope unless credits and time allow. |
+| Deployment | Frontend static host; backend as one container; secrets in env. **Must stay up until Dec 15, 12:00 PM PT** at a known monthly ceiling | The Track 2 text encourages Serverless Endpoints (hosting) and Jobs (background work) but says neither is required. A Serverless Endpoint is a plausible, honest home for the backend and would put the app itself on AI Cloud. Decide in week 3 on two facts: CPU-only endpoint availability and cost, and whether it is simpler than a small PaaS. Do not adopt Jobs unless a real workload needs it. |
 
 ## Model routing
 
@@ -94,7 +94,7 @@ Nothing below has been run. Numbers will be reported as measured, with sample si
 
 | Eval | Data | Question | Metrics | Baselines |
 |---|---|---|---|---|
-| E1 Reproduction | SecBench.js subset (stratified by 5 classes, size set by budget, target 60-100); input is the advisory-style description without the exploit | Does Assay reproduce real vulnerabilities? | reproduction rate with oracle, confirmed-with-differential rate, median wall time, cost per case | (a) single-shot Ultra writing a PoC, no sandbox feedback; (b) same agent, linear (no forks) |
+| E1 Reproduction | SecBench.js subset (stratified by 5 classes, size set by budget, target 60-100); input is the advisory-style description without the exploit | Does Mimi reproduce real vulnerabilities? | reproduction rate with oracle, confirmed-with-differential rate, median wall time, cost per case | (a) single-shot Ultra writing a PoC, no sandbox feedback; (b) same agent, linear (no forks) |
 | E1b Freshness | 20-30 recent advisories published after the model's cutoff, public PoC exists | Is E1 inflated by memorisation? | same as E1 | same |
 | E2 Slop discrimination | real vulnerabilities reworded in report style, plus **synthetic fabricated** reports about real package versions (prompts published, labelled synthetic) | Does it wrongly reject real ones? Does it evidence fabricated ones? | **false-Contradicted rate on real (primary safety metric, with Wilson interval)**, share of fabricated reaching Contradicted with coverage, share routed to Needs human | grounding-only gate (replicates SlopCheck's failure mode) |
 | E3 Routing | subset of E1/E2 | Does routing save cost without losing accuracy? | accuracy, cost, latency: all-Ultra vs routed | all-Ultra, all-Super |
@@ -108,8 +108,18 @@ Limits to state publicly: SecBench.js is npm only; synthetic slop is not real sl
 |---|---|---|
 | 1 (Sep 29 - Oct 5) | **Spikes + magic moment.** Token Factory call with tool calling and reasoning control; Sandboxes build-once and 5 parallel forks of a real npm vuln; `unshare -n` test; Tavily call. Then CLI: one report in, dossier JSON out | One real public npm vulnerability goes report to Confirmed with a fixed-version differential. Pivot-trigger review Oct 5 |
 | 2 (Oct 6 - 12) | Full pipeline (grounding, research, hypotheses, oracles, tiers); eval harness v0 on 20 cases; minimal inbox and live timeline | E1 runs end to end on 20 cases; failure taxonomy started |
-| 3 (Oct 13 - 19) | E1/E2/E3/E4 at scale; fix top failure modes; UI polish; PyPI support only if E1 is stable; deploy hosted demo | Numbers stable; demo URL public; hostile-PoC tests pass |
+| 3 (Oct 13 - 19) | E1/E2/E3/E4 at the size the credits allow; fix top failure modes; UI polish; deploy hosted demo with judge credential and demo mode | Numbers stable; demo URL public; hostile-PoC tests pass |
 | 4 (Oct 20 - 26) | Feature freeze Oct 22. README, architecture diagram, license, Devpost text, screenshots, video, feedback notes | Everything submitted Oct 27; Oct 28-30 buffer only |
+
+## Solo scope (decided 2026-09-30)
+
+One person, four weeks, about $50 of credits. Cuts made up front:
+
+- **npm only.** PyPI is out unless every slice above is done early.
+- **One UI flow**: inbox, live timeline, dossier. No accounts system beyond the judge credential.
+- **Evaluation sized to budget.** The week-1 spike measures tokens and Sandboxes cost per case; E1 size is then set from that. E1b (post-cutoff set) and the grounding-on-curl illustration are optional.
+- **No optional infrastructure** (queues, vector stores, Serverless Jobs) unless a measured need appears.
+- The Oct 5 pivot review still applies; being solo makes an early pivot cheaper than a late one.
 
 ## Testing
 
@@ -130,4 +140,6 @@ Limits to state publicly: SecBench.js is npm only; synthetic slop is not real sl
 
 ## Deliverables checklist (Phase 9, filled later)
 
-README (12 required items), LICENSE (recommend Apache-2.0), `CHANGELOG.md`, architecture diagram (export of the flow above), Devpost description, screenshots, 3-minute script, demo recording plan, title and tagline, thumbnail, feedback notes (`docs/feedback-log.md`), deployment docs.
+README (12 required items), LICENSE (Apache-2.0, unmodified text, shown in the repo About section), `CHANGELOG.md`, architecture diagram (export of the flow above), Devpost description with a **Built With** list that names Nebius Token Factory, Sandboxes, the Nemotron models and Tavily, screenshots, 3-minute script (text names only, no third-party logos, no unlicensed music), demo recording plan, tagline and thumbnail, feedback (`docs/feedback-log.md`), testing instructions with the judge credential, deployment docs, and a final pass confirming no API key exists anywhere in the repo or git history.
+
+Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning. Working tagline: *"Mimi: every vulnerability report gets a verdict with receipts."*
