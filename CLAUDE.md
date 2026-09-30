@@ -11,6 +11,7 @@ Read in this order: `docs/01-research-and-decision.md` (why), `docs/02-architect
 ## Non-negotiable rules
 
 - **Never commit secrets.** Keys come from env vars: `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID` (Sandboxes need both), `TAVILY_API_KEY`. Never ask the user to paste a key into chat.
+- **No Claude attribution in git history.** Never add a `Co-Authored-By` trailer, a session link, or any other Claude attribution to commit messages or PR descriptions. The owner asked for this explicitly.
 - **Never invent a metric.** Every number in the README, Devpost text or video comes from a logged run. State sample sizes and limits (SecBench.js is npm only; synthetic slop is not real slop).
 - **Never auto-close a report.** Tiers: Confirmed, Likely, Needs human, Contradicted (with coverage). Grounding alone must never reject a report.
 - Run untrusted PoC code **only inside Sandboxes**, never on the app host. No secrets in any sandbox. Tavily queries use public identifiers only.
@@ -21,7 +22,13 @@ Read in this order: `docs/01-research-and-decision.md` (why), `docs/02-architect
 
 ## Where we are
 
-Docs and repo hygiene are done. **No code yet.** Next: week-1 spikes (need the three env vars in a fresh session):
+Docs and repo hygiene are done. **No code yet.** Key check on 2026-09-30:
+
+- **Token Factory inference: works.** Base `https://api.tokenfactory.nebius.com/v1`. Exact Nemotron IDs are in `docs/00-constraints-and-open-items.md`. Nano is a reasoning model: pass `chat_template_kwargs: {"enable_thinking": false}` for cheap calls, and never use a tiny `max_tokens` with reasoning on (empty content).
+- **Tavily: works.**
+- **Sandboxes: BLOCKED.** The key authenticates but `whoami` shows every permission `false` (`spawn`, `list`, ...). Nothing in Sandboxes can run until the owner gets Sandboxes grants for the project. Also check the token's `token_expiration` from `GET .../sandboxes/v1/whoami`: it must outlive Dec 15, 2026.
+
+First thing in a new session: run `whoami` (status and permissions only, never print keys). If `spawn` is still `false`, do not start Sandboxes work; work on the parts that do not need it (stages 1-4, the eval harness, UI). Then the week-1 spikes:
 
 1. Token Factory inference call to a Nemotron model: confirm base URL, exact model IDs, tool calling, reasoning control. Log tokens and latency.
 2. Sandboxes: build an npm package at a pinned vulnerable version, keep the image, run 5 forks in parallel. Record `cost` units and elapsed time.

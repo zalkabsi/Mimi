@@ -4,6 +4,12 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-09-30 (key check)
+- Verified Token Factory inference and Tavily with the owner's keys. Recorded exact Nemotron model IDs and how to turn reasoning off.
+- Found that the Sandboxes token has no permissions and a short expiry; recorded as a blocker in `docs/00-constraints-and-open-items.md`.
+- Added the no-attribution-in-commits rule to `CLAUDE.md`.
+- Added hands-on entries to `docs/feedback-log.md`.
+
 ### 2026-09-30
 - Project named Mimi; team confirmed solo; Apache-2.0 chosen.
 - Added `LICENSE` (standard Apache-2.0 text), `.gitignore` (keeps `.env` and keys out), README stub, this changelog and `docs/feedback-log.md`.

@@ -104,7 +104,7 @@ Confirm all of these yourself; I cannot:
 | Variable | What it is | Where it comes from |
 |---|---|---|
 | `NEBIUS_API_KEY` | Token Factory API key. Used for inference **and** as the bearer token for Sandboxes | Nebius Token Factory console |
-| `NEBIUS_PROJECT_ID` | Nebius project ID. Sandboxes require it (sent as a `Project` header; verified in `contree-sdk` source) | Nebius console |
+| `NEBIUS_PROJECT_ID` | Nebius project ID. Sandboxes require it (sent as a `Project` header; verified live: omitting it returns `400 Missing "Project" header`). Note the **CLI** reads `NEBIUS_AI_PROJECT` / `CONTREE_PROJECT` instead, while the **SDK** reads `NEBIUS_PROJECT_ID`. Mimi uses the SDK | Nebius console |
 | `TAVILY_API_KEY` | Tavily key | `app.tavily.com`: sign in (email, Google, GitHub, LinkedIn or Microsoft), copy a key from the dashboard. Free plan reported as 1,000 API credits a month, no card. Extra hackathon credits come through the Nebius Builders Program [Rules §4] (promo `BBDEVPOST` seen in one community repo, unverified). `docs.tavily.com` is blocked in the build environment; `api.tavily.com` is reachable, which is all the code needs. |
 
 Add them as **environment secrets** in the Claude Code cloud environment settings; never in the repo or in chat. `.env` is git-ignored for local use.
@@ -114,8 +114,10 @@ Add them as **environment secrets** in the Claude Code cloud environment setting
 | Item | Why it matters | Known so far |
 |---|---|---|
 | Per-run network isolation in Sandboxes | We execute reporter-supplied PoC code | `contree-sdk 0.3.6` run request has **no network field**. Plan: test `unshare -n` in the microVM. |
-| Token Factory inference base URL and exact Nemotron model IDs | Code depends on them | Community repos use an OpenAI-compatible endpoint; ids unverified. |
-| Tool calling and reasoning control on Token Factory | Routing design | NVIDIA says supported; unverified on Token Factory. |
+| ~~Token Factory inference base URL and Nemotron model IDs~~ | Code depends on them | **Verified 2026-09-30.** Base `https://api.tokenfactory.nebius.com/v1` (OpenAI-compatible, `GET /models`, `POST /chat/completions`). Nemotron IDs (exact case): `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3-Ultra-550b-a55b`, and a fourth, `nvidia/Nemotron-3_5-Lightning`, not yet evaluated. |
+| Reasoning control (partly verified) and tool calling (open) | Routing design | Nano is a reasoning model: the reply arrives in `message.reasoning` plus `message.content`. With `max_tokens=20` the call returned **empty content** (budget spent thinking, no error). `chat_template_kwargs: {"enable_thinking": false}` works: 2 completion tokens instead of 62, 0.75 s versus 1.40 s for the same prompt. `completion_tokens_details` is `null`, so reasoning tokens are not itemised. Tool calling on each model still to test. |
+| **Sandboxes token permissions** | Sandboxes are Mimi's core | **BLOCKER (2026-09-30).** `whoami` succeeds (key and `Project` header accepted) but every permission is `false`: import, spawn, spawn_disposable, list, cancel, set_image_tag. `GET /v1/images` returns `403 Insufficient permissions: list`. Nothing can run until this token has Sandboxes grants. Docs say only that the fix is "a token with different grants"; they do not say how to obtain one. Limits reported: 50 concurrent instances, 3600 s max timeout, 12 GiB max layer. |
+| Sandbox token expiry | Judge access must last to Dec 15 | `whoami` reported `token_expiration` of **2026-09-30 07:01:55 UTC**, about a day after creation. See the result of the after-expiry re-test below. Any key used for the hosted demo must outlive Dec 15, 2026. |
 | Sandboxes billing | Credits budget | Is it drawn from the same credits as inference? Unknown. |
 | `ProcessResources.cost` units | Cost accounting | Field exists; units unknown. |
 | Can the backend run as a Serverless Endpoint on CPU? | Optional AI Cloud deployment (encouraged, not required) | Unknown. Decide in week 3 on cost and simplicity. |
