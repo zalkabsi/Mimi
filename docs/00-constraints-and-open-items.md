@@ -105,7 +105,7 @@ Confirm all of these yourself; I cannot:
 |---|---|---|
 | `NEBIUS_API_KEY` | Token Factory API key. Used for inference **and** as the bearer token for Sandboxes | Nebius Token Factory console |
 | `NEBIUS_PROJECT_ID` | Nebius project ID. Sandboxes require it (sent as a `Project` header; verified in `contree-sdk` source) | Nebius console |
-| `TAVILY_API_KEY` | Tavily key | Tavily dashboard |
+| `TAVILY_API_KEY` | Tavily key | `app.tavily.com`: sign in (email, Google, GitHub, LinkedIn or Microsoft), copy a key from the dashboard. Free plan reported as 1,000 API credits a month, no card. Extra hackathon credits come through the Nebius Builders Program [Rules §4] (promo `BBDEVPOST` seen in one community repo, unverified). `docs.tavily.com` is blocked in the build environment; `api.tavily.com` is reachable, which is all the code needs. |
 
 Add them as **environment secrets** in the Claude Code cloud environment settings; never in the repo or in chat. `.env` is git-ignored for local use.
 
