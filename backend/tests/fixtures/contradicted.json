@@ -1,0 +1,59 @@
+{
+  "build": {
+    "image_id": "fixture-image-negative",
+    "log": "npm install lodash@4.17.20",
+    "ok": true,
+    "elapsed_ms": 900.0,
+    "detail": "fixture build ok"
+  },
+  "runs": {
+    "h1": {
+      "hypothesis_id": "h1",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "stdout": "no effect\n",
+      "stderr": "",
+      "elapsed_ms": 30.0,
+      "cost": null,
+      "cost_units": null,
+      "sandbox_image_id": "fixture-image-negative",
+      "sandbox_run_id": "fixture-run-h1",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    },
+    "h2": {
+      "hypothesis_id": "h2",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "stdout": "no effect either\n",
+      "stderr": "",
+      "elapsed_ms": 31.0,
+      "cost": null,
+      "cost_units": null,
+      "sandbox_image_id": "fixture-image-negative",
+      "sandbox_run_id": "fixture-run-h2",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    },
+    "h3": {
+      "hypothesis_id": "h3",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "poc exited nonzero without the marker",
+      "elapsed_ms": 28.0,
+      "cost": null,
+      "cost_units": null,
+      "sandbox_image_id": "fixture-image-negative",
+      "sandbox_run_id": "fixture-run-h3",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    }
+  }
+}

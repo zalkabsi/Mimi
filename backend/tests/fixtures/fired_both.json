@@ -1,0 +1,45 @@
+{
+  "build": {
+    "image_id": "fixture-image-both",
+    "log": "npm install lodash@4.17.20",
+    "ok": true,
+    "elapsed_ms": 1000.0,
+    "detail": "fixture build ok"
+  },
+  "runs": {
+    "h1": {
+      "hypothesis_id": "h1",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "stdout": "VULN_TRIGGERED\n",
+      "stderr": "",
+      "elapsed_ms": 40.0,
+      "cost": null,
+      "cost_units": null,
+      "sandbox_image_id": "fixture-image-both",
+      "sandbox_run_id": "fixture-run-h1-affected",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    }
+  },
+  "fixed_runs": {
+    "h1": {
+      "hypothesis_id": "h1",
+      "phase": "fixed",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "stdout": "VULN_TRIGGERED\n",
+      "stderr": "",
+      "elapsed_ms": 41.0,
+      "cost": null,
+      "cost_units": null,
+      "sandbox_image_id": "fixture-image-both",
+      "sandbox_run_id": "fixture-run-h1-fixed",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    }
+  }
+}

@@ -1,0 +1,424 @@
+{
+  "report_id": "mock0000demo",
+  "created_at": "2026-10-06T12:00:00+00:00",
+  "source": "demo",
+  "report_text": "Mock fixture (not a real submission). Claim: prototype pollution via lodash defaultsDeep in lodash@4.17.19 (public advisory CVE-2020-8203). Reporter asserts that a crafted nested object pollutes Object.prototype.",
+  "package_spec": "lodash@4.17.19",
+  "claim": {
+    "package": "lodash",
+    "ecosystem": "npm",
+    "affected_versions": ["4.17.19"],
+    "vuln_class": "prototype_pollution",
+    "cited_files": ["set.js"],
+    "cited_symbols": ["baseSet"],
+    "poc_code": "const _ = require('lodash');\n_.defaultsDeep({}, JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"}}'));\nconsole.log('probe:', ({}).polluted);",
+    "poc_command": "node poc.js",
+    "expected_effect": "Object.prototype gains an attacker-controlled key after defaultsDeep runs",
+    "attack_vector": "crafted nested object passed to defaultsDeep",
+    "preconditions": ["attacker controls a nested object argument"],
+    "notes": null,
+    "parse_warnings": []
+  },
+  "public_ids": {
+    "package": "lodash",
+    "ecosystem": "npm",
+    "versions": ["4.17.19"],
+    "advisory_ids": ["CVE-2020-8203"],
+    "extra_terms": ["prototype pollution"]
+  },
+  "grounding": [
+    {
+      "kind": "version_matches",
+      "target": "lodash@4.17.19",
+      "detail": "installed version equals the claimed affected version",
+      "source_ref": "node_modules/lodash/package.json"
+    },
+    {
+      "kind": "symbol_found",
+      "target": "baseSet",
+      "detail": "cited symbol present in installed package",
+      "source_ref": "node_modules/lodash/set.js:2114"
+    }
+  ],
+  "research": {
+    "queries": ["lodash 4.17.19 CVE-2020-8203", "lodash prototype pollution fixed version"],
+    "known_advisories": [
+      {
+        "source": "tavily",
+        "title": "Prototype Pollution in lodash (public advisory summary)",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
+        "snippet": "Public advisory for CVE-2020-8203: prototype pollution affecting lodash before 4.17.20.",
+        "advisory_ids": ["CVE-2020-8203"]
+      }
+    ],
+    "duplicates": [],
+    "fixed_version": "4.17.20",
+    "fix_commit": null,
+    "fix_url": null,
+    "notes": "Advisory data is fixture content; queries shown exactly as they would be sent (public identifiers only).",
+    "used": true
+  },
+  "hypotheses": [
+    {
+      "id": "h1",
+      "rationale": "The claim says defaultsDeep pollutes Object.prototype via a __proto__ key in a parsed JSON object.",
+      "test_plan": "Install lodash@4.17.19, run a node script that calls defaultsDeep with the crafted object, probe Object.prototype for the attacker key.",
+      "config": {
+        "node_version": "20",
+        "package_spec": "lodash@4.17.19",
+        "install_command": "npm install --no-audit --no-fund",
+        "poc_file_name": "poc.js",
+        "poc_command": "node poc.js",
+        "env": {},
+        "setup_commands": [],
+        "offline": true,
+        "notes": ""
+      },
+      "poc_code": "const _ = require('lodash');\n_.defaultsDeep({}, JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"}}'));\nconsole.log('probe:', ({}).polluted);",
+      "oracle": {
+        "type": "prototype_pollution_probe",
+        "description": "fired when Object.prototype carries the attacker-controlled key after the call",
+        "expected_exit": null,
+        "expect_nonzero_exit": false,
+        "signal_name": null,
+        "marker_path": null,
+        "pattern": "polluted",
+        "threshold_ms": null,
+        "expect_traversal_to": null,
+        "probe_snippet": "if (({}).polluted !== undefined) process.exit(3);"
+      },
+      "priority": 1
+    },
+    {
+      "id": "h2",
+      "rationale": "Same effect via merge instead of defaultsDeep, in case the helper chain differs.",
+      "test_plan": "Run the same probe with _.merge on the crafted object.",
+      "config": {
+        "node_version": "20",
+        "package_spec": "lodash@4.17.19",
+        "install_command": "npm install --no-audit --no-fund",
+        "poc_file_name": "poc.js",
+        "poc_command": "node poc.js",
+        "env": {},
+        "setup_commands": [],
+        "offline": true,
+        "notes": ""
+      },
+      "poc_code": "const _ = require('lodash');\n_.merge({}, JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"}}'));\nconsole.log('probe:', ({}).polluted);",
+      "oracle": {
+        "type": "output_regex",
+        "description": "stdout shows the attacker key present on a plain object",
+        "expected_exit": null,
+        "expect_nonzero_exit": false,
+        "signal_name": null,
+        "marker_path": null,
+        "pattern": "probe: yes",
+        "threshold_ms": null,
+        "expect_traversal_to": null,
+        "probe_snippet": null
+      },
+      "priority": 2
+    }
+  ],
+  "runs": [
+    {
+      "hypothesis_id": "h1",
+      "phase": "build",
+      "command": "npm install lodash@4.17.19 --no-audit --no-fund",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "added 1 package in 2s",
+      "stderr": "",
+      "elapsed_ms": 2100,
+      "cost": 0.004,
+      "cost_units": "credits",
+      "sandbox_image_id": "img_mock_base",
+      "sandbox_run_id": "run_mock_build",
+      "network_isolated": false,
+      "truncated": false,
+      "error": null
+    },
+    {
+      "hypothesis_id": "h1",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "probe: undefined",
+      "stderr": "",
+      "elapsed_ms": 180,
+      "cost": 0.001,
+      "cost_units": "credits",
+      "sandbox_image_id": "img_mock_base",
+      "sandbox_run_id": "run_mock_poc_h1",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    },
+    {
+      "hypothesis_id": "h2",
+      "phase": "poc",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "probe: undefined",
+      "stderr": "",
+      "elapsed_ms": 175,
+      "cost": 0.001,
+      "cost_units": "credits",
+      "sandbox_image_id": "img_mock_base",
+      "sandbox_run_id": "run_mock_poc_h2",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    },
+    {
+      "hypothesis_id": "h1",
+      "phase": "fixed",
+      "command": "node poc.js",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "probe: undefined",
+      "stderr": "",
+      "elapsed_ms": 170,
+      "cost": 0.001,
+      "cost_units": "credits",
+      "sandbox_image_id": "img_mock_fixed",
+      "sandbox_run_id": "run_mock_fixed_h1",
+      "network_isolated": true,
+      "truncated": false,
+      "error": null
+    }
+  ],
+  "oracle_results": [
+    {
+      "hypothesis_id": "h1",
+      "phase": "affected",
+      "oracle": {
+        "type": "prototype_pollution_probe",
+        "description": "fired when Object.prototype carries the attacker-controlled key after the call",
+        "expected_exit": null,
+        "expect_nonzero_exit": false,
+        "signal_name": null,
+        "marker_path": null,
+        "pattern": "polluted",
+        "threshold_ms": null,
+        "expect_traversal_to": null,
+        "probe_snippet": "if (({}).polluted !== undefined) process.exit(3);"
+      },
+      "fired": false,
+      "detail": "probe did not observe the attacker key on a plain object",
+      "run_index": 1
+    },
+    {
+      "hypothesis_id": "h2",
+      "phase": "affected",
+      "oracle": {
+        "type": "output_regex",
+        "description": "stdout shows the attacker key present on a plain object",
+        "expected_exit": null,
+        "expect_nonzero_exit": false,
+        "signal_name": null,
+        "marker_path": null,
+        "pattern": "probe: yes",
+        "threshold_ms": null,
+        "expect_traversal_to": null,
+        "probe_snippet": null
+      },
+      "fired": false,
+      "detail": "pattern 'probe: yes' not present in combined output",
+      "run_index": 2
+    }
+  ],
+  "differential": {
+    "fixed_version": "4.17.20",
+    "fix_commit": null,
+    "ran": true,
+    "flipped": null,
+    "detail": "fixed-version run completed; affected phase never fired, so no flip to observe",
+    "oracle_results": [
+      {
+        "hypothesis_id": "h1",
+        "phase": "fixed",
+        "oracle": {
+          "type": "prototype_pollution_probe",
+          "description": "fired when Object.prototype carries the attacker-controlled key after the call",
+          "expected_exit": null,
+          "expect_nonzero_exit": false,
+          "signal_name": null,
+          "marker_path": null,
+          "pattern": "polluted",
+          "threshold_ms": null,
+          "expect_traversal_to": null,
+          "probe_snippet": "if (({}).polluted !== undefined) process.exit(3);"
+        },
+        "fired": false,
+        "detail": "no attacker key observed on fixed version either",
+        "run_index": 3
+      }
+    ]
+  },
+  "coverage": {
+    "hypotheses_tested": 2,
+    "hypotheses_total": 2,
+    "hypotheses_triggered": 0,
+    "configs_tested": 1,
+    "versions_tested": ["4.17.19", "4.17.20"],
+    "statement": "2 hypotheses, 1 config, 0 triggered"
+  },
+  "tier": "Contradicted",
+  "tier_rationale": "Mock fixture: both declared hypotheses ran to completion on the claimed affected version and no oracle fired; the fixed-version run behaved the same. Coverage is stated so the negative result is interpretable — this is not a rejection of the report, and it never auto-closes one.",
+  "reply_draft": "Thanks for the report. We ran 2 hypotheses on lodash@4.17.19 in isolated sandboxes (1 config, 2 versions incl. the fixed one) and none of the declared oracles triggered. That does not disprove your finding — our harness is narrow — so the report stays open for human review. Exact commands and outputs are in the attached dossier. (Mock fixture text.)",
+  "events": [
+    {
+      "ts": "2026-10-06T12:00:01+00:00",
+      "report_id": "mock0000demo",
+      "stage": "extract",
+      "status": "ok",
+      "model": "nemotron-nano",
+      "tokens_in": 1200,
+      "tokens_out": 300,
+      "latency_ms": 800,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "claim extracted: prototype_pollution on lodash@4.17.19",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:02+00:00",
+      "report_id": "mock0000demo",
+      "stage": "ground",
+      "status": "ok",
+      "model": "nemotron-nano",
+      "tokens_in": 900,
+      "tokens_out": 200,
+      "latency_ms": 600,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "2 grounding items recorded",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:03+00:00",
+      "report_id": "mock0000demo",
+      "stage": "research",
+      "status": "ok",
+      "model": "nemotron-super",
+      "tokens_in": 1500,
+      "tokens_out": 400,
+      "latency_ms": 1100,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "2 public queries, 1 advisory, fixed version 4.17.20",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:04+00:00",
+      "report_id": "mock0000demo",
+      "stage": "hypothesize",
+      "status": "ok",
+      "model": "nemotron-ultra",
+      "tokens_in": 2000,
+      "tokens_out": 700,
+      "latency_ms": 1400,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "2 hypotheses with declared oracles",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:05+00:00",
+      "report_id": "mock0000demo",
+      "stage": "build",
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "latency_ms": 2100,
+      "sandbox_run_ids": ["run_mock_build"],
+      "cost": 0.004,
+      "cost_units": "credits",
+      "detail": "base image built once for lodash@4.17.19",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:06+00:00",
+      "report_id": "mock0000demo",
+      "stage": "fork_run",
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "latency_ms": 355,
+      "sandbox_run_ids": ["run_mock_poc_h1", "run_mock_poc_h2"],
+      "cost": 0.002,
+      "cost_units": "credits",
+      "detail": "2 forks, 0 oracles fired",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:07+00:00",
+      "report_id": "mock0000demo",
+      "stage": "differential",
+      "status": "ok",
+      "model": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "latency_ms": 170,
+      "sandbox_run_ids": ["run_mock_fixed_h1"],
+      "cost": 0.001,
+      "cost_units": "credits",
+      "detail": "fixed-version run completed; nothing to flip",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:08+00:00",
+      "report_id": "mock0000demo",
+      "stage": "verdict",
+      "status": "ok",
+      "model": "nemotron-super",
+      "tokens_in": 1800,
+      "tokens_out": 350,
+      "latency_ms": 900,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "tier: Contradicted (with coverage)",
+      "data": {}
+    },
+    {
+      "ts": "2026-10-06T12:00:09+00:00",
+      "report_id": "mock0000demo",
+      "stage": "reply",
+      "status": "ok",
+      "model": "nemotron-super",
+      "tokens_in": 1100,
+      "tokens_out": 280,
+      "latency_ms": 700,
+      "sandbox_run_ids": [],
+      "cost": null,
+      "cost_units": null,
+      "detail": "reply draft written",
+      "data": {}
+    }
+  ],
+  "cost": {
+    "inference_tokens_in": 8500,
+    "inference_tokens_out": 2230,
+    "inference_cost_usd": null,
+    "sandbox_cost": 0.008,
+    "sandbox_cost_units": "credits",
+    "elapsed_ms": 8205,
+    "measured": false
+  },
+  "limitations": [
+    "Mock fixture data — not a logged run. All live metrics come from recorded runs only.",
+    "npm packages only (SecBench.js scope).",
+    "PoC execution requires Sandboxes grants; without them no run is executed.",
+    "Grounding is evidence only and never a rejection basis. Reports are never auto-closed."
+  ]
+}

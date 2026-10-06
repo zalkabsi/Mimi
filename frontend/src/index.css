@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Mimi — dark, evidence-first surface. Everything decorative is deliberately
+ * quiet so commands, outputs and tier badges carry the visual weight.
+ */
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased;
+    /* Faint blueprint grid: a security-console texture, not decoration. */
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    @apply bg-sky-500/30 text-slate-100;
+  }
+
+  /* Thin scrollbars inside pre blocks and tables. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-800;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-700;
+  }
+}
+
+@layer components {
+  .focus-ring {
+    @apply focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40;
+  }
+}

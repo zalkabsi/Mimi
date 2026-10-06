@@ -1,0 +1,10 @@
+{
+  "build": {
+    "image_id": "",
+    "log": "npm ERR! 404 Not Found - GET https://registry.npmjs.org/lodash-not-real",
+    "ok": false,
+    "elapsed_ms": 500.0,
+    "detail": "build failed: npm install exited 1"
+  },
+  "runs": {}
+}
