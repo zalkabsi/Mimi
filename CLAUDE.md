@@ -22,7 +22,7 @@ Read in this order: `docs/01-research-and-decision.md` (why), `docs/02-architect
 
 ## Where we are
 
-Week 2 (Oct 6-12). Docs and repo hygiene were done 2026-09-30; the backend pipeline, API, CLI and spike scripts are now in `backend/` and `scripts/`. Frontend, eval harness and unit tests land next. Key check on 2026-09-30:
+Week 2 (Oct 6-12). Docs and repo hygiene were done 2026-09-30. As of 2026-10-06 the whole non-execution stack is in the repo: backend pipeline (`backend/mimi/`), API + CLI, spike scripts (`scripts/`), the React UI (`frontend/`, builds clean), the eval harness and a 27-case corpus (`evals/`), and 117 unit tests (`backend/tests/`, all passing). Nothing has run live yet this week because the keys are not in the local shell. Key check on 2026-09-30:
 
 - **Token Factory inference: works.** Base `https://api.tokenfactory.nebius.com/v1`. Exact Nemotron IDs are in `docs/00-constraints-and-open-items.md`. Nano is a reasoning model: pass `chat_template_kwargs: {"enable_thinking": false}` for cheap calls, and never use a tiny `max_tokens` with reasoning on (empty content).
 - **Tavily: works.**
