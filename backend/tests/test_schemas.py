@@ -41,12 +41,26 @@ def test_package_spec_parses_package_and_version():
     assert s.version == "4.17.20"
 
 
-def test_package_spec_scoped_package_currently_rejected():
-    # Pinned current behaviour: the validator splits on the FIRST "@", so a
-    # leading-@ scoped name ("@scope/pkg@1.2.3") has an empty name segment and
-    # is rejected. Scoped names therefore cannot be submitted as-is today.
+def test_package_spec_scoped_package_accepted():
+    # Scoped names are real npm packages ("@scope/pkg@1.2.3"). The validator
+    # must split on the LAST "@" of the spec so the leading "@" of the scope
+    # is part of the name, not a version separator.
+    s = ReportSubmission(report_text="r", package_spec="@scope/pkg@1.2.3")
+    assert s.package == "@scope/pkg"
+    assert s.version == "1.2.3"
+
+
+def test_package_spec_scoped_package_without_version_rejected():
+    # A name with no pinned version cannot be reproduced at "the exact affected
+    # version", so it is refused rather than silently accepted.
     with pytest.raises(ValidationError):
-        ReportSubmission(report_text="r", package_spec="@scope/pkg@1.2.3")
+        ReportSubmission(report_text="r", package_spec="@scope/pkg")
+
+
+def test_package_spec_empty_version_rejected():
+    # "lodash@" parses to a name with an empty version — refuse it.
+    with pytest.raises(ValidationError):
+        ReportSubmission(report_text="r", package_spec="lodash@")
 
 
 def test_package_spec_name_with_internal_separator():

@@ -14,13 +14,15 @@ from .config import Settings
 from .db import Database
 from .events import EventLog, now_iso
 from .llm import LLMClient
-from .sandboxes import Executor, SandboxExecutor
+from .sandboxes import Executor, RunBudget, SandboxExecutor
 from .schemas import (
     CostSummary,
     DifferentialResult,
     Dossier,
+    OracleResult,
     ReportSubmission,
     ResearchFindings,
+    RunRecord,
     Tier,
 )
 from .stages.differential import run_differential
@@ -52,12 +54,13 @@ class Pipeline:
         self.on_event = on_event
 
     def _db_event_sink(self, report_id: str):
-        if self.db is None:
+        db = self.db
+        if db is None:
             return self.on_event
 
         def sink(event: dict) -> None:
             try:
-                self.db.add_event(report_id, event)
+                db.add_event(report_id, event)
             except Exception:
                 pass
             if self.on_event:
@@ -86,6 +89,7 @@ class Pipeline:
 
         build_failed = False
         stopped_reason = ""
+        final_status = "complete"
         try:
             # --- stages 1-4: no sandbox needed -------------------------
             dossier.claim = extract_claim(submission, llm, events)
@@ -103,14 +107,18 @@ class Pipeline:
                 stopped_reason = "no executable hypotheses were generated"
 
             # --- stages 5-6: build once, fork per hypothesis -----------
-            runs = []
-            oracle_results = []
+            runs: list[RunRecord] = []
+            oracle_results: list[OracleResult] = []
+            # One allowance for the whole report: affected-phase forks and the
+            # fixed-version differential re-runs share it, so the configured
+            # max_runs_per_report is a real cap on untrusted executions.
+            budget = RunBudget(self.settings.max_runs_per_report)
             if dossier.hypotheses:
                 build = await build_base(submission, dossier.hypotheses, executor, self.settings, events)
                 build_failed = not build.ok
                 if build.ok:
                     runs, oracle_results = await run_hypotheses(
-                        dossier.hypotheses, build, executor, self.settings, events
+                        dossier.hypotheses, build, executor, self.settings, events, budget=budget
                     )
                 else:
                     stopped_reason = build.detail or "base build failed"
@@ -127,6 +135,7 @@ class Pipeline:
                     executor,
                     self.settings,
                     events,
+                    budget=budget,
                 )
                 dossier.differential = diff
                 dossier.runs.extend(fixed_runs)
@@ -162,18 +171,21 @@ class Pipeline:
                 dossier.reply_draft = f"(reply draft unavailable: {e})"
 
         except Exception as e:
+            # A crash is not a verdict. Persist it as an error, hand back a
+            # Needs human dossier, and never let the stored row claim "complete"
+            # (that would read as "the pipeline finished and this is the answer").
             events.emit("pipeline", "error", f"pipeline stopped: {e}")
             dossier.tier = Tier.NEEDS_HUMAN
             dossier.tier_rationale = f"Pipeline stopped before a verdict: {e}"
             dossier.limitations.append(f"pipeline error: {type(e).__name__}")
-            raise
+            final_status = "error"
         finally:
             dossier.events = list(events.events)
-            dossier.cost = self._cost_summary(dossier)
+            dossier.cost = self._cost_summary(dossier, wall_clock_ms=events.elapsed_ms)
             if not dossier.limitations:
                 self._fill_limitations(dossier)
             if self.db is not None:
-                self.db.upsert_report(dossier, status="complete")
+                self.db.upsert_report(dossier, status=final_status)
             if tavily is not None and self._tavily is None:
                 tavily.close()
             if self._llm is None:
@@ -185,11 +197,10 @@ class Pipeline:
                     pass
         return dossier
 
-    def _cost_summary(self, dossier: Dossier) -> CostSummary:
+    def _cost_summary(self, dossier: Dossier, *, wall_clock_ms: float = 0.0) -> CostSummary:
         tin = sum(e.tokens_in or 0 for e in dossier.events)
         tout = sum(e.tokens_out or 0 for e in dossier.events)
         sandbox_cost = [e.cost for e in dossier.events if e.cost is not None]
-        elapsed = dossier.events[-1].latency_ms if dossier.events else 0.0
         # Prices from docs/01 E12 (reported Token Factory prices). Flagged
         # measured=False until we confirm them on a real invoice-level run.
         prices = {
@@ -198,20 +209,39 @@ class Pipeline:
             "nvidia/NVIDIA-Nemotron-3-Ultra-550b-a55b": (1.00, 3.00),
         }
         cost = 0.0
+        priced_events = 0
+        unpriced_events = 0
         for e in dossier.events:
             if not e.model or e.tokens_in is None:
                 continue
             p = prices.get(e.model)
-            if p:
-                cost += (e.tokens_in / 1e6) * p[0] + ((e.tokens_out or 0) / 1e6) * p[1]
+            if p is None:
+                unpriced_events += 1
+                continue
+            priced_events += 1
+            cost += (e.tokens_in / 1e6) * p[0] + ((e.tokens_out or 0) / 1e6) * p[1]
+
+        # Never invent a dollar figure. If any model call had no listed price,
+        # the true cost is unknown — report None rather than $0.00, which reads
+        # as "we measured it and it was free".
+        if tin and priced_events and not unpriced_events:
+            inference_cost: Optional[float] = round(cost, 6)
+            priced_clean = True
+        elif tin and priced_events:
+            inference_cost = None
+            priced_clean = False
+        else:
+            inference_cost = None
+            priced_clean = not tin
+
         return CostSummary(
             inference_tokens_in=tin,
             inference_tokens_out=tout,
-            inference_cost_usd=round(cost, 6) if tin else None,
+            inference_cost_usd=inference_cost,
             sandbox_cost=sum(sandbox_cost) if sandbox_cost else None,
             sandbox_cost_units="contree-cost-units" if sandbox_cost else None,
-            elapsed_ms=float(elapsed or 0.0),
-            measured=bool(tin),
+            elapsed_ms=float(wall_clock_ms or 0.0),
+            measured=bool(priced_clean and (tin or sandbox_cost)),
         )
 
     @staticmethod

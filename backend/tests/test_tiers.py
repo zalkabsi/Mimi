@@ -35,8 +35,26 @@ def oracle_result(hid: str, fired: bool, phase: str = "affected") -> OracleResul
     )
 
 
-def poc_run(hid: str, phase: str = "poc") -> RunRecord:
-    return RunRecord(hypothesis_id=hid, phase=phase, command="node poc.js", exit_code=0)  # type: ignore[arg-type]
+def poc_run(hid: str, phase: str = "poc", config_key: str = "", error: str | None = None) -> RunRecord:
+    return RunRecord(
+        hypothesis_id=hid,
+        phase=phase,  # type: ignore[arg-type]
+        command="node poc.js",
+        exit_code=0 if error is None else None,
+        config_key=config_key,
+        error=error,
+    )
+
+
+def inconclusive(hid: str, phase: str = "affected") -> OracleResult:
+    return OracleResult(
+        hypothesis_id=hid,
+        phase=phase,  # type: ignore[arg-type]
+        oracle=Oracle(type=OracleType.OUTPUT_REGEX, pattern="VULN_TRIGGERED"),
+        fired=False,
+        conclusive=False,
+        detail="test: inconclusive",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +150,62 @@ def test_needs_human_when_nothing_ran():
     )
     assert d.tier is Tier.NEEDS_HUMAN
     assert "No hypothesis was executed" in d.rationale
+
+
+def test_needs_human_when_every_run_errored():
+    # Three errored runs must never become a quantified Contradicted — no PoC
+    # code ever executed, so "3 tested, 0 triggered" would be invented.
+    d = assign_tier(
+        oracle_results=[inconclusive(f"h{i}") for i in range(1, 4)],
+        differential=DifferentialResult(),
+        runs=[poc_run(f"h{i}", error="contree token expired") for i in range(1, 4)],
+        hypotheses_total=3,
+    )
+    assert d.tier is Tier.NEEDS_HUMAN
+    assert d.coverage.hypotheses_tested == 0
+    assert "invalid" not in d.rationale.lower()
+
+
+def test_needs_human_when_only_inconclusive_results():
+    # An inconclusive oracle is neither "fired" nor "did not fire".
+    d = assign_tier(
+        oracle_results=[inconclusive(f"h{i}") for i in range(1, 5)],
+        differential=DifferentialResult(),
+        runs=[poc_run(f"h{i}") for i in range(1, 5)],
+        hypotheses_total=5,
+    )
+    assert d.tier is Tier.NEEDS_HUMAN
+    assert "inconclusive" in d.rationale.lower() or "no hypothesis was executed" in d.rationale.lower()
+
+
+def test_inconclusive_results_do_not_count_toward_contradiction():
+    # Two conclusive negatives + three inconclusive must not read as "5 tested".
+    d = assign_tier(
+        oracle_results=[
+            oracle_result("h1", False),
+            oracle_result("h2", False),
+            inconclusive("h3"),
+            inconclusive("h4"),
+            inconclusive("h5"),
+        ],
+        differential=DifferentialResult(),
+        runs=[poc_run(f"h{i}") for i in range(1, 6)],
+        hypotheses_total=5,
+    )
+    assert d.coverage.hypotheses_tested == 2
+    assert d.tier is Tier.NEEDS_HUMAN  # below the minimum of 3
+
+
+def test_nothing_fired_but_coverage_sufficient_contradicts():
+    d = assign_tier(
+        oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 4)],
+        differential=DifferentialResult(),
+        runs=[poc_run(f"h{i}", config_key=f"cfg{i}") for i in range(1, 4)],
+        hypotheses_total=3,
+    )
+    assert d.tier is Tier.CONTRADICTED
+    assert d.coverage.hypotheses_tested == 3
+    assert "0 triggered" in d.rationale
 
 
 def test_needs_human_when_coverage_under_three():
@@ -240,7 +314,7 @@ def test_coverage_statement_format():
     cov = compute_coverage(
         hypotheses_total=3,
         oracle_results=[oracle_result(f"h{i}", fired) for i, fired in enumerate([True, False, False], 1)],
-        runs=[poc_run(f"h{i}") for i in range(1, 4)],
+        runs=[poc_run(f"h{i}", config_key=f"cfg{i}") for i in range(1, 4)],
     )
     assert cov.statement == "3 hypotheses, 3 configs, 1 triggered"
     assert cov.hypotheses_tested == 3
@@ -255,7 +329,7 @@ def test_coverage_statement_matches_pattern():
     cov = compute_coverage(
         hypotheses_total=7,
         oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 5)],
-        runs=[poc_run(f"h{i}") for i in range(1, 5)],
+        runs=[poc_run(f"h{i}", config_key=f"cfg{i}") for i in range(1, 5)],
     )
     assert re.fullmatch(r"\d+ hypotheses, \d+ configs, \d+ triggered", cov.statement)
     assert cov.statement == "4 hypotheses, 4 configs, 0 triggered"
@@ -271,6 +345,52 @@ def test_coverage_counts_configs_from_runs():
     assert cov.configs_tested == 1
     assert cov.hypotheses_tested == 2
     assert cov.statement == "2 hypotheses, 1 configs, 0 triggered"
+
+
+def test_coverage_configs_mean_environments_not_hypotheses():
+    # Three hypotheses in the SAME environment are one configuration.
+    cov = compute_coverage(
+        hypotheses_total=3,
+        oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 4)],
+        runs=[poc_run(f"h{i}", config_key="same-env") for i in range(1, 4)],
+    )
+    assert cov.hypotheses_tested == 3
+    assert cov.configs_tested == 1
+
+
+def test_coverage_configs_count_distinct_environments():
+    cov = compute_coverage(
+        hypotheses_total=3,
+        oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 4)],
+        runs=[
+            poc_run("h1", config_key="node18"),
+            poc_run("h2", config_key="node20"),
+            poc_run("h3", config_key="node18"),
+        ],
+    )
+    assert cov.configs_tested == 2
+
+
+def test_coverage_errored_runs_are_not_tested():
+    # Three errored runs must not become "3 hypotheses tested, 0 triggered".
+    cov = compute_coverage(
+        hypotheses_total=3,
+        oracle_results=[inconclusive(f"h{i}") for i in range(1, 4)],
+        runs=[poc_run(f"h{i}", error="sandbox timeout") for i in range(1, 4)],
+    )
+    assert cov.hypotheses_tested == 0
+    assert cov.configs_tested == 0
+    assert cov.hypotheses_triggered == 0
+
+
+def test_coverage_no_executed_runs_means_zero_configs():
+    cov = compute_coverage(
+        hypotheses_total=2,
+        oracle_results=[inconclusive("h1"), inconclusive("h2")],
+        runs=[],
+    )
+    assert cov.configs_tested == 0
+    assert cov.statement == "0 hypotheses, 0 configs, 0 triggered"
 
 
 def test_coverage_versions_recorded_when_passed():

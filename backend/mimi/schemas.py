@@ -13,6 +13,29 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
+def split_package_spec(spec: str) -> tuple[str, str]:
+    """Split an npm spec into (name, version).
+
+    Scoped packages put an ``@`` in the name (``@scope/name@1.2.3``), so the
+    name is everything before the *last* ``@`` that is followed by a version,
+    and the leading ``@`` of a scope is part of the name. Returns ``""`` for
+    whichever side is absent.
+    """
+    s = (spec or "").strip()
+    if not s:
+        return "", ""
+    if s.startswith("@"):
+        # @scope/name or @scope/name@version — split on the last "@".
+        if "@" not in s[1:]:
+            return s, ""
+        name, _, version = s.rpartition("@")
+        return name.strip(), version.strip()
+    if "@" not in s:
+        return s, ""
+    name, _, version = s.partition("@")
+    return name.strip(), version.strip()
+
+
 # ---------------------------------------------------------------------------
 # Claim (stage 1 output)
 # ---------------------------------------------------------------------------
@@ -178,6 +201,9 @@ class RunRecord(BaseModel):
     signal: Optional[str] = None
     stdout: str = ""
     stderr: str = ""
+    # Trusted probe output, captured from a separate post-PoC command. Probe
+    # oracles read ONLY this field — the PoC's own stdout cannot forge a verdict.
+    probe_output: str = ""
     elapsed_ms: float = 0.0
     cost: Optional[float] = None
     cost_units: Optional[str] = None  # ProcessResources.cost units are unknown; keep raw
@@ -186,6 +212,8 @@ class RunRecord(BaseModel):
     network_isolated: Optional[bool] = None
     truncated: bool = False
     error: Optional[str] = None
+    # Fingerprint of the RunConfig this ran under — what "K configs" counts.
+    config_key: str = ""
 
 
 class OracleResult(BaseModel):
@@ -195,6 +223,11 @@ class OracleResult(BaseModel):
     fired: bool
     detail: str = ""
     run_index: int = 0  # index into Dossier.runs
+    # True only when this is a real determination: the PoC actually ran, the
+    # oracle was correctly configured, and the evidence was complete enough to
+    # judge. False for errored runs, misconfigured oracles, missing probe
+    # verdicts and truncated output — those are inconclusive, NOT "did not fire".
+    conclusive: bool = True
 
 
 class DifferentialResult(BaseModel):
@@ -298,14 +331,20 @@ class ReportSubmission(BaseModel):
     @field_validator("package_spec")
     @classmethod
     def _check_spec(cls, v: str) -> str:
-        if "@" not in v or not v.split("@", 1)[0].strip():
-            raise ValueError("package_spec must look like 'package@version'")
-        return v.strip()
+        spec = (v or "").strip()
+        if not spec:
+            raise ValueError("package_spec is empty")
+        name, version = split_package_spec(spec)
+        if not name:
+            raise ValueError("package_spec must include a package name, e.g. 'lodash@4.17.20'")
+        if not version:
+            raise ValueError("package_spec must pin a version, e.g. 'lodash@4.17.20'")
+        return spec
 
     @property
     def package(self) -> str:
-        return self.package_spec.split("@", 1)[0].strip()
+        return split_package_spec(self.package_spec)[0]
 
     @property
     def version(self) -> str:
-        return self.package_spec.split("@", 1)[1].strip()
+        return split_package_spec(self.package_spec)[1]

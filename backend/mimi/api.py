@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import queue
 import threading
 import uuid
@@ -37,12 +38,35 @@ app.add_middleware(
 _settings = Settings.from_env()
 _db = Database(_settings.db_path)
 _tasks: dict[str, asyncio.Task] = {}
+# Live SSE fan-out: one list of subscriber queues per report. The pipeline
+# publishes to every queue in the list; each stream owns one queue.
 _event_queues: dict[str, list[queue.Queue]] = {}
+_event_lock = threading.Lock()
+# Reports whose pipeline has finished, so a late subscriber still terminates.
+_finished: set[str] = set()
+
+
+def _publish(report_id: str, event: dict) -> None:
+    with _event_lock:
+        subscribers = list(_event_queues.get(report_id, ()))
+    for q in subscribers:
+        q.put(event)
+
+
+def _finish(report_id: str) -> None:
+    """Mark the run finished and tell every subscriber to stop."""
+    with _event_lock:
+        _finished.add(report_id)
+        subscribers = list(_event_queues.get(report_id, ()))
+        _event_queues.pop(report_id, None)
+        _tasks.pop(report_id, None)
+    for q in subscribers:
+        q.put(None)  # sentinel: end this stream
 
 
 def _check_access(x_mimi_key: Optional[str]) -> str:
     """Three tiers. With no MIMI_JUDGE_KEY configured, demo mode only."""
-    judge_key = __import__("os").environ.get("MIMI_JUDGE_KEY")
+    judge_key = os.environ.get("MIMI_JUDGE_KEY")
     if judge_key and x_mimi_key == judge_key:
         return "judge"
     if x_mimi_key:
@@ -85,11 +109,9 @@ async def submit_report(
             detail="demo mode is read-only; use the judge credential or self-host to run live reports",
         )
     report_id = uuid.uuid4().hex[:12]
-    q: queue.Queue = queue.Queue()
-    _event_queues.setdefault(report_id, []).append(q)
 
     def sink(event: dict) -> None:
-        q.put(event)
+        _publish(report_id, event)
 
     pipeline = Pipeline(_settings, db=_db, on_event=sink)
 
@@ -97,32 +119,60 @@ async def submit_report(
         try:
             await pipeline.run(submission, source="api", report_id=report_id)
         except Exception as e:
-            q.put({"stage": "pipeline", "status": "error", "detail": str(e)})
+            _publish(report_id, {"stage": "pipeline", "status": "error", "detail": str(e)})
         finally:
-            q.put(None)  # sentinel
+            _finish(report_id)
 
-    task = asyncio.create_task(_run())
-    _tasks[report_id] = task
+    # Register under the same lock _finish takes, so a pipeline that completes
+    # immediately cannot leave a stale entry behind after _finish popped it.
+    with _event_lock:
+        _finished.discard(report_id)
+        task = asyncio.create_task(_run())
+        _tasks[report_id] = task
     return {"report_id": report_id, "status": "running"}
 
 
 @app.get("/api/reports/{report_id}/stream")
 async def stream_events(report_id: str) -> StreamingResponse:
     q: queue.Queue = queue.Queue()
-    _event_queues.setdefault(report_id, []).append(q)
+    with _event_lock:
+        already_finished = report_id in _finished
+        is_running = report_id in _tasks
+        if not already_finished:
+            _event_queues.setdefault(report_id, []).append(q)
+
+    if not already_finished and not is_running and _db.get_report(report_id) is None:
+        # Nothing will ever publish to this id. Ending in a keep-alive loop
+        # would hang the client forever — refuse it instead.
+        with _event_lock:
+            subscribers = _event_queues.get(report_id)
+            if subscribers and q in subscribers:
+                subscribers.remove(q)
+        raise HTTPException(status_code=404, detail="no such report")
+
+    # Replay whatever is already recorded, then follow live events. A run that
+    # finished before this subscriber connected gets its history and stops.
     for past in _db.list_events(report_id):
         q.put(past)
+    if already_finished:
+        q.put(None)
 
     def gen():
-        while True:
-            try:
-                item = q.get(timeout=15.0)
-            except queue.Empty:
-                yield ": keep-alive\n\n"
-                continue
-            if item is None:
-                break
-            yield f"data: {json.dumps(item)}\n\n"
+        try:
+            while True:
+                try:
+                    item = q.get(timeout=15.0)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+                    continue
+                if item is None:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+        finally:
+            with _event_lock:
+                subscribers = _event_queues.get(report_id)
+                if subscribers and q in subscribers:
+                    subscribers.remove(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

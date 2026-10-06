@@ -128,6 +128,18 @@ export function streamEvents(
   let cleaned = false;
   let pollTimer: number | null = null;
   let source: EventSource | null = null;
+  // Polling returns the FULL recorded history each tick. Keep a seen-set so a
+  // tick only forwards events the timeline has not already received (from a
+  // previous tick, or from the live SSE stream before it dropped).
+  const seen = new Set<string>();
+  const eventKey = (ev: StageEvent): string =>
+    `${ev.ts}|${ev.stage}|${ev.status}|${ev.detail ?? ""}`;
+  const deliver = (ev: StageEvent) => {
+    const key = eventKey(ev);
+    if (seen.has(key)) return;
+    seen.add(key);
+    onEvent(ev);
+  };
 
   const startPolling = (reason: string) => {
     if (cleaned || pollTimer !== null) return;
@@ -136,7 +148,7 @@ export function streamEvents(
       try {
         const events = await getEvents(reportId);
         if (cleaned) return;
-        for (const ev of events) onEvent(ev);
+        for (const ev of events) deliver(ev);
       } catch {
         // keep polling; the next tick may succeed
       }
@@ -149,7 +161,7 @@ export function streamEvents(
     source = new EventSource(`${API_BASE}/api/reports/${encoded}/stream`);
     source.onmessage = (msg: MessageEvent<string>) => {
       try {
-        onEvent(JSON.parse(msg.data) as StageEvent);
+        deliver(JSON.parse(msg.data) as StageEvent);
       } catch {
         // ignore malformed frames (keep-alives are comments, not messages)
       }

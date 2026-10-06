@@ -13,15 +13,17 @@ layers are fakes. Safety properties asserted here:
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
 import pytest
 
 from mimi.config import Settings, Stage
+from mimi.db import Database
 from mimi.pipeline import Pipeline
 from mimi.sandboxes import FixtureExecutor
-from mimi.schemas import PublicIdentifiers, ReportSubmission, ResearchFindings, Tier
+from mimi.schemas import Dossier, PublicIdentifiers, ReportSubmission, ResearchFindings, Tier
 from mimi.redaction import build_queries
 
 REPORT_TEXT = (
@@ -265,11 +267,32 @@ def test_pipeline_contradicted_with_coverage(no_network, monkeypatch, fixtures_d
     )
     assert_core_properties(dossier)
     assert dossier.tier is Tier.CONTRADICTED
-    assert dossier.coverage.statement.startswith("3 hypotheses, 3 configs, 0 triggered")
+    # All three hypotheses used the default RunConfig, so they are ONE
+    # environment — "3 configs" would invent diversity that never ran.
+    assert dossier.coverage.statement.startswith("3 hypotheses, 1 configs, 0 triggered")
     assert dossier.coverage.hypotheses_tested == 3
+    assert dossier.coverage.configs_tested == 1
     assert dossier.coverage.hypotheses_triggered == 0
     assert "invalid" not in dossier.tier_rationale.lower()
     assert len(dossier.runs) == 3
+
+
+def test_pipeline_configs_are_counted_per_environment(no_network, monkeypatch, fixtures_dir):
+    # Same three hypotheses, but each pinned to a different Node version: the
+    # coverage statement must then claim three configurations, because three
+    # distinct environments really were exercised.
+    findings = ResearchFindings(queries=["lodash 4.17.20 vulnerability"], fixed_version=None, used=True)
+    hs = []
+    for i, node in enumerate(("16", "18", "20"), start=1):
+        h = hypothesis(f"h{i}", i)
+        h["node_version"] = node
+        hs.append(h)
+    dossier, llm, tavily = run_pipeline(
+        monkeypatch, fixtures_dir, "contradicted.json", hypotheses=hs, findings=findings
+    )
+    assert dossier.tier is Tier.CONTRADICTED
+    assert dossier.coverage.configs_tested == 3
+    assert dossier.coverage.statement.startswith("3 hypotheses, 3 configs, 0 triggered")
 
 
 def test_pipeline_contradicted_rationale_states_negative_result(no_network, monkeypatch, fixtures_dir):
@@ -386,3 +409,135 @@ def test_pipeline_tier_is_always_one_of_four(no_network, monkeypatch, fixtures_d
         )
         assert dossier.tier in (Tier.CONFIRMED, Tier.LIKELY, Tier.NEEDS_HUMAN, Tier.CONTRADICTED)
         assert dossier.events
+
+
+# ---------------------------------------------------------------------------
+# Cost accounting must not invent dollars or milliseconds
+# ---------------------------------------------------------------------------
+
+def _event_dossier(events) -> Dossier:
+    d = Dossier(report_id="c1", report_text="r", package_spec="lodash@4.17.20")
+    d.events = list(events)
+    return d
+
+
+def test_cost_invented_zero_dollars_for_unpriced_model():
+    # A model with no listed price means "unknown", not "$0.00". Reporting a
+    # measured zero would be an invented metric.
+    from mimi.schemas import StageEvent
+
+    ev = StageEvent(
+        ts="2026-10-06T00:00:00+00:00",
+        report_id="c1",
+        stage="extract",
+        status="ok",
+        model="nvidia/NVIDIA-Nemotron-3_5-Lightning",  # no price in the table
+        tokens_in=1_000,
+        tokens_out=200,
+    )
+    pipeline = Pipeline(Settings(), executor=FixtureExecutor("/dev/null"))
+    cost = pipeline._cost_summary(_event_dossier([ev]), wall_clock_ms=12.0)
+    assert cost.inference_tokens_in == 1_000
+    assert cost.inference_tokens_out == 200
+    assert cost.inference_cost_usd is None
+    assert cost.measured is False
+
+
+def test_cost_partial_pricing_is_not_summed_into_a_single_number():
+    from mimi.schemas import StageEvent
+
+    priced = StageEvent(
+        ts="2026-10-06T00:00:00+00:00",
+        report_id="c1",
+        stage="extract",
+        status="ok",
+        model="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+        tokens_in=1_000_000,
+        tokens_out=0,
+    )
+    unpriced = StageEvent(
+        ts="2026-10-06T00:00:01+00:00",
+        report_id="c1",
+        stage="hypothesize",
+        status="ok",
+        model="nvidia/NVIDIA-Nemotron-3_5-Lightning",
+        tokens_in=500_000,
+        tokens_out=0,
+    )
+    pipeline = Pipeline(Settings(), executor=FixtureExecutor("/dev/null"))
+    cost = pipeline._cost_summary(_event_dossier([priced, unpriced]), wall_clock_ms=5.0)
+    # Half the tokens have no price: the total is unknown.
+    assert cost.inference_cost_usd is None
+    assert cost.measured is False
+
+
+def test_cost_priced_models_are_summed_and_marked_measured():
+    from mimi.schemas import StageEvent
+
+    ev = StageEvent(
+        ts="2026-10-06T00:00:00+00:00",
+        report_id="c1",
+        stage="extract",
+        status="ok",
+        model="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+        tokens_in=1_000_000,
+        tokens_out=1_000_000,
+    )
+    pipeline = Pipeline(Settings(), executor=FixtureExecutor("/dev/null"))
+    cost = pipeline._cost_summary(_event_dossier([ev]), wall_clock_ms=9.0)
+    assert cost.inference_cost_usd == pytest.approx(0.06 + 0.24)
+    assert cost.measured is True
+
+
+def test_cost_elapsed_is_the_run_wall_clock_not_the_last_stage():
+    from mimi.schemas import StageEvent
+
+    evs = [
+        StageEvent(ts="2026-10-06T00:00:00+00:00", report_id="c1", stage="extract", status="ok", latency_ms=3.0),
+        StageEvent(ts="2026-10-06T00:00:05+00:00", report_id="c1", stage="verdict", status="ok", latency_ms=7.0),
+    ]
+    pipeline = Pipeline(Settings(), executor=FixtureExecutor("/dev/null"))
+    cost = pipeline._cost_summary(_event_dossier(evs), wall_clock_ms=5000.0)
+    assert cost.elapsed_ms == 5000.0
+    assert cost.elapsed_ms != 7.0  # the last stage's own latency is not the run's
+
+
+# ---------------------------------------------------------------------------
+# A crashed run must not be stored as "complete"
+# ---------------------------------------------------------------------------
+
+def test_crashed_pipeline_persists_error_status(no_network, monkeypatch):
+    monkeypatch.setattr(httpx, "Client", FakeHttpClient)
+    # A scratch db next to the tests: pytest's tmp_path is unavailable on this
+    # Windows host (the shared temp root is not writable).
+    db_path = Path(__file__).resolve().parent / "_test_crash.db"
+    if db_path.exists():
+        db_path.unlink()
+    db = Database(str(db_path))
+    try:
+        settings = Settings(db_path=str(db_path))
+        executor = FixtureExecutor("nonexistent.json")
+        llm = FakeLLM(claim=CLAIM, hypotheses=[hypothesis("h1")])
+        tavily = FakeTavily(ResearchFindings(used=False))
+        pipeline = Pipeline(settings, executor=executor, llm=llm, tavily=tavily, db=db)
+
+        def _explode(*a, **kw):
+            raise RuntimeError("simulated stage crash")
+
+        monkeypatch.setattr("mimi.pipeline.extract_claim", _explode)
+
+        submission = ReportSubmission(report_text=REPORT_TEXT, package_spec="lodash@4.17.20")
+        dossier = asyncio.run(pipeline.run(submission, source="cli"))
+
+        # The dossier is still handed back as a Needs human result — a crash is
+        # never a verdict.
+        assert dossier.tier is Tier.NEEDS_HUMAN
+        assert "simulated stage crash" in dossier.tier_rationale
+        assert any("pipeline error" in lim for lim in dossier.limitations)
+
+        assert db.get_report(dossier.report_id) is not None
+        assert db.get_status(dossier.report_id) == "error"
+    finally:
+        db.close()
+        if db_path.exists():
+            db_path.unlink()

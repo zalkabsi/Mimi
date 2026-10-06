@@ -45,11 +45,6 @@ def adjudicate(
     """Assign the tier deterministically; optionally let the model narrate."""
     t0 = events.start("verdict") if events else None
 
-    # Versions actually executed — measured, never inferred. The fixed version
-    # only counts when the differential really ran.
-    versions = [submission.version]
-    if differential.ran and differential.fixed_version:
-        versions.append(differential.fixed_version)
     decision = assign_tier(
         oracle_results=oracle_results,
         differential=differential,
@@ -58,12 +53,22 @@ def adjudicate(
         build_failed=build_failed,
         stopped_reason=stopped_reason,
     )
-    decision.coverage.versions_tested = [v for v in versions if v]
+
+    # Versions actually executed — measured, never inferred. The submitted
+    # version counts only if a PoC run really happened against it; the fixed
+    # version counts only if the differential actually ran there.
+    versions: list[str] = []
+    ran_affected = any(r.phase in ("poc", "affected") and not r.error for r in runs)
+    if ran_affected and submission.version:
+        versions.append(submission.version)
+    if differential.ran and differential.fixed_version:
+        versions.append(differential.fixed_version)
+    decision.coverage.versions_tested = versions
     decision.coverage.statement = (
         f"{decision.coverage.hypotheses_tested} hypotheses, "
         f"{decision.coverage.configs_tested} configs, "
         f"{decision.coverage.hypotheses_triggered} triggered"
-        + (f", versions: {', '.join(decision.coverage.versions_tested)}" if decision.coverage.versions_tested else "")
+        + (f", versions: {', '.join(versions)}" if versions else "")
     )
 
     if llm is not None:

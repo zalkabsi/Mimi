@@ -61,8 +61,16 @@ def cmd_whoami(args: argparse.Namespace) -> int:
         print(str(e), file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2))
+    # A probe that failed to reach the API is not a pass. Exit non-zero so a
+    # script or CI step cannot treat "no answer" as "all good".
+    if not result.get("ok"):
+        print("\nwhoami did not reach a working endpoint.", file=sys.stderr)
+        return 4
     perms = result.get("permissions") or {}
-    if perms and not any(perms.values()):
+    if not perms:
+        print("\nwhoami returned no permissions block.", file=sys.stderr)
+        return 4
+    if not any(perms.values()):
         print(
             "\nBLOCKER: the key authenticates but every permission is false. "
             "Do not start Sandboxes work; see docs/00-constraints-and-open-items.md.",

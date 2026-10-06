@@ -13,7 +13,7 @@ from typing import Any, Optional
 import httpx
 
 from .config import Settings
-from .redaction import assert_no_leak, build_queries
+from .redaction import assert_no_leak, build_queries, verify_query
 from .schemas import Advisory, PublicIdentifiers, ResearchFindings
 
 
@@ -37,6 +37,10 @@ class TavilyClient:
         self.settings.require_tavily()
         queries = build_queries(ids)
         for q in queries:
+            # Whitelist first: every token must be a public identifier or a word
+            # from the fixed vocabulary. Then the prose-run check, which still
+            # applies even to identifiers if they were quoted from the report.
+            verify_query(q, ids)
             assert_no_leak(q, report_text)
 
         findings = ResearchFindings(queries=queries, used=True)

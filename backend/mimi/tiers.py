@@ -39,17 +39,36 @@ def compute_coverage(
     runs: list[RunRecord],
     versions: Optional[list[str]] = None,
 ) -> Coverage:
-    tested_ids = {r.hypothesis_id for r in oracle_results} | {
-        r.hypothesis_id for r in runs if r.phase == "poc"
-    }
-    fired_ids = {r.hypothesis_id for r in oracle_results if r.fired}
-    # One config per hypothesis id (the run config); count distinct ids executed.
-    configs_tested = len({r.hypothesis_id for r in runs if r.phase in ("poc", "fixed")})
+    """Coverage counts only what was actually judged.
+
+    A hypothesis is "tested" when at least one of its oracle results is
+    *conclusive* — the PoC ran and the oracle could make a determination.
+    Errored runs, misconfigured oracles and truncated output do not count,
+    because "N tested, 0 triggered" would otherwise be a lie.
+    """
+    conclusive = [r for r in oracle_results if r.conclusive]
+    tested_ids = {r.hypothesis_id for r in conclusive}
+    fired_ids = {r.hypothesis_id for r in conclusive if r.fired}
+
+    # Distinct environments actually exercised by executed affected-phase runs.
+    # "K configs" must mean K environments, not K hypotheses — three hypotheses
+    # run in one image are one configuration. When runs carry no fingerprint at
+    # all we can only honestly claim that one environment ran; we never fall
+    # back to the hypothesis count, which would invent diversity.
+    executed = [run for run in runs if run.phase == "poc" and not run.error]
+    config_keys = {run.config_key for run in executed if run.config_key}
+    if config_keys:
+        configs_tested = len(config_keys)
+    elif executed:
+        configs_tested = 1
+    else:
+        configs_tested = 0
+
     cov = Coverage(
         hypotheses_tested=len(tested_ids),
         hypotheses_total=hypotheses_total,
         hypotheses_triggered=len(fired_ids),
-        configs_tested=configs_tested if configs_tested else len(tested_ids),
+        configs_tested=configs_tested,
         versions_tested=list(versions or []),
     )
     cov.statement = (
@@ -73,10 +92,15 @@ def assign_tier(
     """The whole tier table as code. Deterministic, unit-tested."""
     cov = coverage or compute_coverage(hypotheses_total, oracle_results, runs)
 
-    fired = [r for r in oracle_results if r.phase == "affected" and r.fired]
-    all_affected = [r for r in oracle_results if r.phase == "affected"]
+    # Only conclusive results are evidence. An inconclusive result is neither
+    # "fired" nor "did not fire".
+    fired = [r for r in oracle_results if r.phase == "affected" and r.conclusive and r.fired]
+    inconclusive = [r for r in oracle_results if r.phase == "affected" and not r.conclusive]
+    conclusive_affected = [r for r in oracle_results if r.phase == "affected" and r.conclusive]
 
-    # 1. Confirmed: fired on affected and the differential flipped.
+    # 1. Confirmed: fired on affected and the differential flipped. A flip is
+    #    only real when the fixed-version runs actually executed (the
+    #    differential module sets flipped=None when they did not).
     if fired and differential.ran and differential.flipped is True:
         return TierDecision(
             Tier.CONFIRMED,
@@ -87,15 +111,6 @@ def assign_tier(
             ),
             cov,
         )
-
-    # 2. Likely: fired, but no usable differential.
-    if fired and not (differential.ran and differential.flipped is False):
-        why = (
-            "no fixed version known"
-            if not differential.ran
-            else f"differential did not confirm the flip ({differential.detail or 'no detail'})"
-        )
-        return TierDecision(Tier.LIKELY, f"Oracle fired on the affected version; {why}.", cov)
 
     # Fired on affected AND on fixed: the oracle does not measure the bug.
     if fired and differential.ran and differential.flipped is False:
@@ -108,6 +123,14 @@ def assign_tier(
             cov,
         )
 
+    # 2. Likely: fired, but no usable differential.
+    if fired and not (differential.ran and differential.flipped is False):
+        if not differential.ran:
+            why = differential.detail or "no fixed version known"
+        else:
+            why = f"differential did not confirm the flip ({differential.detail or 'no detail'})"
+        return TierDecision(Tier.LIKELY, f"Oracle fired on the affected version; {why}.", cov)
+
     # 3. Needs human: nothing conclusive to run, or coverage too low to say.
     if build_failed:
         return TierDecision(
@@ -116,10 +139,15 @@ def assign_tier(
             cov,
         )
 
-    if not all_affected:
+    if not conclusive_affected:
+        extra = (
+            f" {len(inconclusive)} run(s) did not reach an oracle judgment."
+            if inconclusive
+            else ""
+        )
         return TierDecision(
             Tier.NEEDS_HUMAN,
-            f"No hypothesis was executed to an oracle. {stopped_reason}".strip(),
+            f"No hypothesis was executed to a conclusive oracle.{extra} {stopped_reason}".strip(),
             cov,
         )
 
@@ -127,7 +155,7 @@ def assign_tier(
         return TierDecision(
             Tier.NEEDS_HUMAN,
             (
-                f"Only {cov.hypotheses_tested} hypotheses ran (minimum "
+                f"Only {cov.hypotheses_tested} hypotheses ran to a judgment (minimum "
                 f"{min_coverage_to_contradict} to call a negative result). "
                 f"Coverage: {cov.statement}."
             ),

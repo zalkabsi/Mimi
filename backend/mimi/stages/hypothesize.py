@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from ..config import Stage
 from ..events import EventLog
 from ..llm import LLMClient
+from ..sandboxes import ConfigRejected, validate_run_config
 from ..schemas import (
     Claim,
     GroundingEvidence,
@@ -126,8 +127,14 @@ def hypothesize(
     hypotheses: list[Hypothesis] = []
     for i, item in enumerate(raw[:max_hypotheses]):
         try:
-            hypotheses.append(_parse(item, i))
-        except (ValidationError, ValueError) as e:
+            h = _parse(item, i)
+            # Code-side enforcement of the fixed command set, not just prompt
+            # text. A hypothesis whose config is outside the allowlist is
+            # dropped before it can ever reach the executor (docs/02-architecture
+            # prompt-injection rule).
+            validate_run_config(h.config, where=f"hypothesis {h.id}")
+            hypotheses.append(h)
+        except (ValidationError, ValueError, ConfigRejected) as e:
             events.emit("hypothesize", "ok", f"skipped malformed hypothesis {i}: {e}")
 
     hypotheses.sort(key=lambda h: h.priority)

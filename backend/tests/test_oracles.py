@@ -3,6 +3,12 @@
 Safety property: ``check_oracle`` is a pure function over a RunRecord. It
 never raises — a misconfigured or invalid oracle returns ``fired=False`` with
 an explanatory detail. Every OracleType gets a fired case and a not-fired case.
+
+Evidence honesty: a result is conclusive only when the PoC ran, the oracle was
+correctly configured, and the evidence was complete. Truncated output, missing
+probe verdicts and misconfigured oracles are inconclusive — never "did not
+fire". Probe oracles read ``RunRecord.probe_output`` (the trusted post-PoC
+channel), never the PoC's own stdout, which can forge any token.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ def run(**kw) -> RunRecord:
         exit_code=0,
         stdout="",
         stderr="",
+        probe_output="",
         elapsed_ms=10.0,
     )
     base.update(kw)
@@ -130,28 +137,41 @@ def test_output_regex_misconfigured_unset_pattern():
 
 
 # ---------------------------------------------------------------------------
-# marker_file
+# marker_file (trusted probe channel)
 # ---------------------------------------------------------------------------
 
 def test_marker_file_fired():
     o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    r = run(stdout="__MIMI_MARKER_VERDICT__:/tmp/pwned:present\n")
-    assert check(o, r).fired is True
+    r = run(probe_output="__MIMI_MARKER_VERDICT__:/tmp/pwned:present\n")
+    res = check(o, r)
+    assert res.fired is True
+    assert res.conclusive is True
 
 
 def test_marker_file_not_fired_when_absent():
     o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    r = run(stdout="__MIMI_MARKER_VERDICT__:/tmp/pwned:absent\n")
+    r = run(probe_output="__MIMI_MARKER_VERDICT__:/tmp/pwned:absent\n")
     res = check(o, r)
     assert res.fired is False
+    assert res.conclusive is True
     assert "absent" in res.detail
 
 
-def test_marker_file_not_fired_when_verdict_line_missing():
+def test_marker_file_inconclusive_when_verdict_line_missing():
     o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    res = check(o, run(stdout="no probe output at all"))
+    res = check(o, run(probe_output="no probe output at all"))
     assert res.fired is False
-    assert "verdict line missing" in res.detail
+    assert res.conclusive is False
+    assert "verdict missing" in res.detail
+
+
+def test_marker_file_not_forgeable_from_stdout():
+    # A PoC that prints the verdict token must not be able to claim the marker.
+    o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
+    r = run(stdout="__MIMI_MARKER_VERDICT__:/tmp/pwned:present\n", probe_output="")
+    res = check(o, r)
+    assert res.fired is False
+    assert res.conclusive is False
 
 
 # ---------------------------------------------------------------------------
@@ -172,96 +192,155 @@ def test_timing_threshold_misconfigured():
     o = Oracle(type=OracleType.TIMING_THRESHOLD, threshold_ms=None)
     res = check(o, run(elapsed_ms=9999.0))
     assert res.fired is False
+    assert res.conclusive is False
     assert "misconfigured" in res.detail
 
 
+def test_timing_threshold_rejects_nonpositive():
+    # A zero/negative threshold would fire on every run, inventing evidence.
+    o = Oracle(type=OracleType.TIMING_THRESHOLD, threshold_ms=0)
+    res = check(o, run(elapsed_ms=1.0))
+    assert res.fired is False
+    assert res.conclusive is False
+    assert "threshold_ms must be > 0" in res.detail
+
+
 # ---------------------------------------------------------------------------
-# prototype_pollution_probe
+# prototype_pollution_probe (trusted probe channel)
 # ---------------------------------------------------------------------------
 
 def test_proto_probe_fired():
     o = Oracle(type=OracleType.PROTOTYPE_POLLUTION_PROBE)
-    assert check(o, run(stdout="__MIMI_PROTO_POLLUTED__:true")).fired is True
+    res = check(o, run(probe_output="__MIMI_PROTO_POLLUTED__:true"))
+    assert res.fired is True
+    assert res.conclusive is True
 
 
 def test_proto_probe_not_fired():
     o = Oracle(type=OracleType.PROTOTYPE_POLLUTION_PROBE)
-    res = check(o, run(stdout="__MIMI_PROTO_POLLUTED__:false"))
+    res = check(o, run(probe_output="__MIMI_PROTO_POLLUTED__:false"))
     assert res.fired is False
+    assert res.conclusive is True
     assert "not fired" in res.detail
 
 
+def test_proto_probe_not_forgeable_from_stdout():
+    o = Oracle(type=OracleType.PROTOTYPE_POLLUTION_PROBE)
+    res = check(o, run(stdout="__MIMI_PROTO_POLLUTED__:true", probe_output=""))
+    assert res.fired is False
+    assert res.conclusive is False
+
+
 # ---------------------------------------------------------------------------
-# path_traversal_file_read
+# path_traversal_file_read (trusted probe channel)
 # ---------------------------------------------------------------------------
 
 def test_traversal_fired():
     o = Oracle(type=OracleType.PATH_TRAVERSAL_FILE_READ, expect_traversal_to="/etc/passwd")
-    r = run(stdout="__MIMI_TRAVERSAL__:/etc/passwd:read\n")
+    r = run(probe_output="__MIMI_TRAVERSAL__:/etc/passwd:read\n")
     assert check(o, r).fired is True
 
 
 def test_traversal_not_fired_when_blocked():
     o = Oracle(type=OracleType.PATH_TRAVERSAL_FILE_READ, expect_traversal_to="/etc/passwd")
-    res = check(o, run(stdout="__MIMI_TRAVERSAL__:/etc/passwd:blocked\n"))
+    res = check(o, run(probe_output="__MIMI_TRAVERSAL__:/etc/passwd:blocked\n"))
     assert res.fired is False
+    assert res.conclusive is True
     assert "blocked" in res.detail
 
 
-def test_traversal_not_fired_when_verdict_missing():
+def test_traversal_inconclusive_when_verdict_missing():
     o = Oracle(type=OracleType.PATH_TRAVERSAL_FILE_READ, expect_traversal_to="/etc/passwd")
-    res = check(o, run(stdout="nothing"))
+    res = check(o, run(probe_output="nothing"))
     assert res.fired is False
+    assert res.conclusive is False
     assert "verdict missing" in res.detail
 
 
+def test_traversal_not_forgeable_from_stdout():
+    o = Oracle(type=OracleType.PATH_TRAVERSAL_FILE_READ, expect_traversal_to="/etc/passwd")
+    res = check(o, run(stdout="__MIMI_TRAVERSAL__:/etc/passwd:read\n", probe_output=""))
+    assert res.fired is False
+    assert res.conclusive is False
+
+
 # ---------------------------------------------------------------------------
-# network_call
+# network_call (trusted probe channel)
 # ---------------------------------------------------------------------------
 
 def test_network_call_fired():
     o = Oracle(type=OracleType.NETWORK_CALL)
-    assert check(o, run(stdout="__MIMI_NETWORK__:attempted")).fired is True
+    assert check(o, run(probe_output="__MIMI_NETWORK__:attempted")).fired is True
 
 
 def test_network_call_not_fired():
     o = Oracle(type=OracleType.NETWORK_CALL)
-    assert check(o, run(stdout="__MIMI_NETWORK__:not attempted")).fired is False
-
-
-def test_network_call_not_fired_without_probe_line():
-    o = Oracle(type=OracleType.NETWORK_CALL)
-    res = check(o, run(stdout="socket created"))
+    res = check(o, run(probe_output="__MIMI_NETWORK__:not attempted"))
     assert res.fired is False
+    assert res.conclusive is True
+
+
+def test_network_call_inconclusive_without_probe_line():
+    o = Oracle(type=OracleType.NETWORK_CALL)
+    res = check(o, run(stdout="socket created", probe_output=""))
+    assert res.fired is False
+    assert res.conclusive is False
     assert "verdict missing" in res.detail
 
 
+def test_network_call_not_forgeable_from_stdout():
+    o = Oracle(type=OracleType.NETWORK_CALL)
+    res = check(o, run(stdout="__MIMI_NETWORK__:attempted", probe_output=""))
+    assert res.fired is False
+    assert res.conclusive is False
+
+
 # ---------------------------------------------------------------------------
-# custom_probe
+# custom_probe (trusted probe channel)
 # ---------------------------------------------------------------------------
 
 def test_custom_probe_fired():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
-    assert check(o, run(stdout="step 1\nPROBE_OK")).fired is True
+    res = check(o, run(probe_output="step 1\nPROBE_OK"))
+    assert res.fired is True
+    assert res.conclusive is True
 
 
 def test_custom_probe_not_fired():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
-    assert check(o, run(stdout="step 1\nPROBE_FAIL")).fired is False
+    res = check(o, run(probe_output="step 1\nPROBE_FAIL"))
+    assert res.fired is False
+    assert res.conclusive is True
+
+
+def test_custom_probe_not_forgeable_from_stdout():
+    o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
+    res = check(o, run(stdout="PROBE_OK", probe_output="step 1\nPROBE_FAIL"))
+    # stdout is ignored; the trusted channel decides.
+    assert res.fired is False
 
 
 def test_custom_probe_invalid_pattern_not_fired():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="*bad(")
-    res = check(o, run(stdout="PROBE_OK"))
+    res = check(o, run(probe_output="PROBE_OK"))
     assert res.fired is False
+    assert res.conclusive is False
     assert "pattern invalid" in res.detail
 
 
 def test_custom_probe_misconfigured_unset_pattern():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern=None)
-    res = check(o, run(stdout="anything"))
+    res = check(o, run(probe_output="anything"))
     assert res.fired is False
-    assert "needs a pattern" in res.detail
+    assert res.conclusive is False
+    assert "pattern unset" in res.detail
+
+
+def test_custom_probe_inconclusive_without_probe_output():
+    o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
+    res = check(o, run(probe_output=""))
+    assert res.fired is False
+    assert res.conclusive is False
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +352,7 @@ def test_errored_run_never_fires():
     r = run(stdout="VULN_TRIGGERED", error="sandbox timeout")
     res = check(o, r)
     assert res.fired is False
+    assert res.conclusive is False
     assert "run errored before oracle" in res.detail
 
 
@@ -281,19 +361,34 @@ def test_errored_run_never_fires_even_on_exit_code_oracle():
     r = run(exit_code=0, error="transport died")
     res = check(o, r)
     assert res.fired is False
+    assert res.conclusive is False
     assert "run errored before oracle" in res.detail
 
 
-def test_truncated_run_still_evaluated():
+def test_truncated_run_is_inconclusive_not_a_negative():
+    # Truncated output means the checker may have missed a match — reading it
+    # as "did not fire" would turn a cut-off run into false negative evidence.
     o = Oracle(type=OracleType.OUTPUT_REGEX, pattern="VULN_TRIGGERED")
     r = run(stdout="noise noise\nVULN_TRIGGERED", truncated=True)
-    assert check(o, r).fired is True
+    res = check(o, r)
+    assert res.fired is False
+    assert res.conclusive is False
+    assert "truncated" in res.detail
 
 
-def test_truncated_run_without_marker_not_fired():
+def test_truncated_run_without_marker_is_also_inconclusive():
     o = Oracle(type=OracleType.OUTPUT_REGEX, pattern="VULN_TRIGGERED")
     r = run(stdout="noise noise", truncated=True)
-    assert check(o, r).fired is False
+    res = check(o, r)
+    assert res.fired is False
+    assert res.conclusive is False
+
+
+def test_untruncated_run_without_match_is_a_real_negative():
+    o = Oracle(type=OracleType.OUTPUT_REGEX, pattern="VULN_TRIGGERED")
+    res = check(o, run(stdout="noise noise", truncated=False))
+    assert res.fired is False
+    assert res.conclusive is True
 
 
 # ---------------------------------------------------------------------------
@@ -324,3 +419,21 @@ def test_invalid_regex_never_raises(bad_pattern_type):
         res = check(o, run(stdout="anything"))
         assert res.fired is False
         assert res.detail
+
+
+@pytest.mark.parametrize("slow_type", [OracleType.OUTPUT_REGEX, OracleType.CUSTOM_PROBE])
+def test_catastrophic_patterns_are_rejected(slow_type):
+    # (a+)+$ style patterns can hang the checker; refuse them up front.
+    o = Oracle(type=slow_type, pattern=r"^(a+)+$")
+    res = check(o, run(stdout="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!", probe_output="x"))
+    assert res.fired is False
+    assert res.conclusive is False
+    assert "backtrack" in res.detail
+
+
+def test_oversized_pattern_rejected():
+    o = Oracle(type=OracleType.OUTPUT_REGEX, pattern="x" * 400)
+    res = check(o, run(stdout="x"))
+    assert res.fired is False
+    assert res.conclusive is False
+    assert "too long" in res.detail

@@ -14,7 +14,8 @@ from typing import Optional
 from ..config import Settings
 from ..events import EventLog
 from ..oracles import check_oracle
-from ..sandboxes import BuildResult, Executor
+from ..probe import probe_env_for
+from ..sandboxes import BuildResult, Executor, RunBudget
 from ..schemas import Hypothesis, OracleResult, ReportSubmission, RunRecord
 
 
@@ -50,24 +51,30 @@ async def run_hypotheses(
     executor: Executor,
     settings: Settings,
     events: EventLog,
+    budget: Optional[RunBudget] = None,
 ) -> tuple[list[RunRecord], list[OracleResult]]:
-    """Fork once per hypothesis, bounded concurrency, oracle each run."""
+    """Fork once per hypothesis, bounded concurrency, oracle each run.
+
+    ``budget`` is the report-wide allowance shared with the differential;
+    pass the same object so every PoC execution is charged once. When omitted
+    a fresh allowance of ``max_runs_per_report`` is used, which is the correct
+    contract for a caller that only runs this stage.
+    """
     if not build.ok:
         events.skip("fork_run", "base build failed")
         return [], []
 
+    if budget is None:
+        budget = RunBudget(settings.max_runs_per_report)
     sem = asyncio.Semaphore(max(1, settings.max_parallel_forks))
     runs: list[RunRecord] = []
     results: list[OracleResult] = []
-    budget_left = settings.max_runs_per_report
 
     async def one(h: Hypothesis, index: int) -> None:
-        nonlocal budget_left
         async with sem:
-            if budget_left <= 0:
+            if not budget.take():
                 events.skip("fork_run", f"{h.id}: run budget exhausted")
                 return
-            budget_left -= 1
             t0 = events.start("fork_run", f"{h.id}: {h.test_plan[:80]}")
             run = await executor.run_poc(
                 build,
@@ -77,6 +84,7 @@ async def run_hypotheses(
                 timeout_s=settings.poc_timeout_s,
                 offline=h.config.offline,
                 phase="poc",
+                probe_env=probe_env_for(h.oracle),
             )
             run.phase = "poc"
             runs.append(run)
@@ -91,14 +99,23 @@ async def run_hypotheses(
                     cost_units=run.cost_units,
                     sandbox_run_ids=[run.sandbox_run_id] if run.sandbox_run_id else [],
                 )
-            idx = next((i for i, r in enumerate(runs) if r is run), 0)
-            res = check_oracle(h.oracle, run, hypothesis_id=h.id, phase="affected", run_index=idx)
+            res = check_oracle(
+                h.oracle,
+                run,
+                hypothesis_id=h.id,
+                phase="affected",
+                run_index=len(runs) - 1,
+            )
             results.append(res)
+            if res.conclusive:
+                verdict = "FIRED" if res.fired else "not fired"
+            else:
+                verdict = "inconclusive"
             events.emit(
                 "fork_run",
                 "ok",
-                f"{h.id}: oracle {'FIRED' if res.fired else 'not fired'} — {res.detail}",
-                data={"oracle_fired": res.fired},
+                f"{h.id}: oracle {verdict} — {res.detail}",
+                data={"oracle_fired": res.fired, "conclusive": res.conclusive},
             )
 
     await asyncio.gather(*(one(h, i) for i, h in enumerate(hypotheses)))

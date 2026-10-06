@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from mimi.redaction import assert_no_leak, build_queries, extract_public_ids
+from mimi.redaction import (
+    assert_no_leak,
+    build_queries,
+    extract_public_ids,
+    sanitize_package,
+    sanitize_version,
+    verify_query,
+)
 from mimi.schemas import Claim, PublicIdentifiers, VulnClass
 
 REPORT = (
@@ -212,3 +219,114 @@ def test_extract_public_ids_copies_no_prose():
     ).lower()
     for bad in ("attacker", "smuggle", "crafted", "merge helper", "write-up"):
         assert bad not in blob
+
+
+# ---------------------------------------------------------------------------
+# Shape filtering: model free text cannot become a query term
+# ---------------------------------------------------------------------------
+
+def test_sanitize_version_keeps_real_versions():
+    for good in ("4.17.20", "1.2.3-beta.1", "2.0.0-rc.1", "^1.2.0", ">=1.0.0", "v2.1.0"):
+        assert sanitize_version(good) == good
+
+
+def test_sanitize_version_drops_prose():
+    for bad in (
+        "the merge helper is vulnerable in production",
+        "see https://evil.example.com/aaaaaaaaaaaa",
+        "4.17.20 and also the service path /internal/admin",
+        "x" * 80,
+        "",
+    ):
+        assert sanitize_version(bad) == ""
+
+
+def test_sanitize_package_keeps_npm_names():
+    assert sanitize_package("lodash") == "lodash"
+    assert sanitize_package("@scope/pkg") == "@scope/pkg"
+    assert sanitize_package("node-serialize") == "node-serialize"
+
+
+def test_sanitize_package_drops_prose_and_metacharacters():
+    for bad in ("lodash; rm -rf /", "the package name in the report", "a b", "", "$(id)"):
+        assert sanitize_package(bad) == ""
+
+
+def test_llm_free_text_in_affected_versions_never_reaches_queries():
+    # The extractor is model output. If it stuffs report prose into
+    # affected_versions, that prose must be dropped at the boundary — not
+    # cleaned up into a new search term.
+    claim = _claim(
+        affected_versions=[
+            "4.17.20",
+            "the merge helper smuggles commands into production",
+            "https://evil.example.com/aaaaaaaaaaaa",
+        ]
+    )
+    ids = extract_public_ids(claim, REPORT)
+    assert ids.versions == ["4.17.20"]
+    for q in build_queries(ids):
+        assert_no_leak(q, REPORT)
+        for bad in ("smuggle", "merge helper", "production", "evil.example"):
+            assert bad not in q.lower()
+
+
+def test_llm_free_text_package_never_reaches_queries():
+    claim = _claim(package="the merge helper in our production service")
+    ids = extract_public_ids(claim, REPORT)
+    assert ids.package == ""
+    # With no usable package name there is nothing legitimate to search for,
+    # so no query is built at all rather than one carrying the prose.
+    assert build_queries(ids) == []
+
+
+# ---------------------------------------------------------------------------
+# verify_query: whitelist, not denylist
+# ---------------------------------------------------------------------------
+
+def test_verify_query_accepts_built_queries():
+    ids = extract_public_ids(_claim(), REPORT)
+    for q in build_queries(ids):
+        verify_query(q, ids)  # must not raise
+
+
+def test_verify_query_rejects_report_prose():
+    ids = extract_public_ids(_claim(), REPORT)
+    with pytest.raises(AssertionError):
+        verify_query("lodash merge helper smuggles commands", ids)
+
+
+def test_verify_query_rejects_unknown_urls():
+    ids = extract_public_ids(_claim(), REPORT)
+    with pytest.raises(AssertionError):
+        verify_query("lodash https://evil.example.com/aaaaaaaaaaaa", ids)
+
+
+def test_verify_query_allows_advisory_ids():
+    ids = PublicIdentifiers(package="lodash", versions=["4.17.20"], advisory_ids=["CVE-2021-23337"])
+    verify_query("CVE-2021-23337", ids)
+    verify_query("lodash CVE-2021-23337", ids)
+
+
+def test_verify_query_allows_class_vocabulary():
+    ids = extract_public_ids(_claim(vuln_class=VulnClass.REDOS), "")
+    verify_query("lodash regex denial of service", ids)
+
+
+# ---------------------------------------------------------------------------
+# assert_no_leak tightened
+# ---------------------------------------------------------------------------
+
+def test_assert_no_leak_catches_short_phrases():
+    # The old sliding window stepped by n//4 and skipped runs; a short phrase
+    # must still count as a leak.
+    report = "the merge helper is the root cause of this report"
+    with pytest.raises(AssertionError):
+        assert_no_leak("lodash merge helper is the root cause", report, min_run=12)
+
+
+def test_assert_no_leak_catches_secret_like_tokens_of_any_length():
+    with pytest.raises(AssertionError):
+        assert_no_leak("lodash https://evil.example.com/aaaaaaaaaaaa", REPORT)
+    with pytest.raises(AssertionError):
+        assert_no_leak("lodash ghp_abc123", "the token is ghp_abc123 and it must stay")
