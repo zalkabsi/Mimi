@@ -103,6 +103,16 @@ Switch to Envsmith, or narrow Mimi, if any of these hold after the day-1 spikes 
 - Per-hypothesis fork runs cannot be made offline *and* we judge the residual risk unacceptable for the hosted demo (then the hosted demo becomes replay-only and the live path is documented for self-hosting).
 - Sandboxes cannot fork from a saved image at the concurrency we need (50 operations) without failures.
 
+### Update 2026-10-06: pivot review (was due Oct 5)
+
+The three pivot triggers cannot be evaluated as written, because they all depend on the day-1 spikes and the 10-case pilot, and Sandboxes permissions are still missing (no `spawn`, so nothing can execute). Status of each trigger:
+
+1. **Fewer than 5 of 10 real npm vulns confirmed** — *undetermined*. No reproduction runs have been possible. The pipeline code, oracle set and eval corpus now exist so the pilot can run the day execution is granted.
+2. **Fork runs cannot be made offline / residual risk unacceptable** — *undetermined*. `unshare -n` is untested for the same reason. The offline wrapper is already implemented (`sandboxes._OFFLINE_WRAP`) and records `network_isolated` per run, so the fact will be measured, not assumed, on first real run.
+3. **Sandboxes cannot fork at the needed concurrency** — *undetermined*.
+
+**Decision: continue with Mimi.** No trigger is confirmed; switching to Envsmith now would discard a complete non-execution stack (extraction, grounding, research, hypotheses, tiers, UI, eval harness) on an absence of data. The narrower alternative — hosted demo replay-only — remains the fallback if trigger 2 turns out badly. Re-run this review within 48 hours of `spawn` becoming available, before week-3 evaluation money is spent.
+
 ### Update 2026-09-30: owner confirmations and what the Rules changed
 
 - **Confirmed by owner:** build this project; team is solo; license Apache-2.0; project name is **Mimi** (same as the repo).

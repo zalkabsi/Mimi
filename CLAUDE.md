@@ -22,18 +22,19 @@ Read in this order: `docs/01-research-and-decision.md` (why), `docs/02-architect
 
 ## Where we are
 
-Docs and repo hygiene are done. **No code yet.** Key check on 2026-09-30:
+Week 2 (Oct 6-12). Docs and repo hygiene were done 2026-09-30; the backend pipeline, API, CLI and spike scripts are now in `backend/` and `scripts/`. Frontend, eval harness and unit tests land next. Key check on 2026-09-30:
 
 - **Token Factory inference: works.** Base `https://api.tokenfactory.nebius.com/v1`. Exact Nemotron IDs are in `docs/00-constraints-and-open-items.md`. Nano is a reasoning model: pass `chat_template_kwargs: {"enable_thinking": false}` for cheap calls, and never use a tiny `max_tokens` with reasoning on (empty content).
 - **Tavily: works.**
 - **Sandboxes: BLOCKED.** The key authenticates but `whoami` shows every permission `false` (`spawn`, `list`, ...). Nothing in Sandboxes can run until the owner gets Sandboxes grants for the key. Changing `NEBIUS_PROJECT_ID` did not help: `whoami` ignores the project value (fake IDs give the same result), so the grants are on the token. Note that `token_expiration` in `whoami` is a rolling five-minute value, not the key's lifetime; the key itself must be valid through Dec 15, 2026 (check in the console).
+- **2026-10-06: keys are not in the local dev shell.** They live in the cloud environment settings from 2026-09-30. Before any live call, set `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, `TAVILY_API_KEY` as env vars (or a git-ignored `.env`) — never paste keys into chat.
 
-First thing in a new session: run `whoami` (status and permissions only, never print keys). If `spawn` is still `false`, do not start Sandboxes work; work on the parts that do not need it (stages 1-4, the eval harness, UI). Then the week-1 spikes:
+First thing in a new session: run `python scripts/check_sandboxes_whoami.py` (status and permissions only, never print keys). If `spawn` is still `false`, do not start Sandboxes work; work on the parts that do not need it (stages 1-4, the eval harness, UI). Then the week-1 spikes:
 
-1. Token Factory inference call to a Nemotron model: confirm base URL, exact model IDs, tool calling, reasoning control. Log tokens and latency.
-2. Sandboxes: build an npm package at a pinned vulnerable version, keep the image, run 5 forks in parallel. Record `cost` units and elapsed time.
-3. Test `unshare -n` inside the microVM to get an offline PoC phase. If it fails, say so and adopt the replay-only hosted demo.
-4. Tavily call using only public identifiers.
+1. Token Factory inference call to a Nemotron model: `python scripts/spike_inference.py` (tool calling, reasoning control; logs tokens and latency).
+2. Sandboxes: build an npm package at a pinned vulnerable version, keep the image, run 5 forks in parallel. Record `cost` units and elapsed time. (`scripts/` + `mimi/sandboxes.py` already implement build-once/fork.)
+3. Test `unshare -n` inside the microVM to get an offline PoC phase (the executor wraps PoC runs with `unshare -n` and records `network_isolated`). If it fails, say so and adopt the replay-only hosted demo.
+4. Tavily call using only public identifiers: `python scripts/spike_tavily.py`.
 5. First slice: CLI, one real public npm vulnerability, report in, dossier JSON out, with a fixed-version differential.
 
-**Pivot review Sun Oct 5**: see the pivot triggers in `docs/01-research-and-decision.md`. Fallback concept is Envsmith.
+**Pivot review (recorded 2026-10-06)**: see the update in `docs/01-research-and-decision.md`. No trigger could be evaluated without Sandboxes; decision is to continue Mimi and re-review within 48h of `spawn` being granted. Fallback concept is Envsmith.

@@ -1,6 +1,6 @@
 # Hard constraints and open items
 
-Updated 2026-09-30. Team: **solo**. Project name: **Mimi**.
+Updated 2026-10-06. Team: **solo**. Project name: **Mimi**.
 
 ## Provenance
 
