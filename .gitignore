@@ -28,6 +28,7 @@ dist/
 *.sqlite-shm
 data/raw/
 eval/runs/
+evals/out/
 
 # OS / editor
 .DS_Store

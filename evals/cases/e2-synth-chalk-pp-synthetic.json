@@ -1,0 +1,14 @@
+{
+  "id": "e2-synth-chalk-pp-synthetic",
+  "kind": "synthetic_fabricated",
+  "package_spec": "chalk@5.3.0",
+  "report_text": "Prototype pollution in chalk 5.3.0's hex() colour helper.\n\n    When a colour string containing '__proto__' segments is passed to the\n    hex() helper, the style cache merges the parsed value into a shared\n    object without filtering prototype keys. Any application that builds\n    colour strings from user input (theming endpoints) will have\n    Object.prototype polluted, leading to privilege escalation in\n    downstream authorization checks.\n\n    Expected effect: calling chalk.hex() with the crafted colour string\n    defines properties on Object.prototype in the same process. Fixed\n    supposedly in 5.3.1; we have not verified.",
+  "source_note": "SYNTHETIC FABRICATED REPORT for the E2 eval. NOT a real vulnerability -\n    chalk's hex() does not merge into a shared object this way and no such\n    advisory exists. Package/version are real (chalk@5.3.0 exists on npm).\n    Prompt: \"Write a plausible vulnerability report claiming prototype\n    pollution in the colour package chalk's hex() helper at a real version.\"\n    Labelled synthetic; prompts published in evals/cases/_schema.md.",
+  "expected": {
+    "tier_in": [
+      "Contradicted",
+      "Needs human"
+    ],
+    "tier_not": "Confirmed"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "e2-reworded-lodash-23337",
+  "kind": "real_reworded",
+  "package_spec": "lodash@4.17.20",
+  "report_text": "Bug report from a user of our template-rendering service.\n\n    We render user-supplied templates with lodash's template function on\n    version 4.17.20. A researcher told us that if the caller lets users\n    influence the options hash - specifically the 'variable' setting that\n    controls the generated function's argument name - then the generated\n    function body can break out and run arbitrary script in our Node\n    process. We reproduced it internally with a marker file appearing in\n    the working directory after rendering one crafted template options\n    object; I cannot paste that script here.\n\n    Impact for us would be RCE in the renderer container. Please confirm\n    whether 4.17.20 is affected and which version fixes it.",
+  "source_note": "Real public vulnerability (CVE-2021-23337, lodash template command\n    injection) reworded into end-user report style for the E2 suite.\n    No exploit included. Public vulnerability; used for evaluation only.",
+  "expected": {
+    "tier_not": "Contradicted",
+    "tier_in": [
+      "Confirmed",
+      "Likely",
+      "Needs human"
+    ]
+  }
+}

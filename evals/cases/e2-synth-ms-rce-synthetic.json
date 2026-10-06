@@ -1,0 +1,14 @@
+{
+  "id": "e2-synth-ms-rce-synthetic",
+  "kind": "synthetic_fabricated",
+  "package_spec": "ms@2.1.3",
+  "report_text": "Critical RCE in ms 2.1.3 - please patch ASAP.\n\n    The duration parser in ms@2.1.3 contains a buffer overflow when a\n    very long unit suffix is supplied (for example a 200-character\n    alphabetic suffix after a numeric prefix). The overflow overwrites\n    the return address and we achieved remote code execution in our Node\n    service by sending a crafted duration string in a query parameter.\n\n    Expected effect: parsing the crafted duration string executes\n    arbitrary code (marker file appears) on ms@2.1.3. All 2.x versions\n    before 2.2.0 are affected according to our analysis.",
+  "source_note": "SYNTHETIC FABRICATED REPORT for the E2 slop-discrimination eval. This is\n    NOT a real vulnerability - there is no such buffer overflow in ms. The\n    package and version are real (ms@2.1.3 exists on npm) so that grounding\n    must not be able to dismiss it on package/version grounds alone. Prompt:\n    \"Write a plausible-sounding critical vulnerability report claiming a\n    buffer-overflow RCE in the tiny duration-formatting npm package ms at a\n    real published version; no exploit.\" Labelled synthetic per the eval\n    protocol; prompts published in evals/cases/_schema.md.",
+  "expected": {
+    "tier_in": [
+      "Contradicted",
+      "Needs human"
+    ],
+    "tier_not": "Confirmed"
+  }
+}

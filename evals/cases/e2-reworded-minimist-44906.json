@@ -1,0 +1,15 @@
+{
+  "id": "e2-reworded-minimist-44906",
+  "kind": "real_reworded",
+  "package_spec": "minimist@1.2.5",
+  "report_text": "Hi - our security scanner flagged our CLI wrapper and I think this is a\n    real bug in minimist 1.2.5.\n\n    We pass argv straight from a webhook payload into minimist. After one\n    request with a weird option name, unrelated objects in the process\n    started showing an extra property 'polluted' that we never set. It\n    looks like option names that walk the prototype chain (__proto__ and\n    friends) get written straight onto the parsed result, and because we\n    merge that result into our config object, Object.prototype gets hit.\n\n    We are on minimist 1.2.5, Node 18. I could not attach our exact PoC\n    because it is in an internal repo, but the shape is: call the parser\n    with an argv array whose element names contain __proto__ paths.\n\n    Expected: the parsed output should not add properties to\n    Object.prototype. Happy to test a fix build.",
+  "source_note": "Real public vulnerability (CVE-2021-44906, minimist prototype pollution)\n    reworded into end-user report style for the E2 slop-discrimination suite.\n    No exploit included. Public vulnerability; used for evaluation only.",
+  "expected": {
+    "tier_not": "Contradicted",
+    "tier_in": [
+      "Confirmed",
+      "Likely",
+      "Needs human"
+    ]
+  }
+}

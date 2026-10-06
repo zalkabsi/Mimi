@@ -1,0 +1,15 @@
+{
+  "id": "e2-reworded-jquery-11023",
+  "kind": "real_reworded",
+  "package_spec": "jquery@3.4.1",
+  "report_text": "Our frontend audit turned up something in jQuery 3.4.1 that I want\n    triaged by the maintainers.\n\n    When HTML from users is passed through jQuery's HTML parsing helpers\n    before insertion, a crafted fragment with nested/odd closing tags can\n    survive in a form that executes script in the browser. Our audit tool\n    flagged it as the same class of issue as the documented jQuery XSS\n    fixed in 3.5.0 (CVE-2020-11023 family). We sanitise with an allow-list\n    first and still saw handler-like attributes in the output.\n\n    Expected effect: script execution when the parsed result is inserted\n    into the page. We are on 3.4.1 from npm. Can you confirm and point at\n    the fixed version?",
+  "source_note": "Real public vulnerability (CVE-2020-11023, jQuery XSS via htmlPrefilter)\n    reworded into end-user report style for the E2 suite. No exploit\n    included. Public vulnerability; used for evaluation only.",
+  "expected": {
+    "tier_not": "Contradicted",
+    "tier_in": [
+      "Confirmed",
+      "Likely",
+      "Needs human"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "e2-reworded-node-serialize-5941",
+  "kind": "real_reworded",
+  "package_spec": "node-serialize@0.0.4",
+  "report_text": "Reporting a scary one on node-serialize 0.0.4 (we inherit it through an\n    old package).\n\n    The module lets you serialize objects with functions to JSON and load\n    them back. From reading the code, loading is done by evaluating the\n    function source, so a payload where the function is wrapped in an\n    immediate call would run at load time. A colleague demonstrated code\n    execution in a throwaway container using this behaviour.\n\n    We cannot ship the demonstration script, but the claim is: unserialize\n    of attacker-controlled JSON executes attacker code on 0.0.4. Please\n    verify and advise (we suspect there is no fix release).",
+  "source_note": "Real public vulnerability (CVE-2017-5941, node-serialize insecure\n    deserialization RCE) reworded into end-user report style for the E2\n    suite. No exploit included. Public vulnerability; used for evaluation only.",
+  "expected": {
+    "tier_not": "Contradicted",
+    "tier_in": [
+      "Confirmed",
+      "Likely",
+      "Needs human"
+    ]
+  }
+}

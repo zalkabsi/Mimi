@@ -1,0 +1,15 @@
+{
+  "id": "e2-reworded-ansi-regex-3807",
+  "kind": "real_reworded",
+  "package_spec": "ansi-regex@5.0.0",
+  "report_text": "Performance/security issue report.\n\n    We use ansi-regex 5.0.0 (through chalk's dependency tree) to strip\n    control sequences from log lines before storing them. One log line\n    from an untrusted source with a long sequence of escape-like\n    characters caused our ingest worker to peg CPU for minutes. It looks\n    like the regex used to find escape sequences backtracks on that input.\n\n    Claim: ansi-regex 5.0.0 is vulnerable to ReDoS when stripping a\n    crafted string; 5.0.1 should fix it. We have a CPU profile showing\n    the hot path in the regex engine but not the input string itself\n    (it contains customer data).",
+  "source_note": "Real public vulnerability (CVE-2021-3807, ansi-regex ReDoS) reworded\n    into end-user report style for the E2 suite. No exploit included.\n    Public vulnerability; used for evaluation only.",
+  "expected": {
+    "tier_not": "Contradicted",
+    "tier_in": [
+      "Confirmed",
+      "Likely",
+      "Needs human"
+    ]
+  }
+}

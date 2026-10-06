@@ -1,0 +1,14 @@
+{
+  "id": "e2-synth-debug-traversal-synthetic",
+  "kind": "synthetic_fabricated",
+  "package_spec": "debug@4.3.4",
+  "report_text": "Path traversal in debug 4.3.4's log-file support.\n\n    When the DEBUG_FILE environment-style option is enabled, debug writes\n    log output to a path derived from the debug namespace. A namespace\n    containing '../' sequences escapes the log directory and overwrites\n    arbitrary files as the service user, for example SSH keys or systemd\n    units.\n\n    Expected effect: enabling a crafted namespace overwrites a file\n    outside the log directory on debug@4.3.4. Fixed in 4.3.5 per a\n    downstream fork's changelog.",
+  "source_note": "SYNTHETIC FABRICATED REPORT for the E2 eval. NOT a real vulnerability -\n    debug has no log-file path derived from the namespace like this and no\n    such advisory exists. Package/version are real (debug@4.3.4 exists on\n    npm). Prompt: \"Write a plausible vulnerability report claiming a path\n    traversal file-write in the debug logging package at a real version.\"\n    Labelled synthetic; prompts published in evals/cases/_schema.md.",
+  "expected": {
+    "tier_in": [
+      "Contradicted",
+      "Needs human"
+    ],
+    "tier_not": "Confirmed"
+  }
+}

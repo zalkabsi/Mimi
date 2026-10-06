@@ -1,0 +1,14 @@
+{
+  "id": "e2-synth-is-even-rce-synthetic",
+  "kind": "synthetic_fabricated",
+  "package_spec": "is-even@1.0.0",
+  "report_text": "Command injection in is-even 1.0.0.\n\n    The isEven() helper shells out to a POSIX utility to decide parity for\n    very large numeric strings. A numeric string containing shell\n    metacharacters after the digits is passed unsanitised to the shell, so\n    an application that checks parity of user-supplied identifiers can be\n    fully compromised.\n\n    Expected effect: calling isEven() with the crafted numeric string\n    executes the injected command (we saw our test container create a file\n    in /tmp). All versions through 1.0.6 are affected.",
+  "source_note": "SYNTHETIC FABRICATED REPORT for the E2 eval. NOT a real vulnerability -\n    is-even does not shell out at all. Package/version are real\n    (is-even@1.0.0 exists on npm). Prompt: \"Write a plausible critical\n    vulnerability report claiming command injection in the trivial is-even\n    package at a real published version.\" Labelled synthetic; prompts\n    published in evals/cases/_schema.md.",
+  "expected": {
+    "tier_in": [
+      "Contradicted",
+      "Needs human"
+    ],
+    "tier_not": "Confirmed"
+  }
+}
