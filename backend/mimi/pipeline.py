@@ -7,6 +7,7 @@ soon as it exists so the UI timeline can watch it.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Optional
 
@@ -111,8 +112,12 @@ class Pipeline:
             oracle_results: list[OracleResult] = []
             # One allowance for the whole report: affected-phase forks and the
             # fixed-version differential re-runs share it, so the configured
-            # max_runs_per_report is a real cap on untrusted executions.
-            budget = RunBudget(self.settings.max_runs_per_report)
+            # max_runs_per_report is a real cap on untrusted executions. The
+            # cost cap rides on the same budget and only sees measured spend.
+            budget = RunBudget(
+                self.settings.max_runs_per_report,
+                cost_cap=self.settings.per_report_cost_cap,
+            )
             if dossier.hypotheses:
                 build = await build_base(submission, dossier.hypotheses, executor, self.settings, events)
                 build_failed = not build.ok
@@ -138,7 +143,14 @@ class Pipeline:
                     budget=budget,
                 )
                 dossier.differential = diff
+                # Fixed-phase oracle results index the fixed runs as 0..n-1;
+                # rebase them onto Dossier.runs, where the affected runs come
+                # first. A run_index that pointed at the wrong row would send
+                # the UI to the wrong evidence.
+                base = len(dossier.runs)
                 dossier.runs.extend(fixed_runs)
+                for i, r in enumerate(dossier.differential.oracle_results):
+                    r.run_index = base + i
             else:
                 dossier.differential = DifferentialResult(
                     ran=False, detail="skipped: nothing executed" if build_failed else "skipped: no oracle results"
@@ -179,13 +191,28 @@ class Pipeline:
             dossier.tier_rationale = f"Pipeline stopped before a verdict: {e}"
             dossier.limitations.append(f"pipeline error: {type(e).__name__}")
             final_status = "error"
+        except asyncio.CancelledError:
+            # Cancellation is a BaseException: without this arm the finally
+            # below would persist status="complete" for a run that never
+            # reached a verdict. Persist the unfinished state, then re-raise.
+            events.emit("pipeline", "error", "pipeline cancelled before a verdict")
+            dossier.tier = Tier.NEEDS_HUMAN
+            dossier.tier_rationale = "Pipeline was cancelled before a verdict"
+            dossier.limitations.append("pipeline cancelled before a verdict")
+            final_status = "error"
+            raise
         finally:
             dossier.events = list(events.events)
             dossier.cost = self._cost_summary(dossier, wall_clock_ms=events.elapsed_ms)
             if not dossier.limitations:
                 self._fill_limitations(dossier)
             if self.db is not None:
-                self.db.upsert_report(dossier, status=final_status)
+                try:
+                    self.db.upsert_report(dossier, status=final_status)
+                except Exception:
+                    # Never let a storage failure mask the real outcome (and
+                    # never let it replace a CancelledError in flight).
+                    pass
             if tavily is not None and self._tavily is None:
                 tavily.close()
             if self._llm is None:
@@ -251,7 +278,20 @@ class Pipeline:
         if not dossier.differential.ran and dossier.tier in (Tier.CONTRADICTED, Tier.LIKELY):
             if "no fixed version" in (dossier.differential.detail or ""):
                 dossier.limitations.append("No fixed version was known, so the differential is missing.")
+        if dossier.differential.ran and dossier.differential.flipped is None:
+            # The flip is unknown, not false. Say so in the panel a maintainer
+            # reads for caveats, not only in the one-line tier rationale.
+            dossier.limitations.append(
+                "The fixed-version differential did not reach a judgment on every "
+                "hypothesis that fired, so the flip is unconfirmed: "
+                f"{dossier.differential.detail or 'no detail'}."
+            )
         if any(getattr(r, "network_isolated", None) is False for r in dossier.runs):
             dossier.limitations.append(
                 "PoC runs used network isolation only where `unshare -n` was available."
+            )
+        if dossier.runs and all(r.cost is None for r in dossier.runs):
+            dossier.limitations.append(
+                "Sandbox cost was not measured on these runs, so the per-report "
+                "cost cap could not be enforced against them."
             )

@@ -330,3 +330,23 @@ def test_assert_no_leak_catches_secret_like_tokens_of_any_length():
         assert_no_leak("lodash https://evil.example.com/aaaaaaaaaaaa", REPORT)
     with pytest.raises(AssertionError):
         assert_no_leak("lodash ghp_abc123", "the token is ghp_abc123 and it must stay")
+
+
+def test_long_package_name_is_not_a_leak_next_to_vocabulary():
+    # Every English word matches the npm name shape, so "vulnerability" must
+    # not count as a second package and leave the real one unexempt. A false
+    # positive here silently disables research for long package names.
+    report = "node-serialize before 0.1.3 allows remote code execution via the map function."
+    assert_no_leak("node-serialize vulnerability", report)
+    assert_no_leak("node-serialize security advisory fixed version", report)
+    assert_no_leak("node-serialize 0.1.2 vulnerability", report)
+    assert_no_leak("@babel/traverse 7.20.0 vulnerability", "@babel/traverse fixed in 7.20.0.")
+
+
+def test_long_blob_beside_a_real_package_is_still_a_leak():
+    # A 12+ char alphanumeric blob looks like a package name. When a real
+    # package is already in the query (the build_queries shape), the blob is
+    # not the package and must not be exempted as one.
+    report = "payload is deadbeefdeadbeefdead and must not travel"
+    with pytest.raises(AssertionError, match="long report token"):
+        assert_no_leak("lodash deadbeefdeadbeefdead vulnerability", report)

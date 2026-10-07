@@ -19,6 +19,7 @@ cannot forge a verdict token.
 from __future__ import annotations
 
 import re
+from typing import Optional
 
 from .schemas import Oracle, OracleResult, OracleType, RunRecord
 
@@ -26,7 +27,12 @@ from .schemas import Oracle, OracleResult, OracleType, RunRecord
 # can catastrophically backtrack (a ReDoS in the checker would hang triage).
 _MAX_HAY_BYTES = 256_000
 _MAX_PATTERN_LEN = 200
+# A quantified group that itself contains a quantifier — (a+)* — backtracks
+# catastrophically.
 _NESTED_QUANTIFIER = re.compile(r"\([^)]*[+*][^)]*\)\s*[+*{]")
+# A quantified group with alternation — (a|a)* — is the same trap without an
+# inner quantifier token, and was previously let through.
+_QUANTIFIED_ALTERNATION = re.compile(r"\([^)]*\|[^)]*\)\s*[+*{]")
 
 
 def _pattern_is_safe(pattern: str) -> str | None:
@@ -37,6 +43,8 @@ def _pattern_is_safe(pattern: str) -> str | None:
         return f"oracle pattern too long ({len(pattern)} > {_MAX_PATTERN_LEN})"
     if _NESTED_QUANTIFIER.search(pattern):
         return "oracle pattern rejected: nested quantifiers can backtrack catastrophically"
+    if _QUANTIFIED_ALTERNATION.search(pattern):
+        return "oracle pattern rejected: quantified alternation can backtrack catastrophically"
     return None
 
 
@@ -46,6 +54,36 @@ def _haystack(run: RunRecord) -> tuple[str, bool]:
     if len(text.encode("utf-8", "ignore")) > _MAX_HAY_BYTES:
         return text[:_MAX_HAY_BYTES], True
     return text, run.truncated
+
+
+# Sentinels the trusted probe prints when it could not produce a verdict.
+_PROBE_MISSING = "__MIMI_PROBE_MISSING__:"
+_PROBE_ERROR = "__MIMI_PROBE_ERROR__:"
+_CUSTOM_PROBE_ERROR = "__MIMI_CUSTOM_PROBE_ERROR__:"
+_CUSTOM_PROBE_BEGIN = "__MIMI_CUSTOM_PROBE_BEGIN__:"
+_CUSTOM_PROBE_END = "__MIMI_CUSTOM_PROBE_END__:"
+
+
+def _probe_evidence(run: RunRecord) -> tuple[str, Optional[str]]:
+    """The probe channel, or a reason it cannot be judged at all.
+
+    Returns ``(probe_output, None)`` when the channel is complete, else
+    ``("", reason)``. A missing, errored or truncated probe is never a
+    negative — it is inconclusive. That distinction is the whole point: a
+    broken execution must not masquerade as "N hypotheses, 0 triggered".
+    """
+    if run.truncated:
+        return "", "probe output was truncated before the oracle could judge it"
+    out = run.probe_output or ""
+    if _PROBE_ERROR in out:
+        return "", f"trusted probe failed: {out.split(_PROBE_ERROR, 1)[1][:160]}"
+    if _PROBE_MISSING in out:
+        return "", (
+            "trusted probe recorded no verdict "
+            f"({out.split(_PROBE_MISSING, 1)[1][:80].strip()}) — the shim's exit "
+            "write is missing, so in-process state cannot be judged"
+        )
+    return out, None
 
 
 def check_oracle(
@@ -95,6 +133,10 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
                 return False, "no exit code recorded — cannot judge", False
             fired = run.exit_code != 0
             return fired, f"exit_code={run.exit_code}, expected nonzero -> {'fired' if fired else 'not fired'}", True
+        # A missing exit code is not "not the expected code". Reading it as a
+        # clean negative would grade a dead run as evidence.
+        if run.exit_code is None:
+            return False, "no exit code recorded — cannot judge", False
         fired = run.exit_code == oracle.expected_exit
         return fired, f"exit_code={run.exit_code}, expected {oracle.expected_exit} -> {'fired' if fired else 'not fired'}", True
 
@@ -103,6 +145,8 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         got = (run.signal or "").upper().lstrip("SIG")
         if not want:
             return False, "oracle misconfigured: signal_name unset", False
+        if not got and run.exit_code is None:
+            return False, "no termination recorded — cannot judge", False
         fired = bool(got) and got == want
         return fired, f"signal={run.signal!r}, expected {want} -> {'fired' if fired else 'not fired'}", True
 
@@ -130,10 +174,13 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         marker = oracle.marker_path or ""
         if not marker:
             return False, "oracle misconfigured: marker_path unset", False
-        verdict = f"__MIMI_MARKER_VERDICT__:{marker}:" in (run.probe_output or "")
+        out, why = _probe_evidence(run)
+        if why:
+            return False, why, False
+        verdict = f"__MIMI_MARKER_VERDICT__:{marker}:" in out
         if not verdict:
             return False, "marker probe verdict missing from probe output", False
-        fired = f"__MIMI_MARKER_VERDICT__:{marker}:present" in (run.probe_output or "")
+        fired = f"__MIMI_MARKER_VERDICT__:{marker}:present" in out
         return fired, f"marker {marker!r} -> {'present' if fired else 'absent'}", True
 
     if t is OracleType.TIMING_THRESHOLD:
@@ -145,7 +192,12 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         return fired, f"elapsed_ms={run.elapsed_ms:.0f}, threshold={oracle.threshold_ms:.0f} -> {'fired' if fired else 'not fired'}", True
 
     if t is OracleType.PROTOTYPE_POLLUTION_PROBE:
-        out = run.probe_output or ""
+        # In-process verdict from the preloaded shim. A fresh process can never
+        # see prototype pollution (heap state dies with the PoC), so a missing
+        # verdict is inconclusive — never "not polluted".
+        out, why = _probe_evidence(run)
+        if why:
+            return False, why, False
         if "__MIMI_PROTO_POLLUTED__:" not in out:
             return False, "prototype-pollution probe verdict missing from probe output", False
         fired = "__MIMI_PROTO_POLLUTED__:true" in out
@@ -153,7 +205,9 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
 
     if t is OracleType.PATH_TRAVERSAL_FILE_READ:
         expect = oracle.expect_traversal_to or "/etc/passwd"
-        out = run.probe_output or ""
+        out, why = _probe_evidence(run)
+        if why:
+            return False, why, False
         fired = f"__MIMI_TRAVERSAL__:{expect}:read" in out
         absent = f"__MIMI_TRAVERSAL__:{expect}:blocked" in out
         if fired:
@@ -163,12 +217,17 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         return False, "traversal probe verdict missing from probe output", False
 
     if t is OracleType.NETWORK_CALL:
-        out = run.probe_output or ""
+        # Fired only by egress calls the PoC itself made (wrapped by the shim),
+        # never by the probe's own connectivity check (__MIMI_EGRESS__: is a
+        # different question and must not fire this oracle).
+        out, why = _probe_evidence(run)
+        if why:
+            return False, why, False
         token = "__MIMI_NETWORK__:"
         if token not in out:
             return False, "network probe verdict missing from probe output", False
         fired = f"{token}attempted" in out
-        return fired, f"network probe -> {'attempted' if fired else 'not attempted'}", True
+        return fired, f"network probe -> {'attempted' if fired else 'no attempt recorded'}", True
 
     if t is OracleType.CUSTOM_PROBE:
         pattern = oracle.pattern or ""
@@ -179,10 +238,30 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
             rx = re.compile(pattern, re.MULTILINE)
         except re.error as e:
             return False, f"custom probe pattern invalid: {e}", False
-        out = run.probe_output or ""
-        if not out:
-            return False, "custom probe produced no probe output to judge", False
-        fired = rx.search(out) is not None
+        out, why = _probe_evidence(run)
+        if why:
+            return False, why, False
+        if _CUSTOM_PROBE_ERROR in out:
+            return (
+                False,
+                "custom probe snippet failed: "
+                + out.split(_CUSTOM_PROBE_ERROR, 1)[1][:160],
+                False,
+            )
+        begin = out.find(_CUSTOM_PROBE_BEGIN)
+        if begin == -1:
+            return False, "custom probe snippet produced no output to judge", False
+        # Search only the snippet's own output. The fixed probes share this
+        # stream, so a pattern like "attempted" would otherwise fire on the
+        # network probe's verdict token and grade a different question. The
+        # end marker is the real one (emitted after the snippet), so a snippet
+        # that prints a fake end still gets the full window.
+        end = out.rfind(_CUSTOM_PROBE_END)
+        if end == -1:
+            return False, "custom probe output was not terminated — cannot judge", False
+        start = out.find("\n", begin)
+        snippet_out = out[start + 1 : end] if start != -1 else ""
+        fired = rx.search(snippet_out) is not None
         return fired, f"custom probe -> {'fired' if fired else 'not fired'}", True
 
     return False, f"unknown oracle type {t}", False

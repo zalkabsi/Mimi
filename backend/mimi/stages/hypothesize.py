@@ -40,8 +40,9 @@ _HINT = json.dumps(
                 "poc_code": "str (node script, self-contained)",
                 "node_version": "20",
                 "install_command": "npm install --no-audit --no-fund",
+                "poc_file_name": "poc.js",
                 "poc_command": "node poc.js",
-                "setup_commands": ["str"],
+                "setup_commands": ["mkdir -p out"],
                 "oracle": {
                     "type": [t.value for t in OracleType],
                     "description": "str",
@@ -83,8 +84,17 @@ Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
   on a distinctive marker string the PoC prints, e.g. VULN_TRIGGERED.
 - Different hypotheses must differ in configuration or input shape (version
   range, API path, payload shape, options), not just wording.
-- setup_commands must be from: "npm install --no-audit --no-fund", "npm install -g <pkg>@<ver>",
-  "cp -r node_modules ...", "chmod +x ...", "mkdir -p ...", "node -e '...'".
+- Commands come from a FIXED allowlist and anything else is discarded before
+  execution. Use exactly these shapes:
+  * install_command: "npm install --no-audit --no-fund" |
+    "npm install --no-audit --no-fund --ignore-scripts" | "npm ci --no-audit --no-fund"
+  * poc_command: "node poc.js" | "node poc.mjs" | "node index.js" |
+    "node exploit.js" | "node test.js" | "node --experimental-vm-modules poc.js"
+  * poc_file_name: the script name poc_command runs (e.g. "poc.js")
+  * setup_commands (empty list, or any of): "mkdir -p out", "mkdir -p tmp",
+    "cp -r node_modules/orig node_modules/pkg", "npm rebuild", "chmod +x poc.js"
+- node_version: plain digits like "20". env keys: plain UPPER_SNAKE identifiers
+  only (NODE_OPTIONS and MIMI_* are reserved and will be rejected).
 """
 
 

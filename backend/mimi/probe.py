@@ -1,16 +1,35 @@
-"""Trusted post-PoC probe.
+"""Trusted post-PoC probe, plus the in-process observation shim.
 
-Probe oracles must not read the PoC's own stdout: untrusted code can print any
-token it likes (``__MIMI_PROTO_POLLUTED__:true`` is one line of JavaScript).
-So the executor runs a second, trusted command *after* the PoC, captures its
-output into ``RunRecord.probe_output``, and the oracles read only that channel.
+Two channels, both outside the PoC's own stdout:
 
-The probe inspects the *post-PoC state* of the sandbox — which is exactly what
-a reproduction is about: did this code pollute the prototype, create that
-marker, or make that path readable.
+1. **The shim** (``SHIM_JS``) is preloaded into the PoC's own Node process
+   (``NODE_OPTIONS=--require=...``) *before* the untrusted code runs. It can
+   therefore see things a later process cannot: prototype pollution (heap state
+   dies with the process) and network calls the PoC actually made. At process
+   exit it writes a JSON verdict file.
 
-The probe source lives here (trusted, reviewed) and is never taken from a
-report or from a hypothesis.
+2. **The probe** (``PROBE_JS``) runs in a fresh process *after* the PoC. It
+   reads the shim's verdict file plus real filesystem state (marker files,
+   path traversal) and prints verdict tokens. Those tokens — captured into
+   ``RunRecord.probe_output`` — are the only thing probe oracles read.
+
+The PoC's stdout can forge ``__MIMI_*__:`` tokens; it cannot forge this
+channel without also defeating the shim (see the residual-risk note below).
+
+Honest limits, stated in the dossier rather than papered over:
+- The shim writes its verdict at process exit. A PoC that removes Node's exit
+  listeners suppresses the write; a *missing* verdict file is therefore
+  reported as ``__MIMI_PROBE_MISSING__`` and every probe oracle is
+  **inconclusive** — never a clean negative.
+- A PoC that removes the exit listeners *and* writes a fake verdict file can
+  forge the channel. That is a residual risk of same-VM observation and is
+  documented; it is strictly better than the previous fresh-process probe,
+  which could never observe in-process state at all and so fabricated
+  negatives for every prototype-pollution report.
+- The probe scripts live here (trusted, reviewed) and are never taken from a
+  report or from a hypothesis. The one exception is ``probe_snippet`` for
+  CUSTOM_PROBE: that is hypothesis-declared code, run in the sandbox like any
+  other untrusted code, and its output is labelled as such.
 """
 
 from __future__ import annotations
@@ -21,8 +40,119 @@ from .schemas import Oracle, OracleType
 # empty capture. Oracles never treat this line as evidence either way.
 PROBE_BEGIN = "__MIMI_PROBE_BEGIN__"
 
-# Node CommonJS: runs in the sandbox after the PoC, in the same /work tree.
-# No npm, no network, no third-party imports — stdlib only.
+# Fixed paths inside /work. The PoC runs first, so these names must not collide
+# with the staged PoC file name (which is a validated bare *.js name).
+SHIM_FILE = "/work/.mimi_shim.js"
+PROBE_FILE = "/work/.mimi_probe.js"
+STATE_FILE = "/work/.mimi_probe_state.json"
+CUSTOM_PROBE_FILE = "/work/.mimi_custom_probe.js"
+
+# In-process observation shim: preloaded into the PoC's Node process. It must
+# never throw at load time (that would break every PoC) and must never change
+# the PoC's observable exit behaviour — so no signal handlers, only 'exit'.
+SHIM_JS = r"""
+'use strict';
+// Mimi observation shim. Loads before the untrusted PoC in the SAME process.
+// Records (a) properties added to Object.prototype while the PoC ran and
+// (b) egress APIs the PoC actually called. Writes them at process exit for a
+// fresh trusted process to read. Nothing here is taken from the report.
+const fs = require('fs');
+const path = require('path');
+
+const STATE_PATH = process.env.MIMI_STATE_PATH || '/work/.mimi_probe_state.json';
+
+const NATIVE_KEYS = new Set([
+  'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
+  'toLocaleString', 'toString', 'valueOf', '__defineGetter__', '__defineSetter__',
+  '__lookupGetter__', '__lookupSetter__',
+]);
+
+function protoKeys() {
+  try {
+    return Object.getOwnPropertyNames(Object.prototype).filter(function (k) {
+      return !NATIVE_KEYS.has(k);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+const baseline = protoKeys();
+const netAttempts = [];
+
+function recordAttempt(kind, detail) {
+  if (netAttempts.length < 32) {
+    netAttempts.push({ kind: kind, detail: String(detail).slice(0, 120) });
+  }
+}
+
+function wrap(obj, name, kind) {
+  try {
+    const orig = obj[name];
+    if (typeof orig !== 'function') return;
+    const patched = function () {
+      const a = arguments[0];
+      let detail = '';
+      try {
+        detail = (a && (a.href || a.host || a.hostname || a)) || '';
+      } catch (e) { detail = ''; }
+      recordAttempt(kind, detail);
+      return orig.apply(this, arguments);
+    };
+    obj[name] = patched;
+  } catch (e) { /* never break the PoC */ }
+}
+
+try {
+  const net = require('net');
+  wrap(net, 'connect', 'net.connect');
+  wrap(net, 'createConnection', 'net.createConnection');
+  const http = require('http');
+  wrap(http, 'request', 'http.request');
+  wrap(http, 'get', 'http.get');
+  const https = require('https');
+  wrap(https, 'request', 'https.request');
+  wrap(https, 'get', 'https.get');
+  const dns = require('dns');
+  wrap(dns, 'lookup', 'dns.lookup');
+  wrap(dns, 'resolve', 'dns.resolve');
+  wrap(dns, 'resolve4', 'dns.resolve4');
+  if (typeof globalThis.fetch === 'function') wrap(globalThis, 'fetch', 'fetch');
+} catch (e) {}
+
+function writeState(extra) {
+  try {
+    const now = protoKeys();
+    const added = now.filter(function (k) { return baseline.indexOf(k) === -1; });
+    const body = Object.assign({
+      shim: 'ok',
+      proto_added: added,
+      proto_added_count: added.length,
+      net_attempts: netAttempts,
+      net_attempted: netAttempts.length > 0,
+    }, extra || {});
+    fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+    fs.writeFileSync(STATE_PATH, JSON.stringify(body));
+  } catch (e) {
+    try {
+      fs.writeFileSync(STATE_PATH, JSON.stringify({ shim: 'error', error: String(e).slice(0, 200) }));
+    } catch (e2) { /* nothing else we can do */ }
+  }
+}
+
+// Mark that the shim loaded at all, so a missing exit write can be told apart
+// from "NODE_OPTIONS never loaded us".
+try {
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, JSON.stringify({ shim: 'loaded' }));
+} catch (e) {}
+
+process.on('exit', function () { writeState(); });
+"""
+
+# Fresh-process probe: reads the shim's verdict file, inspects filesystem
+# state, optionally measures sandbox egress, runs the custom snippet.
+# Verdict tokens are the probe-oracle contract (backend/mimi/oracles.py).
 PROBE_JS = r"""
 'use strict';
 const fs = require('fs');
@@ -36,32 +166,45 @@ function safe(fn, fallback) {
   try { return fn(); } catch (e) { return fallback; }
 }
 
-// 1. Prototype pollution: did Object.prototype gain own properties that a
-//    plain object literal would inherit? We compare against a null-prototype
-//    object so the check cannot be fooled by a polluted Object.prototype.
-const polluted = safe(() => {
-  const probe = {};
-  const keys = Object.keys(probe);
-  const names = Object.getOwnPropertyNames(Object.prototype)
-    .filter((k) => k !== 'constructor' && k !== 'hasOwnProperty' &&
-                   k !== 'isPrototypeOf' && k !== 'propertyIsEnumerable' &&
-                   k !== 'toLocaleString' && k !== 'toString' &&
-                   k !== 'valueOf' && k !== '__defineGetter__' &&
-                   k !== '__defineSetter__' && k !== '__lookupGetter__' &&
-                   k !== '__lookupSetter__');
-  // A polluted prototype shows up as an enumerable or unexpected own prop.
-  const extra = names.filter((k) => {
-    const d = Object.getOwnPropertyDescriptor(Object.prototype, k);
-    return d && (d.enumerable || d.writable);
-  });
-  return extra.length > 0 || keys.length > 0;
-}, false);
-emit('PROTO_POLLUTED', polluted ? 'true' : 'false');
+const STATE_PATH = process.env.MIMI_STATE_PATH || '/work/.mimi_probe_state.json';
 
-// 2. Marker file: did the PoC create/leave a marker at this path?
+// 1. In-process verdicts (prototype pollution, network attempts) come from
+//    the shim's exit file. Missing or half-written state is NOT a negative.
+let state = null;
+const stateRaw = safe(() => fs.readFileSync(STATE_PATH, 'utf8'), null);
+if (stateRaw === null) {
+  emit('PROBE_MISSING', STATE_PATH);
+} else {
+  state = safe(() => JSON.parse(stateRaw), null);
+  if (!state || typeof state !== 'object') {
+    emit('PROBE_MISSING', 'unparseable-state');
+  } else if (state.shim !== 'ok') {
+    emit('PROBE_MISSING', 'shim-' + String(state.shim || 'unknown'));
+  }
+}
+
+if (state && state.shim === 'ok') {
+  // 1a. Prototype pollution: properties added to Object.prototype while the
+  //     PoC ran. Measured in-process; a fresh node could never see this.
+  const added = Array.isArray(state.proto_added) ? state.proto_added : null;
+  if (added === null) {
+    emit('PROBE_MISSING', 'no-proto-report');
+  } else {
+    emit('PROTO_POLLUTED', added.length > 0 ? 'true' : 'false');
+    if (added.length > 0) emit('PROTO_KEYS', added.slice(0, 16).join(','));
+  }
+  // 1b. Egress attempts the PoC actually issued (wrapped APIs).
+  const attempted = state.net_attempted === true ||
+    (Array.isArray(state.net_attempts) && state.net_attempts.length > 0);
+  emit('NETWORK', attempted ? 'attempted' : 'none');
+}
+
+// 2. Marker file: did the PoC create/leave a marker at this path? Relative
+//    paths resolve against /work (the workdir contract), never against the
+//    probe's own cwd.
 const markerRel = process.env.MIMI_MARKER_PATH || '';
 if (markerRel) {
-  const p = path.isAbsolute(markerRel) ? markerRel : path.join(process.cwd(), markerRel);
+  const p = path.isAbsolute(markerRel) ? markerRel : path.join('/work', markerRel);
   const present = safe(() => fs.existsSync(p), false);
   emit('MARKER_VERDICT', markerRel + ':' + (present ? 'present' : 'absent'));
 }
@@ -79,57 +222,87 @@ if (trav) {
   emit('TRAVERSAL', trav + ':' + (ok ? 'read' : 'blocked'));
 }
 
-// 4. Network: can the sandbox reach out at all? This reports the sandbox's
-//    network state after the PoC (used for the egress safety case). A PoC
-//    that merely *tried* and failed is still a network attempt; the executor
-//    notes that in the run's network_isolated field rather than here.
-const wantNet = process.env.MIMI_PROBE_NETWORK === '1';
-if (wantNet) {
-  const attempted = safe(() => {
-    // A connect to a non-routable address still exercises the stack; success
-    // means the sandbox has egress. Either outcome is a real measurement.
-    const net = require('net');
-    const sock = net.connect({ host: '1.1.1.1', port: 80, timeout: 1500 });
-    let done = false;
-    const t0 = Date.now();
-    // Synchronous-ish: block on the event loop is not possible here, so we
-    // report 'attempted' whenever the connect was issued without throwing.
-    sock.on('error', () => {});
-    sock.destroy();
-    return true;
-  }, false);
-  emit('NETWORK', attempted ? 'attempted' : 'not-attempted');
+// 4. Custom probe snippet (hypothesis-declared code, run in the sandbox like
+//    any other untrusted code). Its output is labelled CUSTOM_* so it can
+//    never masquerade as one of the fixed probes above.
+if (process.env.MIMI_CUSTOM_PROBE_PATH) {
+  try {
+    emit('CUSTOM_PROBE_BEGIN', process.env.MIMI_CUSTOM_PROBE_PATH);
+    const out = safe(() => require('child_process').execFileSync(
+      process.execPath, [process.env.MIMI_CUSTOM_PROBE_PATH],
+      { timeout: 10000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+    ), '');
+    process.stdout.write(String(out).slice(0, 64000));
+    emit('CUSTOM_PROBE_END', 'ran');
+  } catch (e) {
+    emit('CUSTOM_PROBE_ERROR', String(e).slice(0, 200));
+  }
 }
 
-process.stdout.write('__MIMI_PROBE_END__\n');
+// 5. Optional sandbox-egress measurement (not the PoC's attempts — those are
+//    the shim's job). Reported separately so the two are never conflated.
+if (process.env.MIMI_PROBE_EGRESS === '1') {
+  try {
+    const net = require('net');
+    const sock = net.connect({ host: '1.1.1.1', port: 80 });
+    let settled = false;
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      emit('EGRESS', v);
+      process.stdout.write('__MIMI_PROBE_END__\n');
+    };
+    const timer = setTimeout(() => {
+      try { sock.destroy(); } catch (e) {}
+      done('unmeasured');
+    }, 1500);
+    sock.on('connect', () => {
+      clearTimeout(timer);
+      try { sock.destroy(); } catch (e) {}
+      done('connected');
+    });
+    sock.on('error', () => {
+      clearTimeout(timer);
+      done('blocked');
+    });
+  } catch (e) {
+    emit('EGRESS', 'unmeasured');
+    process.stdout.write('__MIMI_PROBE_END__\n');
+  }
+} else {
+  process.stdout.write('__MIMI_PROBE_END__\n');
+}
 """
 
 
 def probe_command() -> str:
-    """Shell command that runs the trusted probe and prints its verdicts.
+    """Shell command that runs the already-staged trusted probe.
 
-    Written to a fixed path (``/work/.mimi_probe.js``) so it cannot collide
-    with the PoC file name, then executed with node.
+    The probe and shim are staged into fixed paths by the executor (via stdin,
+    not a heredoc — a PoC file name can never collide with these). This is
+    just the exec, so nothing untrusted is interpolated.
     """
-    return (
-        "cat > /work/.mimi_probe.js <<'MIMI_PROBE_EOF'\n"
-        + PROBE_JS
-        + "\nMIMI_PROBE_EOF\n"
-        "node /work/.mimi_probe.js"
-    )
+    return f"node {PROBE_FILE}"
+
+
+def shim_node_options() -> str:
+    """``NODE_OPTIONS`` value that preloads the observation shim into the PoC."""
+    return f"--require={SHIM_FILE}"
 
 
 def probe_env_for(oracle: Oracle) -> dict[str, str]:
-    """Env the trusted probe reads to know what to inspect.
+    """Env the trusted probe/shim read to know what to inspect.
 
-    Derived only from the oracle's own declared targets (a RunConfig/Oracle
-    field), never from report prose.
+    Derived only from the oracle's own declared targets (an Oracle field),
+    never from report prose.
     """
-    env: dict[str, str] = {}
+    env: dict[str, str] = {"MIMI_STATE_PATH": STATE_FILE}
     if oracle.marker_path:
         env["MIMI_MARKER_PATH"] = oracle.marker_path
     if oracle.expect_traversal_to:
         env["MIMI_TRAVERSAL_PATH"] = oracle.expect_traversal_to
     if oracle.type is OracleType.NETWORK_CALL:
-        env["MIMI_PROBE_NETWORK"] = "1"
+        # Measure sandbox reachability alongside the PoC-attempt verdict from
+        # the shim. The oracle fires on attempts; EGRESS is context only.
+        env["MIMI_PROBE_EGRESS"] = "1"
     return env

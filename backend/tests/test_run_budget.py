@@ -51,6 +51,7 @@ class CountingExecutor:
         offline: bool = True,
         phase: str = "poc",
         probe_env=None,
+        probe_snippet: str | None = None,
     ) -> RunRecord:
         self.calls.append(phase)
         if phase == "fixed" and self.fail_fixed:

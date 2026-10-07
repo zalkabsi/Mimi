@@ -39,10 +39,10 @@ flowchart LR
 | 1 | Extract claim | Nemotron Nano, JSON schema | `{package, versions, vuln_class, cited_symbols[], poc, expected_effect}` | Cheap, high volume. Schema-validated; retry once on invalid. |
 | 2 | Ground in source | Deterministic (git checkout at version, grep/AST for cited files and symbols) + Nano summary | `grounding_evidence[]` | **Evidence only. Never a sole basis for rejection** (SlopCheck contradicts 29.4% of confirmed vulns, and 90% of its contradictions are wrong). It ranks hypotheses. |
 | 3 | Research | Tavily search, Super to synthesise | known advisories, duplicates, fixed version / fix commit | Query builder uses public identifiers only; a redaction test enforces it. |
-| 4 | Hypothesise | Nemotron Ultra, reasoning on, tool calling | ranked hypotheses, each with test plan and a **predeclared oracle** | Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read. |
+| 4 | Hypothesise | Nemotron Ultra, reasoning on, tool calling | ranked hypotheses, each with test plan and a **predeclared oracle** | Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style oracles read a trusted post-PoC channel, never the PoC's own stdout. |
 | 5 | Build once | Sandboxes: run install/build with `disposable=false`, keep the result image UUID | base image | Network on for install only. |
 | 6 | Fork per hypothesis | Sandboxes: each PoC run starts from the base image UUID (independent fork), capped concurrency (<= 50, start with 8) | stdout/stderr/exit/timing/`cost` per run | PoC phase wrapped so it has no network (**VERIFY** `unshare -n`), hard timeout, output cap. |
-| 7 | Differential | Same oracle on the fixed version from stage 3 | flips or not | Confirms the oracle measures the bug, not an artifact. |
+| 7 | Differential | Same oracle on the fixed version from stage 3 | flipped true / false / **unknown** | Confirms the oracle measures the bug, not an artifact. Each hypothesis re-runs under its own environment. Any skipped, errored or unreached re-check leaves the flip *unknown*, never false. |
 | 8 | Verdict + dossier | Super; Ultra only when oracles disagree or are inconclusive | tier + coverage statement + exact commands | Tiers below. |
 | 9 | Draft reply | Super | maintainer-ready response | Asks for specific missing info, or acknowledges with repro steps. |
 
@@ -50,9 +50,9 @@ flowchart LR
 
 | Tier | Meaning | Required evidence |
 |---|---|---|
-| **Confirmed** | Reproduced on affected version and not on fixed version | Oracle fired on affected, did not on fixed; commands and outputs attached |
-| **Likely** | Oracle fired but no fixed-version differential (no fix yet, or fix unknown) | Oracle output attached |
-| **Needs human** | Could not build, ambiguous output, or coverage too low to say | What was tried, why it stopped |
+| **Confirmed** | Reproduced on affected version and not on fixed version | Oracle fired on affected; *every* fired hypothesis re-checked to a judgment on the fixed version and none fired there (a flip claimed over a subset is not allowed); commands and outputs attached |
+| **Likely** | Oracle fired but no usable fixed-version differential | Oracle output attached. Also the tier when the differential ran but the flip is **unconfirmed** (a re-check skipped, errored or could not build): an unknown flip never upgrades to Confirmed and never downgrades a real reproduction away from Likely. |
+| **Needs human** | Could not build, nothing reached a conclusive oracle, coverage too low to call a negative, or the oracle fired on **both** the affected and the fixed version (so it is not measuring this bug) | What was tried, why it stopped |
 | **Contradicted** | Executed evidence against the claim | N hypotheses tested across K configurations, 0 triggered, plus grounding evidence (e.g. cited symbol absent at that version). States the coverage; never says "invalid" |
 
 Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a maintainer can judge how much to trust a Contradicted tier.

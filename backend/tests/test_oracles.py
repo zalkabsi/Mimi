@@ -301,23 +301,58 @@ def test_network_call_not_forgeable_from_stdout():
 
 def test_custom_probe_fired():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
-    res = check(o, run(probe_output="step 1\nPROBE_OK"))
+    res = check(o, run(probe_output="__MIMI_CUSTOM_PROBE_BEGIN__:\nstep 1\nPROBE_OK\n__MIMI_CUSTOM_PROBE_END__:ran"))
     assert res.fired is True
     assert res.conclusive is True
 
 
 def test_custom_probe_not_fired():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
-    res = check(o, run(probe_output="step 1\nPROBE_FAIL"))
+    res = check(o, run(probe_output="__MIMI_CUSTOM_PROBE_BEGIN__:\nstep 1\nPROBE_FAIL\n__MIMI_CUSTOM_PROBE_END__:ran"))
     assert res.fired is False
     assert res.conclusive is True
 
 
 def test_custom_probe_not_forgeable_from_stdout():
     o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
-    res = check(o, run(stdout="PROBE_OK", probe_output="step 1\nPROBE_FAIL"))
+    res = check(
+        o,
+        run(
+            stdout="PROBE_OK",
+            probe_output="__MIMI_CUSTOM_PROBE_BEGIN__:\nstep 1\nPROBE_FAIL\n__MIMI_CUSTOM_PROBE_END__:ran",
+        ),
+    )
     # stdout is ignored; the trusted channel decides.
     assert res.fired is False
+
+
+def test_custom_probe_pattern_cannot_match_a_sibling_probe_token():
+    # The fixed probes share this stream. A pattern like "attempted" must not
+    # fire on the network probe's verdict — that would grade a different
+    # question than the one the hypothesis declared.
+    o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="attempted")
+    res = check(
+        o,
+        run(
+            probe_output=(
+                "__MIMI_NETWORK__:attempted\n"
+                "__MIMI_CUSTOM_PROBE_BEGIN__:\nstep 1\nnothing here\n"
+                "__MIMI_CUSTOM_PROBE_END__:ran\n"
+            ),
+        ),
+    )
+    assert res.fired is False
+    assert res.conclusive is True
+
+
+def test_custom_probe_unterminated_output_is_inconclusive():
+    # No end marker means the snippet's window cannot be delimited. Reading
+    # that as "did not fire" would grade missing evidence as a negative.
+    o = Oracle(type=OracleType.CUSTOM_PROBE, pattern="PROBE_OK")
+    res = check(o, run(probe_output="__MIMI_CUSTOM_PROBE_BEGIN__:\nstep 1\nPROBE_OK"))
+    assert res.fired is False
+    assert res.conclusive is False
+    assert "terminated" in res.detail
 
 
 def test_custom_probe_invalid_pattern_not_fired():

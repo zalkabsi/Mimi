@@ -12,8 +12,10 @@ import re
 
 from .schemas import Claim, PublicIdentifiers
 
-# CVE-YYYY-NNNN… and GHSA-xxxx-xxxx-xxxx
-_ADVISORY_RE = re.compile(r"\b(CVE-\d{4}-\d{4,}|GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4})\b")
+# CVE-YYYY-NNNN and GHSA-xxxx-xxxx-xxxx. The CVE tail is capped at 8 digits
+# (real ids are 4-7) so a report cannot smuggle a 400-digit blob into a query
+# as an "advisory id".
+_ADVISORY_RE = re.compile(r"\b(CVE-\d{4}-\d{4,8}|GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4})\b")
 
 # Words we allow as extra search terms: vuln-class vocabulary only, not report prose.
 _CLASS_TERMS = {
@@ -31,13 +33,25 @@ _CLASS_TERMS = {
 
 _MAX_QUERY_LEN = 400
 
-# npm package name (optionally scoped) and a version-ish token. These are the
-# only shapes allowed into a query. LLM free text that is not one of them is
-# dropped at this boundary — never "cleaned up" into something that could still
-# carry report prose.
-_PACKAGE_RE = re.compile(r"^@?[A-Za-z0-9][A-Za-z0-9._-]{0,213}(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,213})?$")
-# Optional comparator, then semver-ish. Capped so a pasted sentence cannot ride along.
-_VERSION_RE = re.compile(r"^[~^<>=\s]{0,3}v?\d{1,3}(?:\.\d{1,3}){0,3}(?:[-+][0-9A-Za-z.-]{0,24})?$")
+# npm package name (optionally scoped with @scope/name) and a version-ish
+# token. These are the only shapes allowed into a query. LLM free text that is
+# not one of them is dropped at this boundary — never "cleaned up" into
+# something that could still carry report prose. A slash form without the
+# leading @ is refused: "example.com/steal" is not an npm name.
+_PACKAGE_RE = re.compile(
+    r"^(?:@[A-Za-z0-9][A-Za-z0-9._-]{0,213}/)?[A-Za-z0-9][A-Za-z0-9._-]{0,213}$"
+)
+# Optional comparator, then semver-ish. The prerelease/build suffix is capped
+# at three short dot-separated identifiers — the shape real prereleases have
+# ("1.2.3-beta.1", "2.0.0-rc.1", "1.0.0-20240101"). A blob suffix
+# ("1.0.0-somesecrettoken") and a dotted sentence ("1.0.0-and.then.the.keys")
+# are refused: both are valid semver and both are report prose in a version
+# costume, and letting them through published their words as "version pieces",
+# which disarmed the very prose-run check below.
+_VERSION_RE = re.compile(
+    r"^[~^<>=\s]{0,3}v?\d{1,3}(?:\.\d{1,3}){0,3}"
+    r"(?:[-+][0-9A-Za-z]{1,12}(?:\.[0-9A-Za-z]{1,12}){0,2})?$"
+)
 
 # Fixed query vocabulary — the only non-identifier words a query may contain.
 _QUERY_VOCAB = {
@@ -169,28 +183,185 @@ def verify_query(query: str, ids: PublicIdentifiers) -> None:
         raise AssertionError(f"query token {token!r} is not a public identifier: {query!r}")
 
 
+# Zero-width and formatting characters a report could use to hide a phrase.
+_ZERO_WIDTH = re.compile("​‌‍⁠﻿")
+# Markdown/code fencing and quotes. Stripped before comparison so
+# ```the keys` `` cannot hide from "the keys".
+_MARKUP = re.compile(r"[`*~_\"'()\[\]{}<>|\\]")
+# Separators folded to spaces, so "please-send-me" cannot hide from
+# "please send me". Underscores fold too, for phrase matching; secret shapes
+# like ``ghp_`` are checked on raw words before this runs.
+_SEPARATORS = re.compile(r"[-_./+]+")
+# Trailing sentence punctuation, stripped from raw words before the
+# long/secret check. Keeps URLs and identifiers intact.
+_EDGE_PUNCT = ".,;:!?\"'()[]{}<>"
+_SECRET_RE = re.compile(r"(https?://|ghp_|sk-|xox[baprs]-|akia|-----begin)")
+
+
+def _normalize(text: str) -> str:
+    t = (text or "").lower()
+    t = _ZERO_WIDTH.sub("", t)
+    t = _MARKUP.sub(" ", t)
+    t = _SEPARATORS.sub(" ", t)
+    return " ".join(t.split())
+
+
+def _version_pieces(version: str) -> set[str]:
+    """Public words of a version: its numeric core only.
+
+    The prerelease/build suffix is shape-valid but arbitrary text
+    (``1.0.0-and.then.the.keys``), and publishing its words would exempt the
+    exact prose run this guard exists to catch. ``4.17.20`` -> ``{4, 17, 20}``.
+    """
+    core = re.split(r"[-+]", (version or "").lstrip("~^<>= \t"), maxsplit=1)[0]
+    return set(_normalize(core).split())
+
+
+def _public_words(query: str) -> tuple[set[str], set[str]]:
+    """Two sets, for two different checks.
+
+    ``phrase_public`` — words that may appear as *pieces* of a matched run:
+    fixed vocabulary, plus the pieces of an advisory id and the numeric core
+    of a version. Those are the shapes a report legitimately cites, so
+    ``CVE-2021-44906`` or ``4.17.20`` on both sides is not a leak.
+
+    ``whole_public`` — the complete identifier tokens the query may carry.
+    The long-token check exempts only these (and spellings of them).
+
+    Deliberately NOT "every token that appears in the query": report prose
+    that made it into a query must not become exempt by being there, which is
+    exactly how an earlier version of this guard stopped catching leaks.
+
+    A package name is never expanded into pieces. npm names allow unlimited
+    hyphens, so hyphen-joined prose (``please-send-me-the-keys``) has package
+    shape; publishing its pieces would exempt the very run being checked. Only
+    the whole token is public. Fixed vocabulary is not a package candidate:
+    every English word matches the npm name shape, so ``node-serialize
+    vulnerability`` must not read as two packages.
+    """
+    phrase_public: set[str] = set(_QUERY_VOCAB)
+    whole_public: set[str] = set()
+    package_like: list[str] = []
+    for tok in (query or "").split():
+        if _ADVISORY_RE.fullmatch(tok):
+            phrase_public.update(_normalize(tok).split())
+            whole_public.add(tok.lower())
+        elif sanitize_version(tok):
+            phrase_public.update(_version_pieces(tok))
+            whole_public.add(tok.lower())
+        elif tok.lower() in _QUERY_VOCAB:
+            continue
+        elif sanitize_package(tok):
+            package_like.append(tok)
+    if len(package_like) == 1:
+        # The shape build_queries emits: at most one package per query.
+        phrase_public.add(package_like[0].lower())
+        whole_public.add(package_like[0].lower())
+    return phrase_public, whole_public
+
+
+def _identifier_spellings(whole_public: set[str]) -> set[str]:
+    """Every spelling of a public identifier a report may reasonably use.
+
+    Advisories routinely drop the ``@`` of a scoped package ("the bug in
+    babel/traverse"), and the query still carries ``@babel/traverse``. That
+    is the same identifier, not a leak — treat the ``@``-stripped form as a
+    spelling of it. Bare ``name`` is deliberately NOT included: it is too
+    ambiguous to claim.
+    """
+    out: set[str] = set(whole_public)
+    for tok in whole_public:
+        if tok.startswith("@") and "/" in tok:
+            out.add(tok[1:])
+    return out
+
+
 def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
-    """Guard used by the research stage and the tests: any verbatim run of
-    report prose (``min_run``+ chars) appearing in a query is a leak."""
-    norm_q = " ".join(query.split()).lower()
-    norm_r = " ".join(report_text.split()).lower()
-    if not norm_r:
+    """Guard used by the research stage and the tests.
+
+    Fails when the query carries **report prose**. Checks, in order:
+
+    1. Long report words (blobs, urls) present in the query, unless the word
+       is itself a package name, version or advisory id.
+    2. Secret-shaped report words present in the query — never exempt; a
+       ``ghp_…`` token is not a public identifier.
+    3. Runs of 2+ report words that appear in the query and contain at least
+       one non-public word (see ``_public_words``).
+
+    Checks 1-2 run on raw words, before separator folding, so ``ghp_abc123``
+    and ``https://…`` are seen intact. ``min_run`` is the minimum phrase
+    length in characters for check 3. Identifier runs are exempt via
+    ``_public_words``, so citing an advisory in a report never disables
+    research (that false positive used to fire silently).
+    """
+    if not (report_text or "").strip() or not (query or "").strip():
         return
-    words = norm_r.split()
-    for n in range(min_run, min(len(norm_r), 80) + 1):
-        # Sliding window on characters of the report. Step of 1 so a short
-        # phrase cannot fall between samples (the old n//4 step skipped).
-        for i in range(0, max(1, len(norm_r) - n + 1)):
-            frag = norm_r[i : i + n]
-            if len(frag.split()) < 3:
+    norm_q = _normalize(query)
+    norm_r = _normalize(report_text)
+    if not norm_r or not norm_q:
+        return
+
+    q_low = (query or "").lower()
+    phrase_public, whole_public = _public_words(query)
+    spellings = _identifier_spellings(whole_public)
+
+    def _is_identifier(raw: str) -> bool:
+        """A report token that *is* a public identifier (or a spelling of one),
+        not merely a piece of one."""
+        return (
+            raw.lower() in spellings
+            or bool(_ADVISORY_RE.fullmatch(raw))
+            or bool(sanitize_version(raw))
+        )
+
+    # Check 3 has to know raw-token boundaries. `_normalize` folds separators,
+    # so the single report token ``node-serialize`` becomes the two words
+    # ``node serialize`` — one identifier, not prose. Conversely five separate
+    # report words that a query joined with hyphens really are prose. Judge a
+    # window by the raw tokens it spans, not by its folded words alone.
+    groups: list[tuple[str, list[str]]] = []
+    for raw in (report_text or "").split():
+        w = raw.strip(_EDGE_PUNCT)
+        if not w:
+            continue
+        words = _normalize(w).split()
+        if words:
+            groups.append((w, words))
+    flat: list[str] = []
+    owner: list[int] = []
+    for gi, (_, words) in enumerate(groups):
+        for word in words:
+            flat.append(word)
+            owner.append(gi)
+
+    for raw, _ in groups:
+        if not raw.lower() in q_low:
+            continue
+        low = raw.lower()
+        # 2: long blobs first — a pasted url is also secret-shaped, and the
+        # long-token diagnostic is the more precise one. A long identifier is
+        # exempt only when it *is* one of the query's public identifiers (or a
+        # spelling of one). A piece of one is not: a blob smuggled as a version
+        # suffix is not the version.
+        if len(raw) >= 12 and not _is_identifier(raw):
+            raise AssertionError(f"long report token leaked into query: {raw!r}")
+        # 1: secrets of any length. Never exempt: ``ghp_…`` is not an
+        # identifier, whatever shape it has.
+        if _SECRET_RE.search(low):
+            raise AssertionError(f"secret-like report token leaked into query: {raw!r}")
+
+    # 3: multi-word prose runs.
+    max_n = min(len(flat), 12)
+    for n in range(2, max_n + 1):
+        for i in range(0, len(flat) - n + 1):
+            run_owners = set(owner[i : i + n])
+            if all(_is_identifier(groups[g][0]) for g in run_owners):
+                continue  # every raw token is a public identifier, not prose
+            run = flat[i : i + n]
+            if all(w in phrase_public for w in run):
+                continue  # built from public identifier pieces and vocabulary
+            phrase = " ".join(run)
+            if len(phrase) < min_run:
                 continue
-            if frag in norm_q:
-                raise AssertionError(f"report text leaked into Tavily query: {frag!r}")
-    # Long single words from the report (secrets, urls, tokens) — lower the bar
-    # to 12 so a pasted API key or path is caught, not just 20+ char monsters.
-    for w in words:
-        if len(w) >= 12 and w.lower() in norm_q:
-            raise AssertionError(f"long report token leaked into query: {w!r}")
-        # Anything that looks like a secret or locator must never appear, even short.
-        if re.search(r"(https?://|ghp_|sk-|xox[baprs]-|AKIA|-----BEGIN)", w) and w.lower() in norm_q:
-            raise AssertionError(f"secret-like report token leaked into query: {w!r}")
+            if phrase in norm_q:
+                raise AssertionError(f"report text leaked into Tavily query: {phrase!r}")

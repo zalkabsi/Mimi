@@ -152,9 +152,15 @@ async def stream_events(report_id: str) -> StreamingResponse:
 
     # Replay whatever is already recorded, then follow live events. A run that
     # finished before this subscriber connected gets its history and stops.
+    # So does a row stuck at "running" with no live task (process restart,
+    # cancelled run): keep-aliving forever would tell the client to wait for
+    # events that will never come.
     for past in _db.list_events(report_id):
         q.put(past)
-    if already_finished:
+    with _event_lock:
+        live_now = report_id in _tasks
+        finished_now = report_id in _finished
+    if already_finished or not live_now or finished_now:
         q.put(None)
 
     def gen():

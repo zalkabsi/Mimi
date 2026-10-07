@@ -16,7 +16,7 @@ from ..events import EventLog
 from ..oracles import check_oracle
 from ..probe import probe_env_for
 from ..sandboxes import BuildResult, Executor, RunBudget
-from ..schemas import Hypothesis, OracleResult, ReportSubmission, RunRecord
+from ..schemas import Hypothesis, OracleResult, OracleType, ReportSubmission, RunRecord
 
 
 async def build_base(
@@ -85,7 +85,13 @@ async def run_hypotheses(
                 offline=h.config.offline,
                 phase="poc",
                 probe_env=probe_env_for(h.oracle),
+                probe_snippet=(
+                    h.oracle.probe_snippet
+                    if h.oracle.type is OracleType.CUSTOM_PROBE
+                    else None
+                ),
             )
+            budget.charge(run.cost)
             run.phase = "poc"
             runs.append(run)
             if run.error:
