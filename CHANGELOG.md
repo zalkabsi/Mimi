@@ -4,6 +4,21 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-12 (week 2: first E1 runs on the 11 real npm cases)
+Three full E1 passes over the same 11 cases (`evals/cases/e1-*`, public CVEs, exploit withheld), reports in `docs/eval-logs/`. Each pass is n=11, one run per case, model sampling not seeded, so these are a development log, **not** the final evaluation and not a claim of accuracy.
+
+| Pass | What changed | Oracle fired | Confirmed | Likely | Needs human | Contradicted |
+|---|---|---|---|---|---|---|
+| 1 | baseline pipeline | 3/11 | 2 | 1 | 2 | 6 |
+| 2 | PoC crash = inconclusive; one repair round | 7/11 | 1 | 5 | 2 | 3 |
+| 3 | fixed version from the npm advisory database | 7/11 | 3 | 2 | 2 | 4 |
+
+- Pass 1 showed why a bare "not reproduced" is dangerous: most Contradicted tiers on real CVEs came from PoCs that crashed (`x.strip is not a function`, `$.parseHTML is not a function`) and were counted as negatives. A nonzero exit with an uncaught-exception stack and no oracle match is now inconclusive, so it no longer inflates "N tested, 0 triggered".
+- The repair round (one pass, `poc_code` only, config and oracle fixed, measured API surface supplied) roughly doubled how often an oracle fired. It cannot turn a clean negative into a positive.
+- Fixed versions now come from `registry.npmjs.org` advisory data (package and version only leave the host); this took differentials from skipped to run on 10 of 11 cases. Where a PoC still fires on the fixed version (underscore, ws in pass 3) the tier is Needs human rather than Confirmed, which is the intended behaviour; those PoCs or oracles are too weak, not proof of an unfixed bug.
+- Run-to-run variance is large (marked and minimist CVE-2021-44906 flipped between passes). Before any number goes in the README: repeat each case k>=3 times, report the spread, and keep the single-shot and linear baselines (E1 `--mode`) for comparison. Cost so far about $0.01-0.05 of inference per case at the assumed rate table; sandbox cost still unmeasured.
+- Not yet run: E2 (slop discrimination), E3 (routing ablation), E4 (safety), baselines.
+
 ### 2026-10-12 (week 2: first live end-to-end run)
 - **Sandboxes unblocked.** The "every permission false" reading was a wrong host guess. With the SDK's own endpoint (`https://api.tokenfactory.nebius.com/sandboxes/`) the key has `spawn`, `import`, `list`, etc. The executor now uses `contree_sdk.Contree` with `IAMAuth`, imports the Node base image once via `images.oci`, and keeps intermediate images non-disposable so the fork chain (write PoC, write shim, run PoC, run probe) works.
 - **First complete live run** of the bundled demo (public CVE-2021-44906, `minimist@1.2.5`): 8 hypotheses forked from one built image, 4 fired, differential on `minimist@1.2.6` re-ran those 4 and 0 fired, tier **Confirmed**. All PoC runs `network_isolated: true`. One run: 55.4 s wall clock, 4,858 tokens in / 4,238 out, $0.0133 inference (priced from the assumed rate table, not an invoice); sandbox cost not exposed by the SDK, recorded as null. n = 1 run; this is a smoke test, not an evaluation.
