@@ -115,7 +115,12 @@ async def main(out: Path) -> None:
                 if row and row["status"] == "complete":
                     break
                 await page.wait_for_timeout(2000)
-            await page.wait_for_selector("text=tier assigned by the harness", timeout=30000)
+            # The verdict panel is always on the page, so wait for the header's
+            # "pipeline running" badge to go away: that is the UI knowing the run ended.
+            await page.wait_for_selector("text=Stage timeline", timeout=30000)
+            await page.wait_for_function(
+                "!document.body.innerText.includes('pipeline running')", timeout=90000
+            )
             await page.wait_for_timeout(1500)
 
         async def s_verdict():
