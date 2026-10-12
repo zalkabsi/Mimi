@@ -82,6 +82,53 @@ def pick_fixed_version(
     return min(fixes, key=lambda s: _parse(s) or (0, 0, 0))
 
 
+def covering_titles(advisories: list[dict], affected: str, vuln_class: str) -> list[str]:
+    """Titles of class-matching advisories whose range contains ``affected``.
+
+    Unlike ``pick_fixed_version`` this also counts ``<=X`` ranges: it answers
+    "does a public advisory say this version is affected", not "what fixes it".
+    """
+    v = _parse(affected)
+    if v is None:
+        return []
+    terms = _TITLE_TERMS.get(vuln_class, ())
+    out: list[str] = []
+    for adv in advisories:
+        title = str(adv.get("title") or "")
+        if terms and not any(t in title.lower() for t in terms):
+            continue
+        if _in_range(v, str(adv.get("vulnerable_versions") or "")):
+            out.append(title)
+    return out
+
+
+def lookup_advisories(
+    package: str, affected: str, vuln_class: str, timeout: float = 15.0
+) -> Optional[dict]:
+    """``{"fixed": str|None, "covering": [titles]}``; ``None`` if the lookup failed.
+
+    ``None`` means *unknown*, not "no advisory": callers must not read a failed
+    lookup as evidence that the claim is unsupported.
+    """
+    try:
+        import httpx
+
+        with httpx.Client(timeout=timeout) as c:
+            r = c.post(BULK_URL, json={package: [affected]})
+            r.raise_for_status()
+            advs = r.json().get(package) or []
+            published: Optional[set[str]] = None
+            p = c.get(PACKUMENT_URL.format(name=package.replace("/", "%2f")))
+            if p.status_code == 200:
+                published = set((p.json().get("versions") or {}).keys())
+        return {
+            "fixed": pick_fixed_version(advs, affected, vuln_class, published),
+            "covering": covering_titles(advs, affected, vuln_class),
+        }
+    except Exception:
+        return None
+
+
 def lookup_fixed_version(package: str, affected: str, vuln_class: str, timeout: float = 15.0) -> Optional[str]:
     """Network wrapper; any failure returns ``None`` (the caller falls back)."""
     try:

@@ -18,3 +18,10 @@ def test_ignores_non_covering_and_inclusive_bounds():
 
 def test_published_filter():
     assert pick_fixed_version(ADVS, "4.17.15", "prototype_pollution", {"4.17.21"}) is None
+
+
+def test_covering_titles_counts_inclusive_ranges_and_class():
+    from mimi.advisories import covering_titles
+
+    assert covering_titles(ADVS, "4.17.20", "prototype_pollution") == ["lodash vulnerable to Prototype Pollution"]
+    assert covering_titles(ADVS, "4.17.15", "xss") == []

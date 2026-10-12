@@ -88,6 +88,7 @@ def assign_tier(
     min_coverage_to_contradict: int = 3,
     build_failed: bool = False,
     stopped_reason: str = "",
+    advisory_titles: Optional[list[str]] = None,
 ) -> TierDecision:
     """The whole tier table as code. Deterministic, unit-tested."""
     cov = coverage or compute_coverage(hypotheses_total, oracle_results, runs)
@@ -158,6 +159,20 @@ def assign_tier(
                 f"Only {cov.hypotheses_tested} hypotheses ran to a judgment (minimum "
                 f"{min_coverage_to_contradict} to call a negative result). "
                 f"Coverage: {cov.statement}."
+            ),
+            cov,
+        )
+
+    # A public advisory that names this exact version and class outweighs our
+    # PoCs failing to fire: the E2 eval showed generated PoCs miss real bugs.
+    # A negative result may not contradict what the advisory database asserts.
+    if advisory_titles:
+        return TierDecision(
+            Tier.NEEDS_HUMAN,
+            (
+                f"{cov.statement}, 0 triggered, but a public npm advisory says this version "
+                f"is affected ({advisory_titles[0]!r}). Our PoCs may have missed the vulnerable "
+                "path; a human should judge the report against the advisory."
             ),
             cov,
         )

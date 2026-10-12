@@ -401,3 +401,16 @@ def test_coverage_versions_recorded_when_passed():
         versions=["4.17.20", "4.17.21"],
     )
     assert cov.versions_tested == ["4.17.20", "4.17.21"]
+
+
+def test_public_advisory_blocks_contradicted():
+    results = [oracle_result(f"h{i}", False) for i in range(4)]
+    kw = dict(
+        oracle_results=results,
+        differential=DifferentialResult(ran=False),
+        runs=[poc_run(f"h{i}") for i in range(4)],
+        hypotheses_total=4,
+    )
+    assert assign_tier(**kw).tier is Tier.CONTRADICTED
+    d = assign_tier(**kw, advisory_titles=["Prototype Pollution in minimist"])
+    assert d.tier is Tier.NEEDS_HUMAN and "public npm advisory" in d.rationale

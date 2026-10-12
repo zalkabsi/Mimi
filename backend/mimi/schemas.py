@@ -128,6 +128,11 @@ class ResearchFindings(BaseModel):
     fix_commit: Optional[str] = None
     fix_url: Optional[str] = None
     notes: str = ""
+    # Titles of npm advisories that name this version and this class. Empty
+    # with ``registry_checked`` True means the database was asked and had none;
+    # ``registry_checked`` False means unknown (lookup failed or was skipped).
+    registry_advisories: list[str] = Field(default_factory=list)
+    registry_checked: bool = False
     used: bool = True  # False when research was skipped (no key) — stated in the dossier
 
 

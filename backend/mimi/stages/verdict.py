@@ -52,6 +52,7 @@ def adjudicate(
         hypotheses_total=len(hypotheses),
         build_failed=build_failed,
         stopped_reason=stopped_reason,
+        advisory_titles=findings.registry_advisories if findings is not None else None,
     )
 
     # Versions actually executed — measured, never inferred. The submitted
