@@ -158,40 +158,66 @@ async def main(out: Path) -> None:
         await browser.close()
 
     raw = next((out / "raw").glob("*.webm"))
-    # Mix narration at each scene start, burn captions.
-    inputs, filters, labels = [], [], []
-    for i, (w, s) in enumerate(zip(wavs, starts)):
+
+    # The live pipeline run takes about a minute in real time. Keep it real, but
+    # speed that scene up if it would push the video past the 3:00 limit, and say
+    # so on screen. Everything else plays at normal speed.
+    ends = starts[1:] + [total]
+    factors = []
+    for (name, _), s0, e0, d in zip(SCENES, starts, ends, durs):
+        length = e0 - s0
+        target = d + 6.0
+        factors.append(max(1.0, length / target) if name == "live" else 1.0)
+    new_len = [(e0 - s0) / f for s0, e0, f in zip(starts, ends, factors)]
+    new_starts = [sum(new_len[:i]) for i in range(len(new_len))]
+    new_total = sum(new_len)
+
+    vparts, vlabels = [], []
+    for i, (s0, e0, f) in enumerate(zip(starts, ends, factors)):
+        chain = f"[0:v]trim=start={s0:.3f}:end={e0:.3f},setpts=(PTS-STARTPTS)/{f:.4f}"
+        if f > 1.01:
+            chain += (
+                f",drawtext=text='live run, sped up {f:.0f}x':x=w-tw-24:y=24:fontsize=22:"
+                "fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8"
+            )
+        vparts.append(chain + f"[v{i}]")
+        vlabels.append(f"[v{i}]")
+    vparts.append("".join(vlabels) + f"concat=n={len(vlabels)}:v=1:a=0[vc]")
+
+    inputs, afilters, alabels = [], [], []
+    for i, (w, st) in enumerate(zip(wavs, new_starts)):
         inputs += ["-i", str(w)]
-        filters.append(f"[{i + 1}:a]adelay={int(s * 1000)}|{int(s * 1000)}[a{i}]")
-        labels.append(f"[a{i}]")
-    filters.append("".join(labels) + f"amix=inputs={len(wavs)}:normalize=0[aout]")
+        afilters.append(f"[{i + 1}:a]adelay={int(st * 1000)}|{int(st * 1000)}[a{i}]")
+        alabels.append(f"[a{i}]")
+    afilters.append("".join(alabels) + f"amix=inputs={len(wavs)}:normalize=0[aout]")
 
     def ts(sec: float) -> str:
         h, rem = divmod(sec, 3600)
-        m, s = divmod(rem, 60)
-        return f"{int(h):02}:{int(m):02}:{s:06.3f}".replace(".", ",")
+        m, s_ = divmod(rem, 60)
+        return f"{int(h):02}:{int(m):02}:{s_:06.3f}".replace(".", ",")
 
     srt, n = [], 1
-    for (name, text), s, d in zip(SCENES, starts, durs):
+    for (name, text), st, d in zip(SCENES, new_starts, durs):
         words = text.split()
         chunk = 14
         parts = [" ".join(words[j:j + chunk]) for j in range(0, len(words), chunk)]
         per = d / max(1, len(parts))
         for k, part in enumerate(parts):
-            srt.append(f"{n}\n{ts(s + k * per)} --> {ts(s + (k + 1) * per)}\n{part}\n")
+            srt.append(f"{n}\n{ts(st + k * per)} --> {ts(st + (k + 1) * per)}\n{part}\n")
             n += 1
     (out / "demo.srt").write_text("\n".join(srt), encoding="utf-8")
     (out / "narration.txt").write_text("\n\n".join(t for _, t in SCENES), encoding="utf-8")
 
     style = "FontName=Inter,FontSize=11,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=24"
+    graph = ";".join(vparts + afilters) + f";[vc]subtitles={out / 'demo.srt'}:force_style='{style}'[v]"
     cmd = [
         "ffmpeg", "-y", "-i", str(raw), *inputs,
-        "-filter_complex", ";".join(filters) + f";[0:v]subtitles={out / 'demo.srt'}:force_style='{style}'[v]",
+        "-filter_complex", graph,
         "-map", "[v]", "-map", "[aout]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "26",
-        "-c:a", "aac", "-b:a", "128k", "-t", f"{total:.1f}", str(out / "demo.mp4"),
+        "-c:a", "aac", "-b:a", "128k", "-t", f"{new_total:.1f}", str(out / "demo.mp4"),
     ]
     subprocess.run(cmd, check=True)
-    print(f"done: {out / 'demo.mp4'}  length {total:.1f}s")
+    print(f"done: {out / 'demo.mp4'}  length {new_total:.1f}s (live scene speed x{max(factors):.1f})")
 
 
 if __name__ == "__main__":
