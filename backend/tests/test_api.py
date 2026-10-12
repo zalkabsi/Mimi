@@ -238,3 +238,24 @@ def test_submit_and_get_report_roundtrip_shape(client, monkeypatch):
         task = api._tasks.pop(payload["report_id"], None)
     if task is not None and hasattr(task, "cancel"):
         task.cancel()
+
+
+def test_api_stays_responsive_while_a_blocking_pipeline_runs(client, monkeypatch):
+    """The pipeline makes blocking HTTP calls; they must not freeze the API."""
+    import time
+
+    class SlowPipeline:
+        def __init__(self, *a, **k):
+            pass
+
+        async def run(self, submission, *, source="api", report_id=None):
+            time.sleep(1.5)  # a blocking call, like a synchronous inference request
+
+    monkeypatch.setattr(api, "Pipeline", SlowPipeline)
+    monkeypatch.setattr(api, "_check_access", lambda key: "judge")
+    r = client.post("/api/reports", json={"report_text": "x", "package_spec": "a@1.0.0"})
+    assert r.status_code == 200
+    t0 = time.monotonic()
+    assert client.get("/api/health").status_code == 200
+    assert time.monotonic() - t0 < 0.7
+    time.sleep(1.8)  # let the worker thread finish before the next test

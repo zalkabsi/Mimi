@@ -109,7 +109,12 @@ async def main(out: Path) -> None:
             # API to report the run complete AND for the UI to show the verdict.
             rid = page.url.rstrip("/").split("/")[-1]
             for _ in range(300):
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                # Keep the newest timeline row in view (not the page bottom).
+                await page.evaluate(
+                    "(() => { const rows = [...document.querySelectorAll('div,li')]"
+                    ".filter(e => e.children.length <= 4 && /^\\d[ab]? · /.test((e.innerText||'').trim()));"
+                    " const last = rows[rows.length-1]; if (last) last.scrollIntoView({block:'center'}); })()"
+                )
                 rows = await (await page.request.get("http://localhost:8000/api/reports")).json()
                 row = next((r for r in rows if r["id"] == rid), None)
                 if row and row["status"] == "complete":

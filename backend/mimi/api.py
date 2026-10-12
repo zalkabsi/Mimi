@@ -119,7 +119,12 @@ async def submit_report(
 
     async def _run() -> None:
         try:
-            await pipeline.run(submission, source="api", report_id=report_id)
+            # The pipeline makes blocking HTTP calls (inference, search). Run it
+            # on its own thread and loop so the API keeps answering page loads,
+            # polls and event streams while a report is being processed.
+            await asyncio.to_thread(
+                lambda: asyncio.run(pipeline.run(submission, source="api", report_id=report_id))
+            )
         except Exception as e:
             _publish(report_id, {"stage": "pipeline", "status": "error", "detail": str(e)})
         finally:
