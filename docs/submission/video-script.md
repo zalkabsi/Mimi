@@ -1,6 +1,6 @@
 # Demo video
 
-`scripts/video/record_demo.py` records the video from the real UI and a **real live run** (the public CVE-2021-44906 example on `minimist@1.2.5`); nothing is mocked. It writes `demo.mp4` (about 2.5 minutes, captions burned in), `demo.srt` and `narration.txt`. A finished cut is committed as `docs/submission/demo-video.mp4`.
+`scripts/video/record_demo.py` records the video from the real UI and a **real live run** (the public CVE-2021-44906 example on `minimist@1.2.5`); nothing is mocked. It writes `demo.mp4` (about 2:15, captions burned in), `demo.srt` and `narration.txt`. A finished cut is committed as `docs/submission/demo-video.mp4`.
 
 Rules it follows (docs/00): text names only, no third-party logos, no music, narration that names Nebius Token Factory, Token Factory Sandboxes and the Nemotron models, footage of the project working, under 3:00.
 
