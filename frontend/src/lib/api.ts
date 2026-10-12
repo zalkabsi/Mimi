@@ -166,7 +166,14 @@ export function streamEvents(
         // ignore malformed frames (keep-alives are comments, not messages)
       }
     };
+    let finished = false;
+    source.addEventListener("done", () => {
+      finished = true;
+      source?.close();
+      source = null;
+    });
     source.onerror = () => {
+      if (finished) return;
       source?.close();
       source = null;
       startPolling("live stream unavailable — polling recorded events instead");

@@ -186,6 +186,8 @@ def test_stream_for_finished_run_replays_history_and_terminates(client):
     # History is replayed, and the stream CLOSED rather than keep-aliving.
     assert "claim extracted" in body
     assert "tier=likely" in body
+    # A named terminal event, so the UI does not read the close as an error.
+    assert "event: done" in body
 
 
 def test_stream_for_run_still_running_terminates_after_finish(client):

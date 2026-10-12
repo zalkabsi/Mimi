@@ -105,15 +105,18 @@ async def main(out: Path) -> None:
             await page.wait_for_url("**/reports/**", timeout=20000)
 
         async def s_live():
-            # Real run, real time: poll the API until this report's pipeline is complete.
+            # Real run, real time. Follow the timeline to the newest event, then wait for the
+            # API to report the run complete AND for the UI to show the verdict.
             rid = page.url.rstrip("/").split("/")[-1]
             for _ in range(300):
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 rows = await (await page.request.get("http://localhost:8000/api/reports")).json()
                 row = next((r for r in rows if r["id"] == rid), None)
                 if row and row["status"] == "complete":
                     break
                 await page.wait_for_timeout(2000)
-            await page.wait_for_timeout(2500)
+            await page.wait_for_selector("text=tier assigned by the harness", timeout=30000)
+            await page.wait_for_timeout(1500)
 
         async def s_verdict():
             await page.evaluate("window.scrollTo(0,0)")
@@ -180,7 +183,7 @@ async def main(out: Path) -> None:
     (out / "demo.srt").write_text("\n".join(srt), encoding="utf-8")
     (out / "narration.txt").write_text("\n\n".join(t for _, t in SCENES), encoding="utf-8")
 
-    style = "FontName=Inter,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=24"
+    style = "FontName=Inter,FontSize=11,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=24"
     cmd = [
         "ffmpeg", "-y", "-i", str(raw), *inputs,
         "-filter_complex", ";".join(filters) + f";[0:v]subtitles={out / 'demo.srt'}:force_style='{style}'[v]",

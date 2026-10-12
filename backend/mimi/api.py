@@ -174,6 +174,9 @@ async def stream_events(report_id: str) -> StreamingResponse:
                     yield ": keep-alive\n\n"
                     continue
                 if item is None:
+                    # Named terminal event: a bare close makes EventSource fire
+                    # onerror, which the UI would misread as "stream unavailable".
+                    yield "event: done\ndata: {}\n\n"
                     break
                 yield f"data: {json.dumps(item)}\n\n"
         finally:
