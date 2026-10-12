@@ -83,10 +83,34 @@ export function ReportView() {
   const pipelineDone = useMemo(() => {
     if (!dossier) return false;
     return (
-      dossier.events.some((e) => e.stage === "reply" && e.status === "ok") ||
+      dossier.events.some(
+        (e) =>
+          (e.stage === "reply" && e.status === "ok") ||
+          (e.stage === "pipeline" && e.status === "error"),
+      ) ||
       (dossier.tier !== "Needs human" && dossier.reply_draft !== "")
     );
   }, [dossier]);
+
+  // The dossier is fetched once on load, so a run that was still going then
+  // would stay "running" forever. Re-fetch it until the pipeline is done.
+  const haveDossier = dossier !== null;
+  useEffect(() => {
+    if (!haveDossier || pipelineDone) return;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const d = await getReport(reportId);
+        if (!cancelled) setDossier(d);
+      } catch {
+        // keep trying; the next tick may succeed
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [haveDossier, pipelineDone, reportId]);
 
   if (load === "loading" && !dossier) {
     return (
