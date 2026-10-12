@@ -194,3 +194,12 @@ async def whoami(x_mimi_key: Optional[str] = Header(default=None)) -> dict:
         return await sandbox_whoami(_settings)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+# Single-container hosting: serve the built UI from the same origin when a
+# build exists (see Dockerfile). Mounted last so /api/* routes win.
+_DIST = os.environ.get("MIMI_FRONTEND_DIST", "")
+if _DIST and os.path.isdir(_DIST):
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_DIST, html=True), name="ui")
