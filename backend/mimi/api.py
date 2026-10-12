@@ -24,6 +24,7 @@ from fastapi.responses import StreamingResponse
 
 from .config import Settings
 from .db import Database
+from .seed import seed_demo
 from .pipeline import Pipeline
 from .schemas import Dossier, ReportSubmission
 
@@ -37,6 +38,7 @@ app.add_middleware(
 
 _settings = Settings.from_env()
 _db = Database(_settings.db_path)
+seed_demo(_db)
 _tasks: dict[str, asyncio.Task] = {}
 # Live SSE fan-out: one list of subscriber queues per report. The pipeline
 # publishes to every queue in the list; each stream owns one queue.
