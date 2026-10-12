@@ -1,0 +1,15 @@
+Open-source maintainers get vulnerability reports they cannot cheaply verify. Mimi reproduces the claim in isolated Nebius Token Factory Sandboxes, at the exact affected version, and returns a verdict with receipts. It never auto-closes a report.
+
+I load a public example: minimist 1.2.5, CVE 2021 44906. Nemotron Nano extracts the claim. Tavily looks up public advisories using only the package name and version, never the report text.
+
+Nemotron Ultra writes up to eight hypotheses, each with a test script and a pass or fail rule fixed in advance. The environment is built once in a Token Factory Sandbox, and every hypothesis runs as its own fork, offline, in parallel.
+
+Hypotheses that fire are re-run on the fixed version. This one fires on 1.2.5 and not on 1.2.6, so the tier is Confirmed, with every command and output attached.
+
+Each run shows the exact command, its output, and whether the network was isolated. The tier is assigned by code from the oracle results, not by a model's opinion.
+
+When a report is fabricated, Mimi says how hard it tried. This invented chalk bug: six hypotheses tested, none triggered. That is a negative result with coverage, not a closed report. A script that crashes is recorded as inconclusive, never as a negative.
+
+And when an oracle fires on both the affected and the fixed version, Mimi refuses to confirm and asks a human to look.
+
+Mimi covers npm only, and results vary between runs. In our development runs, three passes over eleven real vulnerabilities fired an oracle on seven each time, and confirmed two or three against the fixed version. It is open source under Apache 2.0, built on Nebius Token Factory, Sandboxes and Nemotron, with Tavily for research.

@@ -1,0 +1,99 @@
+1
+00:00:00,000 --> 00:00:05,412
+Open-source maintainers get vulnerability reports they cannot cheaply verify. Mimi reproduces the claim in
+
+2
+00:00:05,412 --> 00:00:10,825
+isolated Nebius Token Factory Sandboxes, at the exact affected version, and returns a verdict
+
+3
+00:00:10,825 --> 00:00:16,237
+with receipts. It never auto-closes a report.
+
+4
+00:00:17,040 --> 00:00:23,109
+I load a public example: minimist 1.2.5, CVE 2021 44906. Nemotron Nano extracts the
+
+5
+00:00:23,109 --> 00:00:29,177
+claim. Tavily looks up public advisories using only the package name and version, never
+
+6
+00:00:29,177 --> 00:00:35,245
+the report text.
+
+7
+00:00:36,055 --> 00:00:41,428
+Nemotron Ultra writes up to eight hypotheses, each with a test script and a
+
+8
+00:00:41,428 --> 00:00:46,801
+pass or fail rule fixed in advance. The environment is built once in a
+
+9
+00:00:46,801 --> 00:00:52,174
+Token Factory Sandbox, and every hypothesis runs as its own fork, offline, in parallel.
+
+10
+00:00:58,174 --> 00:01:02,522
+Hypotheses that fire are re-run on the fixed version. This one fires on 1.2.5
+
+11
+00:01:02,522 --> 00:01:06,870
+and not on 1.2.6, so the tier is Confirmed, with every command and output
+
+12
+00:01:06,870 --> 00:01:11,218
+attached.
+
+13
+00:01:12,021 --> 00:01:15,581
+Each run shows the exact command, its output, and whether the network was isolated.
+
+14
+00:01:15,581 --> 00:01:19,141
+The tier is assigned by code from the oracle results, not by a model's
+
+15
+00:01:19,141 --> 00:01:22,701
+opinion.
+
+16
+00:01:23,502 --> 00:01:27,980
+When a report is fabricated, Mimi says how hard it tried. This invented chalk
+
+17
+00:01:27,980 --> 00:01:32,459
+bug: six hypotheses tested, none triggered. That is a negative result with coverage, not
+
+18
+00:01:32,459 --> 00:01:36,937
+a closed report. A script that crashes is recorded as inconclusive, never as a
+
+19
+00:01:36,937 --> 00:01:41,415
+negative.
+
+20
+00:01:42,220 --> 00:01:46,032
+And when an oracle fires on both the affected and the fixed version, Mimi
+
+21
+00:01:46,032 --> 00:01:49,845
+refuses to confirm and asks a human to look.
+
+22
+00:01:50,649 --> 00:01:56,412
+Mimi covers npm only, and results vary between runs. In our development runs, three
+
+23
+00:01:56,412 --> 00:02:02,174
+passes over eleven real vulnerabilities fired an oracle on seven each time, and confirmed
+
+24
+00:02:02,174 --> 00:02:07,937
+two or three against the fixed version. It is open source under Apache 2.0,
+
+25
+00:02:07,937 --> 00:02:13,700
+built on Nebius Token Factory, Sandboxes and Nemotron, with Tavily for research.

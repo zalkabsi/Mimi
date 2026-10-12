@@ -4,6 +4,13 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-12 (week 2: UI, README, Devpost text, feedback, demo video)
+- UI: verdict first on finished reports with the timeline collapsed; public example loader; demo/live mode hint; npm advisory row in Research; only package-relevant search results shown; repair stage label; the report page refetches until a running pipeline finishes (it used to stay on the partial dossier forever).
+- Found while recording the video: the API froze for about 15 s per run because the pipeline's blocking HTTP calls ran on the event loop; the pipeline now runs on its own thread (regression test added). A finished event stream closed with no terminal event, so the UI showed "live stream unavailable"; the server now sends a named `done` event.
+- Demo inbox seeded with three recorded real dossiers (a Confirmed minimist run, a clearly labelled synthetic fabricated report that stays Contradicted with coverage, and a case where the oracle fired on both versions so Mimi refuses to confirm).
+- README rewritten (setup, design, where each Nebius/NVIDIA piece is used, honest results and limits, screenshots); `docs/feedback-log.md` consolidated into a summary table plus per-tool entries; `docs/submission/devpost.md` final text with only the demo URL and judge key left for the owner.
+- Demo video recorded from the real UI and a real live run (`scripts/video/record_demo.py`): about 2:15, captions burned in, the live scene sped up and labelled, placeholder text-to-speech narration (replace with a human voice for the final upload if preferred).
+
 ### 2026-10-12 (week 2: repeats, baselines, E2, E4)
 Everything below is n=11 (E1), n=10 (E2) or n=6 (E4), one run per case, unseeded sampling. Reports are in `docs/eval-logs/`. These are development numbers with wide intervals, not accuracy claims.
 

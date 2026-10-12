@@ -63,7 +63,7 @@ cd backend && uvicorn mimi.api:app --port 8000
 cd frontend && npm install && npm run dev     # http://localhost:5173
 ```
 
-Demo video: `scripts/video/record_demo.py` re-records it from the real UI and a live run. Hosting for judges: see [`docs/deploy.md`](docs/deploy.md).
+Demo video (about 2:15, placeholder text-to-speech voice, captions burned in): [`docs/submission/demo-video.mp4`](docs/submission/demo-video.mp4), recorded from the real UI and a real live run by `scripts/video/record_demo.py`. Hosting for judges: see [`docs/deploy.md`](docs/deploy.md).
 
 Access tiers for the hosted app: read-only demo mode (no login, recorded runs), a judge credential for live runs, and self-hosting. See `docs/02-architecture.md`.
 
