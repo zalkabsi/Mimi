@@ -8,6 +8,7 @@ the dossier so the maintainer can see exactly what left the system.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import httpx
@@ -61,6 +62,11 @@ class TavilyClient:
                 if "fixed in" in lowered or "patched in" in lowered:
                     findings.fix_url = findings.fix_url or url
         findings.known_advisories = _dedup_advisories(findings.known_advisories)
+        kept = [a for a in findings.known_advisories if _is_relevant(a, ids)]
+        dropped = len(findings.known_advisories) - len(kept)
+        if dropped:
+            findings.notes += f"{dropped} off-topic search result(s) dropped (no mention of the package or an advisory id); "
+        findings.known_advisories = kept
         return findings
 
     def _search_one(self, query: str, max_results: int = 5) -> list[dict[str, Any]]:
@@ -102,3 +108,16 @@ def _dedup_advisories(items: list[Advisory]) -> list[Advisory]:
         seen.add(key)
         out.append(a)
     return out
+
+
+def _is_relevant(adv: Advisory, ids: PublicIdentifiers) -> bool:
+    """Keep a result only if it names the package or one of the advisory ids.
+
+    Generic queries ("minimist prototype pollution") also return pages about
+    pollution in general; those are noise in a dossier and in the model prompt.
+    """
+    text = f"{adv.title} {adv.url} {adv.snippet}".lower()
+    name = (ids.package or "").lower()
+    if name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text):
+        return True
+    return any(a.lower() in text for a in ids.advisory_ids)

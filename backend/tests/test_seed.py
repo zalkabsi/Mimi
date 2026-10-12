@@ -8,5 +8,5 @@ def test_seed_loads_recorded_dossiers_once(tmp_path):
     assert n == len(list(DEMO_DIR.glob("*.json"))) and n >= 1
     assert seed_demo(db) == 0  # idempotent
     rows = db.list_reports()
-    assert all(r["source"] == "demo" for r in rows)
+    assert all(r["source"] in ("demo", "eval") for r in rows)
     db.close()

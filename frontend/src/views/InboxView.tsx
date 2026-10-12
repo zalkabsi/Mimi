@@ -1,3 +1,4 @@
+import { SAMPLE_PACKAGE, SAMPLE_REPORT } from "../lib/sample";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, USE_MOCK, listReports, submitReport } from "../lib/api";
@@ -93,6 +94,23 @@ export function InboxView() {
               </p>
             </header>
             <form onSubmit={onSubmit} className="space-y-4 px-4 py-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPackageSpec(SAMPLE_PACKAGE);
+                    setReportText(SAMPLE_REPORT);
+                  }}
+                  className="rounded border border-slate-700 px-2 py-1 font-mono text-slate-300 hover:border-sky-500 hover:text-sky-300"
+                >
+                  load public example (CVE-2021-44906)
+                </button>
+                <span>
+                  {accessKey.trim() === ""
+                    ? "Demo mode: browse the recorded runs below. Running a live report needs a judge key."
+                    : "Live mode: this run spends real sandbox and inference credits."}
+                </span>
+              </div>
               <div>
                 <label
                   htmlFor="package-spec"
@@ -171,7 +189,7 @@ export function InboxView() {
             <ul className="mt-3 space-y-3 text-xs text-slate-400">
               <li className="flex items-start gap-2">
                 <TierBadge tier="Confirmed" size="sm" />
-                <span>Reproduced on the claimed version, with an oracle firing.</span>
+                <span>Fired on the affected version and not on the fixed one.</span>
               </li>
               <li className="flex items-start gap-2">
                 <TierBadge tier="Likely" size="sm" />

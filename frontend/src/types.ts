@@ -93,6 +93,8 @@ export interface ResearchFindings {
   fix_commit: string | null;
   fix_url: string | null;
   notes: string;
+  registry_advisories?: string[];
+  registry_checked?: boolean;
   used: boolean;
 }
 

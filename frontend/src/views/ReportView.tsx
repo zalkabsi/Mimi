@@ -300,7 +300,7 @@ export function ReportView() {
                 <EmptyNote text="No advisories found for the public identifiers used." />
               ) : (
                 <ul className="mt-2 space-y-2">
-                  {d.research.known_advisories.map((a, i) => (
+                  {d.research.known_advisories.slice(0, 6).map((a, i) => (
                     <li
                       key={i}
                       className="rounded border border-slate-800 bg-slate-950/50 px-3 py-2"
@@ -329,7 +329,29 @@ export function ReportView() {
                 </ul>
               )}
             </div>
+            {d.research.known_advisories.length > 6 ? (
+              <p className="text-xs text-slate-500">
+                Showing 6 of {d.research.known_advisories.length} relevant results.
+              </p>
+            ) : null}
             <dl className="divide-y divide-slate-800/60 border-t border-slate-800 pt-2">
+              <FieldRow label="npm advisory database">
+                {d.research.registry_checked ? (
+                  (d.research.registry_advisories ?? []).length > 0 ? (
+                    <ul className="list-inside list-disc text-sm text-slate-300">
+                      {(d.research.registry_advisories ?? []).map((t, i) => (
+                        <li key={i}>{t}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-sm text-slate-400">
+                      checked: no advisory names this version and class
+                    </span>
+                  )
+                ) : (
+                  <span className="text-sm text-slate-400">not checked</span>
+                )}
+              </FieldRow>
               <FieldRow label="fixed version">
                 {d.research.fixed_version ? (
                   <Mono>{d.research.fixed_version}</Mono>

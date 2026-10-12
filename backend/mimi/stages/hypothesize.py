@@ -83,6 +83,8 @@ Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
 - Predeclare a deterministic oracle that decides success (exit code, signal,
   output regex, marker file, timing threshold, or a probe). Prefer OUTPUT_REGEX
   on a distinctive marker string the PoC prints, e.g. VULN_TRIGGERED.
+- Do not write hypotheses about other package versions or about the fix: a
+  separate differential run already re-tests every hypothesis on the fixed version.
 - Keep every poc_code under 25 lines and every text field to one sentence.
 - Prototype pollution is not only Object.prototype: a payload can reach
   Array.prototype or Function.prototype (via `constructor` or an array-valued
