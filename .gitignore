@@ -23,6 +23,8 @@ dist/
 
 # Local data and eval artifacts
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
