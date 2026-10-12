@@ -13,6 +13,7 @@ import re
 import json
 from typing import Optional
 
+from ..advisories import lookup_fixed_version
 from ..config import Stage
 from ..events import EventLog
 from ..llm import LLMClient
@@ -46,6 +47,16 @@ def _regex_fixed_version(text: str) -> str | None:
     return max(set(found), key=found.count)
 
 
+def _apply_registry_fix(findings: ResearchFindings, submission: ReportSubmission, claim: Claim) -> None:
+    """Prefer the npm advisory database over model-read search snippets."""
+    fixed = lookup_fixed_version(submission.package, submission.version, claim.vuln_class.value)
+    if fixed:
+        if findings.fixed_version and findings.fixed_version != fixed:
+            findings.notes += f"search suggested {findings.fixed_version}; npm advisory data says {fixed}; "
+        findings.fixed_version = fixed
+        findings.notes += "fixed version from npm advisory database; "
+
+
 def research(
     submission: ReportSubmission,
     claim: Claim,
@@ -66,10 +77,12 @@ def research(
     except Exception as e:
         findings = ResearchFindings(used=False, notes=f"research failed: {e}")
         events.error("research", t0, f"Tavily failed: {e}")
+        _apply_registry_fix(findings, submission, claim)
         return ids, findings
 
     if llm is not None and findings.known_advisories:
         _synthesise(findings, llm, events)
+    _apply_registry_fix(findings, submission, claim)
 
     events.ok(
         "research",
