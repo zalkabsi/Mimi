@@ -30,6 +30,7 @@ from .stages.differential import run_differential
 from .stages.execute import build_base, run_hypotheses
 from .stages.extract import extract_claim
 from .stages.ground import ground_claim
+from .stages.repair import repair_round
 from .stages.hypothesize import hypothesize
 from .stages.research import research
 from .stages.verdict import adjudicate, draft_reply
@@ -124,6 +125,10 @@ class Pipeline:
                 if build.ok:
                     runs, oracle_results = await run_hypotheses(
                         dossier.hypotheses, build, executor, self.settings, events, budget=budget
+                    )
+                    runs, oracle_results = await repair_round(
+                        dossier.hypotheses, runs, oracle_results, build,
+                        submission.package, executor, llm, self.settings, events, budget,
                     )
                 else:
                     stopped_reason = build.detail or "base build failed"

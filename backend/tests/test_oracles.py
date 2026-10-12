@@ -472,3 +472,19 @@ def test_oversized_pattern_rejected():
     assert res.fired is False
     assert res.conclusive is False
     assert "too long" in res.detail
+
+
+def test_output_regex_uncaught_exception_is_inconclusive_not_negative():
+    from mimi.oracles import check_oracle
+    from mimi.schemas import Oracle, OracleType, RunRecord
+
+    o = Oracle(type=OracleType.OUTPUT_REGEX, description="d", pattern="VULN_TRIGGERED")
+    crashed = RunRecord(
+        hypothesis_id="h1", phase="poc", command="node poc.js", exit_code=1,
+        stderr="TypeError: x.strip is not a function\n    at Object.<anonymous> (/work/poc.js:4:11)",
+    )
+    r = check_oracle(o, crashed, hypothesis_id="h1")
+    assert r.conclusive is False and r.fired is False
+
+    clean = RunRecord(hypothesis_id="h1", phase="poc", command="node poc.js", exit_code=0, stdout="SAFE")
+    assert check_oracle(o, clean, hypothesis_id="h1").conclusive is True

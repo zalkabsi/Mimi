@@ -86,6 +86,18 @@ def _probe_evidence(run: RunRecord) -> tuple[str, Optional[str]]:
     return out, None
 
 
+_STACK_RE = re.compile(r"(?m)^\s+at .+|Cannot find module|\b(?:Type|Reference|Syntax|Range)Error\b")
+
+
+def crashed_with_exception(run: RunRecord) -> bool:
+    """Nonzero exit with a Node uncaught-exception signature in stderr."""
+    return bool(
+        run.exit_code not in (0, None)
+        and not run.error
+        and _STACK_RE.search(run.stderr or "")
+    )
+
+
 def check_oracle(
     oracle: Oracle,
     run: RunRecord,
@@ -163,6 +175,11 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         if cut:
             return False, "output was truncated before the oracle could judge it", False
         m = rx.search(hay)
+        # No match plus an uncaught crash means the PoC never reached its
+        # verdict line (e.g. "x is not a function"). That is a broken PoC, not
+        # a negative result, and must not count toward "N tested, 0 triggered".
+        if m is None and crashed_with_exception(run):
+            return False, "PoC crashed before its verdict (uncaught error); not a negative result", False
         return (
             m is not None,
             (f"output matched {oracle.pattern!r} at {m.start()}" if m else f"pattern {oracle.pattern!r} not found"),

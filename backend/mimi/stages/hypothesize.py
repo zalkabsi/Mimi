@@ -177,10 +177,32 @@ def _canonical_poc_command(cmd: str) -> str:
     return cmd
 
 
+_INSTALL_BASES = (
+    "npm install --no-audit --no-fund --ignore-scripts",
+    "npm install --no-audit --no-fund",
+    "npm ci --no-audit --no-fund",
+)
+
+
+def _canonical_install_command(cmd: str) -> str:
+    """The executor installs the package under test itself, so a model that
+    appends a package spec to an allowed install command gets the bare one."""
+    cmd = " ".join(cmd.split())
+    for base in _INSTALL_BASES:
+        if cmd == base or cmd.startswith(base + " "):
+            return base
+    return cmd
+
+
+def _first(v):
+    """Models sometimes wrap an enum value in a list."""
+    return v[0] if isinstance(v, list) and v else v
+
+
 def _parse(item: dict, i: int) -> Hypothesis:
     oracle_raw = item.get("oracle") or {}
     oracle = Oracle(
-        type=OracleType(oracle_raw.get("type") or "output_regex"),
+        type=OracleType(_first(oracle_raw.get("type")) or "output_regex"),
         description=str(oracle_raw.get("description") or ""),
         expected_exit=oracle_raw.get("expected_exit"),
         expect_nonzero_exit=bool(oracle_raw.get("expect_nonzero_exit") or False),
@@ -193,7 +215,9 @@ def _parse(item: dict, i: int) -> Hypothesis:
     poc_command = _canonical_poc_command(str(item.get("poc_command") or "node poc.js"))
     config = RunConfig(
         node_version=str(item.get("node_version") or "20"),
-        install_command=str(item.get("install_command") or "npm install --no-audit --no-fund"),
+        install_command=_canonical_install_command(
+            str(item.get("install_command") or "npm install --no-audit --no-fund")
+        ),
         poc_command=poc_command,
         poc_file_name=poc_command.split()[-1],
         setup_commands=[str(s) for s in (item.get("setup_commands") or [])],
