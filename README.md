@@ -4,13 +4,28 @@
 
 Open-source maintainers receive vulnerability reports they cannot cheaply verify. Mimi reproduces a report's claim in isolated sandboxes at the exact affected version and returns an **evidence dossier and a triage tier**. It never auto-closes a report; the maintainer decides.
 
-Built solo for the Nebius x NVIDIA Global AI Hackathon 2026 (Track 2, Best Apps and Agents), on Nebius Token Factory (Nemotron models and Sandboxes) with Tavily for research.
+Built solo for the Nebius x NVIDIA Global AI Hackathon 2026 (Track 2, Best Apps and Agents), on **Nebius Token Factory** (NVIDIA **Nemotron 3** Nano, Super and Ultra, plus **Token Factory Sandboxes**) with **Tavily** for research.
+
+![Mimi dossier: verdict and coverage](docs/img/dossier-verdict.png)
 
 ## The idea: negative-result coverage
 
 Most tools can say "reproduced". Mimi is built to say something honest when it cannot: it builds the environment once, forks the sandbox per hypothesis, and reports **"N hypotheses tested, 0 triggered"** with the commands and outputs, instead of a bare "not reproduced". A PoC that crashes before judging is recorded as inconclusive, never as a negative.
 
 Tiers: **Confirmed**, **Likely**, **Needs human**, **Contradicted (with coverage)**. Grounding (does the cited file or symbol exist) ranks hypotheses but can never reject a report on its own.
+
+## Where each Nebius and NVIDIA piece is used
+
+| Piece | Role |
+|---|---|
+| Token Factory inference (runtime call in every stage) | One OpenAI-compatible client for all stages; per-stage routing; reasoning on or off per call |
+| Nemotron 3 Nano | Claim extraction and grounding (cheap, high volume) |
+| Nemotron 3 Super | Research synthesis, verdict rationale, reply draft |
+| Nemotron 3 Ultra | Hypothesis generation and PoC repair; escalation for ambiguous verdicts |
+| Token Factory Sandboxes | Build once, fork per hypothesis, offline PoC runs, fixed-version differential |
+| Tavily | Public advisory search using package, version and CVE/GHSA id only |
+
+Feedback on each is in [`docs/feedback-log.md`](docs/feedback-log.md).
 
 ## How it works
 
@@ -47,6 +62,8 @@ python -m mimi.cli report --package minimist@1.2.5 --file report.txt --out dossi
 cd backend && uvicorn mimi.api:app --port 8000
 cd frontend && npm install && npm run dev     # http://localhost:5173
 ```
+
+Demo video: `scripts/video/record_demo.py` re-records it from the real UI and a live run. Hosting for judges: see [`docs/deploy.md`](docs/deploy.md).
 
 Access tiers for the hosted app: read-only demo mode (no login, recorded runs), a judge credential for live runs, and self-hosting. See `docs/02-architecture.md`.
 
