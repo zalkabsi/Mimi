@@ -20,7 +20,7 @@ _SCHEMA_HINT = json.dumps(
     {
         "package": "string (npm package name)",
         "affected_versions": ["string"],
-        "vuln_class": [v.value for v in VulnClass],
+        "vuln_class": "exactly ONE of: " + " | ".join(v.value for v in VulnClass),
         "cited_files": ["string"],
         "cited_symbols": ["string"],
         "poc_code": "string or null",
@@ -29,6 +29,7 @@ _SCHEMA_HINT = json.dumps(
         "attack_vector": "string or null",
         "preconditions": ["string"],
         "notes": "string or null",
+        "parse_warnings": ["string"],
     },
     indent=2,
 )
@@ -72,6 +73,12 @@ def extract_claim(submission: ReportSubmission, llm: LLMClient, events: EventLog
     except Exception as e:
         events.error("extract", t0, f"extraction failed: {e}")
         raise
+
+    # The model sometimes echoes the enum as a list; take the first known value.
+    vc = data.get("vuln_class")
+    if isinstance(vc, list):
+        known = {v.value for v in VulnClass}
+        data["vuln_class"] = next((x for x in vc if x in known), VulnClass.OTHER.value)
 
     # Deterministic overrides: the submission's package@version is ground truth
     # for what we will install, whatever the model says.

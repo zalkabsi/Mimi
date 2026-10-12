@@ -173,6 +173,10 @@ class RunBudget:
             self.spent += float(cost)
 
 
+def _str_or_none(v) -> Optional[str]:
+    return str(v) if v is not None else None
+
+
 def _poc_command_script(poc_command: str) -> str:
     """The script name an allowlisted ``poc_command`` actually executes."""
     parts = (poc_command or "").split()
@@ -305,21 +309,21 @@ class SandboxExecutor:
             return self._client
         self.settings.require_sandboxes()
         try:
-            from contree import ContreeAsyncClient  # type: ignore
-        except ImportError:
-            try:  # older package layout
-                from contree_sdk import ContreeAsyncClient  # type: ignore
-            except ImportError as e:
-                raise ExecutorError(
-                    "contree-sdk is not installed (pip install contree-sdk)"
-                ) from e
-        # Contree accepts an API key + base URL directly; project id travels as
-        # the Project header (the SDK profile loader can also supply it).
-        self._client = ContreeAsyncClient(
-            api_key=self.settings.nebius_api_key,
-            base_url=self.settings.sandboxes_base_url,
+            from contree_sdk import Contree  # type: ignore
+            from contree_sdk.auth import IAMAuth  # type: ignore
+            from contree_sdk.config import ContreeConfig  # type: ignore
+        except ImportError as e:
+            raise ExecutorError(
+                "contree-sdk is not installed (pip install contree-sdk)"
+            ) from e
+        # Nebius IAM auth: bearer key + Project header. Passed explicitly so the
+        # SDK never falls back to a profile file on the host.
+        auth = IAMAuth(
+            token=self.settings.nebius_api_key,
             project_id=self.settings.nebius_project_id,
+            base_url=self.settings.sandboxes_base_url,
         )
+        self._client = Contree(config=ContreeConfig(auth=auth))
         return self._client
 
     async def build(self, config: RunConfig, *, package_spec: str, build_timeout_s: int) -> BuildResult:
@@ -369,7 +373,11 @@ class SandboxExecutor:
             f"echo {BUILD_OK_TOKEN}"
         )
         try:
-            image = await client.images.use(f"node:{config.node_version}")
+            # oci() reuses the tagged image if present, else imports it from the
+            # registry server-side (~30 s first time, measured 2026-10-12).
+            image = await client.images.oci(
+                f"docker.io/library/node:{config.node_version}", timeout=300
+            )
             result = await image.run(shell=cmd, timeout=build_timeout_s, disposable=False)
         except Exception as e:  # SDK raises its own error types
             return BuildResult(
@@ -379,7 +387,7 @@ class SandboxExecutor:
                 elapsed_ms=(time.monotonic() - t0) * 1000.0,
             )
         cost = getattr(getattr(result, "resources", None), "cost", None)
-        image_id = getattr(result, "uuid", "") or ""
+        image_id = str(getattr(result, "uuid", "") or "")
         log = str(getattr(result, "stdout", "") or "") + str(getattr(result, "stderr", "") or "")
         exit_code = getattr(result, "exit_code", None)
         # ok is the build's claim that the environment is usable. An image UUID
@@ -450,8 +458,9 @@ class SandboxExecutor:
                 shell=f"cat > /work/{config.poc_file_name}",
                 stdin=poc_code,
                 timeout=30,
+                disposable=False,
             )
-            write = await write.run(shell=f"cat > {SHIM_FILE}", stdin=SHIM_JS, timeout=30)
+            write = await write.run(shell=f"cat > {SHIM_FILE}", stdin=SHIM_JS, timeout=30, disposable=False)
             # Run the PoC. The command string is already validated against the
             # fixed set, so it is safe to interpolate as a shell command —
             # quoting it would make the shell try to exec a literal path.
@@ -486,7 +495,11 @@ class SandboxExecutor:
             poc_env.update(probe_env or {})
             poc_env["NODE_OPTIONS"] = shim_node_options()
             poc_env["MIMI_STATE_PATH"] = STATE_FILE
-            result = await write.run(shell=wrapped, timeout=timeout_s, env=poc_env or None)
+            # Not disposable: the trusted probe below runs on this run's resulting
+            # image to observe post-PoC state.
+            result = await write.run(
+                shell=wrapped, timeout=timeout_s, env=poc_env or None, disposable=False
+            )
         except Exception as e:
             return RunRecord(
                 hypothesis_id=hypothesis_id,
@@ -547,8 +560,8 @@ class SandboxExecutor:
             elapsed_ms=getattr(result, "elapsed_time", None) or (time.monotonic() - t0) * 1000.0,
             cost=cost,
             cost_units="contree-cost-units" if cost is not None else None,
-            sandbox_image_id=getattr(result, "uuid", None),
-            sandbox_run_id=getattr(result, "id", None) or getattr(result, "uuid", None),
+            sandbox_image_id=_str_or_none(getattr(result, "uuid", None)),
+            sandbox_run_id=_str_or_none(getattr(result, "id", None) or getattr(result, "uuid", None)),
             network_isolated=isolated,
             truncated=trunc1 or trunc2 or trunc3,
             config_key=config_key(config),

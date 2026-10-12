@@ -350,3 +350,17 @@ def test_long_blob_beside_a_real_package_is_still_a_leak():
     report = "payload is deadbeefdeadbeefdead and must not travel"
     with pytest.raises(AssertionError, match="long report token"):
         assert_no_leak("lodash deadbeefdeadbeefdead vulnerability", report)
+
+
+# Regressions found by the first live run (2026-10-12).
+def test_assert_no_leak_allows_fixed_query_vocabulary_in_report():
+    # "vulnerability" is 13 chars but is template text, not report content.
+    assert_no_leak("minimist 1.2.5 vulnerability", "There is a vulnerability in minimist 1.2.5.")
+
+
+def test_assert_no_leak_matches_whole_words_only():
+    # 'minimist proto' is a prefix of 'minimist prototype', not a leaked phrase.
+    assert_no_leak(
+        "minimist prototype pollution",
+        "minimist(['--__proto__.polluted', 'yes']);",
+    )

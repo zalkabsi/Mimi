@@ -343,7 +343,9 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
         # exempt only when it *is* one of the query's public identifiers (or a
         # spelling of one). A piece of one is not: a blob smuggled as a version
         # suffix is not the version.
-        if len(raw) >= 12 and not _is_identifier(raw):
+        # The fixed query vocabulary ("vulnerability") is template text, not
+        # report content, so a report that happens to use the word is fine.
+        if len(raw) >= 12 and not _is_identifier(raw) and low not in _QUERY_VOCAB:
             raise AssertionError(f"long report token leaked into query: {raw!r}")
         # 1: secrets of any length. Never exempt: ``ghp_…`` is not an
         # identifier, whatever shape it has.
@@ -363,5 +365,6 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
             phrase = " ".join(run)
             if len(phrase) < min_run:
                 continue
-            if phrase in norm_q:
+            # Whole-word match: 'minimist proto' is not in 'minimist prototype'.
+            if f" {phrase} " in f" {norm_q} ":
                 raise AssertionError(f"report text leaked into Tavily query: {phrase!r}")

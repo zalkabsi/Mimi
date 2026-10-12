@@ -26,14 +26,14 @@ INFERENCE_BASE_URL = "https://api.tokenfactory.nebius.com/v1"
 NEMOTRON_MODELS = {
     "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
     "super": "nvidia/nemotron-3-super-120b-a12b",
-    "ultra": "nvidia/NVIDIA-Nemotron-3-Ultra-550b-a55b",
+    "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b",
     "lightning": "nvidia/NVIDIA-Nemotron-3_5-Lightning",
 }
 
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 
 # Sandboxes HTTP surface (contree): whoami and images are known-good endpoints.
-SANDBOXES_BASE_URL = os.environ.get("SANDBOXES_BASE_URL", "https://api.sandbox.nebius.ai/v1")
+SANDBOXES_BASE_URL = os.environ.get("SANDBOXES_BASE_URL", "https://api.tokenfactory.nebius.com/sandboxes/")
 
 
 class Stage(str, Enum):

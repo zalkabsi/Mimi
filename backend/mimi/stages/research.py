@@ -9,6 +9,7 @@ which supply the fixed half of the differential test.
 
 from __future__ import annotations
 
+import re
 import json
 from typing import Optional
 
@@ -29,6 +30,20 @@ _SYNTH_HINT = json.dumps(
     },
     indent=2,
 )
+
+
+_FIXED_RE = re.compile(
+    r"(?:fixed in|upgrade to|patched in|update to|fixed by upgrading to)\s+(?:version\s+)?v?(\d+\.\d+\.\d+)",
+    re.IGNORECASE,
+)
+
+
+def _regex_fixed_version(text: str) -> str | None:
+    """Most common version following a 'fixed in' phrase, else None."""
+    found = _FIXED_RE.findall(text or "")
+    if not found:
+        return None
+    return max(set(found), key=found.count)
 
 
 def research(
@@ -72,7 +87,7 @@ def _synthesise(findings: ResearchFindings, llm: LLMClient, events: EventLog) ->
     a fixed version (a wrong fixed version would poison the differential).
     """
     corpus = "\n".join(
-        f"- {a.title} | {a.url} | {a.snippet[:200]}" for a in findings.known_advisories[:12]
+        f"- {a.title} | {a.url} | {a.snippet[:400]}" for a in findings.known_advisories[:12]
     )
     try:
         data = llm.chat_json(
@@ -95,8 +110,13 @@ def _synthesise(findings: ResearchFindings, llm: LLMClient, events: EventLog) ->
         findings.notes += f"synthesis failed: {e}; "
         return
 
-    if data.get("fixed_version"):
-        findings.fixed_version = str(data["fixed_version"])
+    claimed = str(data.get("fixed_version") or "").strip()
+    if claimed and claimed not in corpus:
+        findings.notes += f"model fixed_version {claimed!r} not in the results; ignored; "
+        claimed = ""
+    # Deterministic backstop: the model sometimes answers null on a result set
+    # that plainly says "fixed in 1.2.6".
+    findings.fixed_version = claimed or _regex_fixed_version(corpus) or findings.fixed_version
     if data.get("fix_commit"):
         findings.fix_commit = str(data["fix_commit"])
     findings.notes += str(data.get("notes") or "")

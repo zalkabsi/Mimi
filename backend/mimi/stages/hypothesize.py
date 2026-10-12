@@ -11,6 +11,7 @@ from the fixed RunConfig shape — never free-form strings from the report.
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
 
 from pydantic import ValidationError
@@ -82,6 +83,12 @@ Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
 - Predeclare a deterministic oracle that decides success (exit code, signal,
   output regex, marker file, timing threshold, or a probe). Prefer OUTPUT_REGEX
   on a distinctive marker string the PoC prints, e.g. VULN_TRIGGERED.
+- Keep every poc_code under 25 lines and every text field to one sentence.
+- Prototype pollution is not only Object.prototype: a payload can reach
+  Array.prototype or Function.prototype (via `constructor` or an array-valued
+  key such as `_`). Check the built-in the path actually reaches, and include
+  at least one variant that targets a different built-in than the report names.
+  A report's own PoC can be wrong while the bug is real; vary the path.
 - Different hypotheses must differ in configuration or input shape (version
   range, API path, payload shape, options), not just wording.
 - Commands come from a FIXED allowlist and anything else is discarded before
@@ -126,7 +133,7 @@ def hypothesize(
             stage=Stage.HYPOTHESIZE,
             messages=[{"role": "user", "content": prompt}],
             schema_hint=_HINT,
-            max_tokens=3000,
+            max_tokens=9000,  # reasoning tokens count against this
             enable_thinking=True,  # this stage wants reasoning
         )
     except Exception as e:
@@ -152,6 +159,24 @@ def hypothesize(
     return hypotheses
 
 
+_SIMPLE_NODE_CMD = re.compile(r"^node ([A-Za-z0-9_-]+)\.(js|mjs)$")
+
+
+def _canonical_poc_command(cmd: str) -> str:
+    """Map "node poc3.js"-style commands onto the fixed set.
+
+    Models often number their scripts. Every hypothesis runs in its own fork,
+    so file names never collide; the command is ours to choose, not the
+    model's. Anything else (flags, shell syntax) is left untouched and is
+    rejected by ``validate_run_config``.
+    """
+    cmd = " ".join(cmd.split())
+    m = _SIMPLE_NODE_CMD.match(cmd)
+    if m:
+        return "node poc.mjs" if m.group(2) == "mjs" else "node poc.js"
+    return cmd
+
+
 def _parse(item: dict, i: int) -> Hypothesis:
     oracle_raw = item.get("oracle") or {}
     oracle = Oracle(
@@ -165,10 +190,12 @@ def _parse(item: dict, i: int) -> Hypothesis:
         threshold_ms=oracle_raw.get("threshold_ms"),
         probe_snippet=oracle_raw.get("probe_snippet"),
     )
+    poc_command = _canonical_poc_command(str(item.get("poc_command") or "node poc.js"))
     config = RunConfig(
         node_version=str(item.get("node_version") or "20"),
         install_command=str(item.get("install_command") or "npm install --no-audit --no-fund"),
-        poc_command=str(item.get("poc_command") or "node poc.js"),
+        poc_command=poc_command,
+        poc_file_name=poc_command.split()[-1],
         setup_commands=[str(s) for s in (item.get("setup_commands") or [])],
     )
     poc = str(item.get("poc_code") or "").strip()
