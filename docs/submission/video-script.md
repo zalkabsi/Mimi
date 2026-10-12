@@ -1,15 +1,20 @@
-# Demo video script (target 2:40, hard limit 3:00)
+# Demo video
 
-Rules (docs/00): text names only, no third-party logos, no music (or licensed), narration must name Nebius Token Factory, Token Factory Sandboxes and the Nemotron models by voice, footage must show the real project working. Pitch, not tutorial. Every number spoken must come from a logged run; items marked `[LOG]` get filled from `docs/eval-logs/` and the recorded run, or are cut.
+`scripts/video/record_demo.py` records the video from the real UI and a **real live run** (the public CVE-2021-44906 example on `minimist@1.2.5`); nothing is mocked. It writes `demo.mp4` (about 2.5 minutes, captions burned in), `demo.srt` and `narration.txt`. A finished cut is committed as `docs/submission/demo-video.mp4`.
 
-| Time | On screen | Narration |
+Rules it follows (docs/00): text names only, no third-party logos, no music, narration that names Nebius Token Factory, Token Factory Sandboxes and the Nemotron models, footage of the project working, under 3:00.
+
+The narration in the committed cut is a **placeholder text-to-speech voice** (`espeak-ng`). For the final upload, replace the audio with your own voice reading `narration.txt` (the SRT timings match the scenes), or keep the placeholder if you prefer. Re-run the script for a fresh cut; it needs the API on :8000 started with `MIMI_JUDGE_KEY=local-demo-key` and the UI on :5173.
+
+| Scene | On screen | Narration idea |
 |---|---|---|
-| 0:00-0:15 | Inbox with a pile of vulnerability reports (recorded demo mode) | "Open-source maintainers get vulnerability reports they cannot cheaply verify. Most get ignored or closed on a guess." |
-| 0:15-0:35 | Submit the bundled public report for `minimist@1.2.5` (CVE-2021-44906) | "Mimi reproduces the claim in isolated Nebius Token Factory Sandboxes at the exact affected version, and never auto-closes. It returns a verdict with receipts." |
-| 0:35-1:05 | Live stage timeline: extract (Nemotron Nano), research (Tavily, public identifiers only), hypotheses (Nemotron Ultra) | "Nemotron Nano reads the claim. Tavily looks up public advisories using only the package and version, never the report text. Nemotron Ultra writes up to eight hypotheses, each with a predeclared oracle." |
-| 1:05-1:35 | Fork-run rows going green in parallel | "The environment is built once. Each hypothesis is a fork of that sandbox, run offline, in parallel. No secrets exist in any sandbox." |
-| 1:35-2:00 | Differential on the fixed version; tier badge **Confirmed** | "Hypotheses that fire are re-run on the fixed version. It fires on 1.2.5 and not on 1.2.6, so: Confirmed, with the exact commands and outputs." |
-| 2:00-2:25 | A real Contradicted or Needs-human dossier with the coverage statement; point at a crashed-PoC row marked inconclusive | "When it cannot reproduce, it says how hard it tried: N hypotheses tested, M triggered. A script that crashes is inconclusive, never a negative." `[LOG]` use only a recorded run. |
-| 2:25-2:45 | Limits slide in plain text | "Today it covers npm only, and results vary between runs: [LOG sample sizes and spread]. Apache-2.0, open source, free for judges until December 15." |
+| 1 | Inbox in demo mode | The problem; Mimi reproduces the claim in isolated Token Factory Sandboxes and never auto-closes |
+| 2 | Load the public example, enter the key, run | Nemotron Nano extracts the claim; Tavily gets only package and version |
+| 3 | Live stage timeline | Nemotron Ultra hypotheses; build once, fork per hypothesis, offline, parallel |
+| 4 | Verdict | Fires on 1.2.5, not on 1.2.6: Confirmed |
+| 5 | Hypotheses, runs, differential | Commands, outputs, network isolation; the tier is code, not opinion |
+| 6 | Recorded fabricated report (labelled synthetic) | Contradicted with coverage; a crashed script is inconclusive, never a negative |
+| 7 | Recorded case where the oracle fired on both versions | Mimi refuses to confirm and asks a human |
+| 8 | Limits | npm only; results vary; 7/11 oracle fired in three passes, 2-3/11 confirmed; Apache-2.0 |
 
-Recording checklist: record from demo mode plus one live run; blur nothing needed (no keys in UI); no browser bookmarks bar; no logos; narration audio only.
+Every figure spoken is from `docs/eval-logs/`. YouTube upload and the public link are yours to do.
