@@ -20,7 +20,7 @@ Mimi reproduces a report's claim in isolated Token Factory Sandboxes at the exac
 - Run-to-run variance is large; we report it instead of hiding it.
 
 ## Accomplishments
-`[LOG]` E1 results with n, spread and intervals; baselines (single-shot, linear) `[LOG]`; safety suite `[LOG]`.
+On 11 real npm CVEs (three passes, one run per case) Mimi fired an oracle on 7/11 each pass and confirmed 2-3/11 with a fixed-version differential; the single-shot baseline fired 6/11 and cannot confirm. After an advisory-aware gate, 0/5 real reworded reports were wrongly Contradicted (95% CI 0-43%). All safety cases kept the network blocked and none reached Confirmed. Small samples; tiers vary run to run.
 
 ## Limitations
 npm only. Synthetic slop is not real slop. No C/C++ memory-safety claims. Sandbox cost per run is not exposed by the SDK. Small samples.

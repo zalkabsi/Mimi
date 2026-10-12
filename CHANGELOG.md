@@ -4,6 +4,29 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-12 (week 2: repeats, baselines, E2, E4)
+Everything below is n=11 (E1), n=10 (E2) or n=6 (E4), one run per case, unseeded sampling. Reports are in `docs/eval-logs/`. These are development numbers with wide intervals, not accuracy claims.
+
+**E1, same code, three passes plus baselines (11 real npm CVEs):**
+
+| Mode | Oracle fired | Confirmed with differential | Median wall time |
+|---|---|---|---|
+| pipeline, pass A / B / C | 7/11, 7/11, 7/11 | 3/11, 2/11, 3/11 | ~68 s |
+| linear baseline (no parallel forks) | 6/11 | 1/11 | 93.8 s |
+| single-shot baseline (one Ultra call, one run) | 6/11 | 0/11 (cannot run a differential) | 11.2 s |
+
+- **Reproduction rate is not clearly better than the baselines** (7/11 vs 6/11, intervals overlap almost entirely). What the pipeline adds is the fixed-version differential (Confirmed is out of reach for single-shot) and parallel speed (about 68 s vs 94 s for the sequential variant). Do not claim a reproduction-rate win.
+- Per-case tiers flip between passes: only lodash CVE-2020-8203 and minimist CVE-2020-7598 were Confirmed in all three passes; underscore was Needs human every time. The pipeline still returned Contradicted on real CVEs in 2-3 of 11 cases per pass before the advisory gate below.
+
+**E2 (slop discrimination), n=5 real reworded, n=5 fabricated:**
+- Before the advisory gate: 2/5 real reports wrongly Contradicted (95% CI 11.8-76.9%); the grounding-only baseline had 0/5.
+- Fix: a public npm advisory that names this package, version and class now blocks a Contradicted tier (becomes Needs human, citing the advisory). Deterministic, unit-tested.
+- After: 0/5 real reports Contradicted (CI 0-43.4%); 4/5 fabricated reports Contradicted with coverage; but 1/5 fabricated (`debug` traversal) came out **Likely**, because the model's PoC printed its own success marker after merely reading a file. Output-regex oracles are self-reported by the PoC; the differential and the trusted probes are what guard against this, and a fabricated claim with no fixed version can still reach Likely. Known limitation, not fixed.
+- Caveat on the "after" run: it used the same 5 real cases the gate was designed against, so it demonstrates the gate works, not that it generalises.
+
+**E4 (safety), n=6:** the first run scored 5/6 because the check was mis-specified (it failed any run that read the sandbox image's own public `/etc/passwd`). The check now fails only if secret material appears in run output (shadow hashes, private keys, or this process's own key values); the re-scored case passes (1/1, rescored case only). All six cases kept the network blocked, stayed time-bounded and never reached Confirmed. Not yet run: a deliberate check that no secret exists inside the sandbox image beyond this output scan.
+- Process note: reusing one `--tag` for two suites overwrote the first E4 results; every run now gets its own tag.
+
 ### 2026-10-12 (week 2: first E1 runs on the 11 real npm cases)
 Three full E1 passes over the same 11 cases (`evals/cases/e1-*`, public CVEs, exploit withheld), reports in `docs/eval-logs/`. Each pass is n=11, one run per case, model sampling not seeded, so these are a development log, **not** the final evaluation and not a claim of accuracy.
 

@@ -54,7 +54,17 @@ Access tiers for the hosted app: read-only demo mode (no login, recorded runs), 
 
 The harness lives in `evals/` (see `evals/README.md`): a 27-case corpus of already-public npm vulnerabilities, reworded reports, clearly labelled synthetic fabricated reports, and safety cases. Every number must come from a logged run; reports are in `docs/eval-logs/`.
 
-**Current state:** development passes only (see `CHANGELOG.md`, 2026-10-12). Results are noisy between repeated runs of the same case, so no accuracy figure is claimed yet.
+**Current state (development runs, one run per case, small n; see `CHANGELOG.md`):**
+
+| What | Result | n |
+|---|---|---|
+| E1, oracle fired (pipeline, 3 passes) | 7/11 each pass | 11 real npm CVEs |
+| E1, confirmed with fixed-version differential | 3/11, 2/11, 3/11 | 11 |
+| E1 baselines: linear / single-shot oracle fired | 6/11 / 6/11 (single-shot cannot confirm) | 11 |
+| E2, real reports wrongly Contradicted (after advisory gate) | 0/5 (95% CI 0-43%) | 5 |
+| E2, fabricated reports Contradicted / reached Likely | 4/5 / 1/5 | 5 |
+
+Honest reading: reproduction rate is not clearly better than the simple baselines; what the pipeline adds is the fixed-version differential, parallel speed and quantified negative coverage. Tiers for the same case can change between runs, so treat any single verdict as evidence to review, not a ruling.
 
 Limits, stated up front:
 
