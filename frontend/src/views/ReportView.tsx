@@ -144,15 +144,19 @@ export function ReportView() {
         ) : null}
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3">
-        <Timeline
-          events={events}
-          live={live && running}
-          fallbackNote={fallbackNote}
-        />
-      </div>
+      {running ? null : <VerdictPanel d={d} />}
 
-      <VerdictPanel d={d} />
+      {running ? (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3">
+          <Timeline events={events} live={live} fallbackNote={fallbackNote} />
+        </div>
+      ) : (
+        <Collapsible label={`Stage timeline (${events.length} events)`}>
+          <Timeline events={events} live={false} fallbackNote={null} />
+        </Collapsible>
+      )}
+
+      {running ? <VerdictPanel d={d} /> : null}
 
       {d.claim ? (
         <SectionCard title="Claim summary" subtitle="What the report asserts, structured.">

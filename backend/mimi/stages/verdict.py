@@ -93,11 +93,17 @@ def adjudicate(
                         ),
                     }
                 ],
-                max_tokens=400,
+                max_tokens=1200,
                 enable_thinking=ambiguous,
             )
             text = (resp.content or "").strip()
-            if text:
+            finish = ((resp.raw or {}).get("choices") or [{}])[0].get("finish_reason")
+            # A cut-off rationale ("...on versions 1.") reads as a verdict
+            # statement the harness never made. Keep the deterministic one.
+            if text and finish == "length":
+                if events:
+                    events.emit("verdict", "ok", "rationale draft cut off; kept the harness rationale")
+            elif text:
                 decision.rationale = text
         except Exception as e:
             if events:

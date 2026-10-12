@@ -8,6 +8,7 @@ const STAGE_LABELS: Record<string, string> = {
   hypothesize: "4 · Hypothesize",
   build: "5 · Build base",
   fork_run: "6 · Fork & run",
+  repair: "6b · Repair PoCs",
   differential: "7 · Differential",
   verdict: "8 · Verdict",
   reply: "9 · Reply draft",
