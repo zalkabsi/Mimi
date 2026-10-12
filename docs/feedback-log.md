@@ -41,3 +41,19 @@ _No hands-on entries yet._ Record per stage: task, model used, structured-output
 ## Tavily
 
 _No hands-on entries yet._ (Not part of the required feedback, but useful for the Tavily judges.)
+
+
+## Sandboxes: hands-on 2026-10-12 (added)
+
+| Date | Type | What happened | Suggestion |
+|---|---|---|---|
+| 2026-10-12 | onboarding | The docs I followed pointed at `api.sandbox.nebius.ai/v1/whoami`; it answered 403 (blocked from my environment) and I spent two weeks believing the token had no grants. The SDK's default endpoint `api.tokenfactory.nebius.com/sandboxes/` shows all permissions true. | Put the exact base URL and a `get_token_info()` hello-world at the top of the Sandboxes page. |
+| 2026-10-12 | works | Import of `docker.io/library/node:20` took ~30 s once; fork runs of an `npm install` image took 4.5-9 s each with 8 in parallel; `unshare -n` works. | Good fit for build-once/fork-per-hypothesis. |
+| 2026-10-12 | needs work | `image.run()` is disposable by default and a disposable result cannot be run on again, with an error that does not say so ("Disposable image run cannot be used for running"). The run result has no cost/resources field, so I cannot report cost per run. | Document `disposable=False` for chains; expose cost on the result. |
+
+## Nemotron: hands-on 2026-10-12 (added)
+
+| Date | Type | What happened | Suggestion |
+|---|---|---|---|
+| 2026-10-12 | works | Nano (extract, ground), Super (research synthesis, reply), Ultra (hypotheses) all returned usable JSON; the full pipeline cost ~$0.013 in tokens at the rate table I assumed. | n/a |
+| 2026-10-12 | needs work | Ultra ignored a "fixed command set" instruction (`node poc3.js`) and, with reasoning on, a 3000-token cap cut the JSON mid-string because reasoning tokens count. Nano echoed an enum list instead of choosing one value. | Fix in code (canonicalise, larger cap, "exactly ONE of" wording); not a model bug as such, but worth noting for structured output. |

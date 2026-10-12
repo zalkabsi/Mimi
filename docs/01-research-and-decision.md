@@ -126,3 +126,7 @@ The three pivot triggers cannot be evaluated as written, because they all depend
 
 - Devpost's Rules or gallery (currently unreadable) show a direct competitor with a working product.
 - A judging-criteria detail that penalises applications built around a sponsor's proprietary service (unlikely: Nebius and NVIDIA are the sponsors).
+
+### Pivot review update, 2026-10-12
+
+`spawn` turned out to be granted all along (wrong host in the earlier probe). The triggers can now be evaluated: build-once/fork works, 8 parallel forks of an installed package ran in 5-9 s each, `unshare -n` works, and one real public CVE went from report to a Confirmed dossier with a fixed-version differential. That is one run, not the 10-case pilot. Decision: continue Mimi; the pilot over the eval corpus is next. Envsmith stays the fallback only if the pilot fails.
