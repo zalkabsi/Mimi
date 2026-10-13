@@ -15,7 +15,7 @@ from .config import Settings
 from .db import Database
 from .events import EventLog, now_iso
 from .llm import LLMClient
-from .sandboxes import Executor, RunBudget, SandboxExecutor
+from .sandboxes import Executor, RunBudget, SandboxExecutor, config_key
 from .schemas import (
     CostSummary,
     DifferentialResult,
@@ -23,6 +23,7 @@ from .schemas import (
     OracleResult,
     ReportSubmission,
     ResearchFindings,
+    RunConfig,
     RunRecord,
     Tier,
 )
@@ -30,7 +31,7 @@ from .stages.differential import run_differential
 from .stages.execute import build_base, run_hypotheses
 from .stages.extract import extract_claim
 from .stages.ground import ground_claim
-from .stages.repair import repair_round
+from .stages.repair import api_surface, repair_round
 from .stages.hypothesize import hypothesize
 from .stages.research import research
 from .stages.verdict import adjudicate, draft_reply
@@ -97,6 +98,24 @@ class Pipeline:
             dossier.claim = extract_claim(submission, llm, events)
             dossier.grounding = ground_claim(submission, dossier.claim, events, llm=llm)
             dossier.public_ids, dossier.research = research(submission, dossier.claim, events, llm=llm, tavily=tavily)
+            # Build the default environment first and measure the package's real
+            # exports: the model's top failure was calling APIs that do not exist.
+            pre_build = None
+            api_text = ""
+            try:
+                pre_build = await build_base(
+                    submission, [], executor, self.settings, events, config=RunConfig()
+                )
+                if pre_build.ok:
+                    api_text = await api_surface(
+                        pre_build, RunConfig(), submission.package, executor,
+                        self.settings, RunBudget(1),
+                    )
+                    if api_text.startswith("("):
+                        api_text = ""
+            except Exception as e:  # no Sandboxes: the later build reports it
+                events.emit("build", "ok", f"pre-build skipped: {e}")
+                pre_build = None
             dossier.hypotheses = hypothesize(
                 dossier.claim,
                 dossier.grounding,
@@ -104,6 +123,7 @@ class Pipeline:
                 llm,
                 events,
                 max_hypotheses=self.settings.max_hypotheses,
+                api_surface=api_text,
             )
             if not dossier.hypotheses:
                 stopped_reason = "no executable hypotheses were generated"
@@ -120,7 +140,14 @@ class Pipeline:
                 cost_cap=self.settings.per_report_cost_cap,
             )
             if dossier.hypotheses:
-                build = await build_base(submission, dossier.hypotheses, executor, self.settings, events)
+                if (
+                    pre_build is not None
+                    and pre_build.ok
+                    and config_key(dossier.hypotheses[0].config) == config_key(RunConfig())
+                ):
+                    build = pre_build  # same environment: reuse the image
+                else:
+                    build = await build_base(submission, dossier.hypotheses, executor, self.settings, events)
                 build_failed = not build.ok
                 if build.ok:
                     runs, oracle_results = await run_hypotheses(

@@ -16,7 +16,7 @@ from ..events import EventLog
 from ..oracles import check_oracle
 from ..probe import probe_env_for
 from ..sandboxes import BuildResult, Executor, RunBudget
-from ..schemas import Hypothesis, OracleResult, OracleType, ReportSubmission, RunRecord
+from ..schemas import Hypothesis, OracleResult, OracleType, ReportSubmission, RunConfig, RunRecord
 
 
 async def build_base(
@@ -25,13 +25,13 @@ async def build_base(
     executor: Executor,
     settings: Settings,
     events: EventLog,
+    config: Optional["RunConfig"] = None,
 ) -> BuildResult:
     """Build the pinned environment once. Network is on here only."""
     t0 = events.start("build", f"install {submission.package_spec}")
-    config = hypotheses[0].config if hypotheses else None
     if config is None:
-        from ..schemas import RunConfig
-
+        config = hypotheses[0].config if hypotheses else None
+    if config is None:
         config = RunConfig()
     result = await executor.build(
         config,

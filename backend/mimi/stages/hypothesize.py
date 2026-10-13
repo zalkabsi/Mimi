@@ -76,6 +76,10 @@ Grounding evidence (ranks hypotheses; never sufficient alone to reject):
 Research findings (advisories / fixed version):
 {research}
 
+Real API surface of the package as installed in the sandbox (measured; call only
+exports listed here, never invent functions or options):
+{api}
+
 Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
 - poc_code: a self-contained Node script that tests the hypothesis against the
   package installed in /work. Print clear output. It may READ files and run the
@@ -114,6 +118,7 @@ def hypothesize(
     llm: LLMClient,
     events: EventLog,
     max_hypotheses: int = 8,
+    api_surface: str = "",
 ) -> list[Hypothesis]:
     t0 = events.start("hypothesize", f"Ultra, up to {max_hypotheses} hypotheses")
     grounding_txt = "\n".join(f"- [{e.kind.value}] {e.target}: {e.detail}" for e in grounding[:20]) or "(none)"
@@ -128,6 +133,7 @@ def hypothesize(
         claim=claim.model_dump_json(indent=2),
         grounding=grounding_txt,
         research=research_txt,
+        api=api_surface or "(not measured)",
         max_hyp=max_hypotheses,
     )
     try:
@@ -136,7 +142,8 @@ def hypothesize(
             messages=[{"role": "user", "content": prompt}],
             schema_hint=_HINT,
             max_tokens=9000,  # reasoning tokens count against this
-            enable_thinking=True,  # this stage wants reasoning
+            enable_thinking=True,
+            temperature=0.0,  # same report should give the same hypotheses  # this stage wants reasoning
         )
     except Exception as e:
         events.error("hypothesize", t0, f"hypothesis generation failed: {e}")

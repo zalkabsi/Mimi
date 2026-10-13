@@ -53,7 +53,8 @@ class CountingExecutor:
         probe_env=None,
         probe_snippet: str | None = None,
     ) -> RunRecord:
-        self.calls.append(phase)
+        if hypothesis_id != "_api":  # the API-surface probe is not a hypothesis run
+            self.calls.append(phase)
         if phase == "fixed" and self.fail_fixed:
             return RunRecord(
                 hypothesis_id=hypothesis_id,

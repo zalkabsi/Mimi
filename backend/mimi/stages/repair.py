@@ -30,7 +30,7 @@ from ..oracles import check_oracle, crashed_with_exception
 from ..probe import probe_env_for
 from ..redaction import sanitize_package
 from ..sandboxes import BuildResult, Executor, RunBudget
-from ..schemas import Hypothesis, OracleResult, OracleType, RunRecord
+from ..schemas import Hypothesis, OracleResult, OracleType, RunConfig, RunRecord
 
 _API_PROBE = r"""
 const name = %NAME%;
@@ -71,8 +71,8 @@ def crashed_before_verdict(run: RunRecord) -> bool:
     return crashed_with_exception(run)
 
 
-async def _api_surface(
-    build: BuildResult, hyp: Hypothesis, package: str, executor: Executor, settings: Settings,
+async def api_surface(
+    build: BuildResult, config: RunConfig, package: str, executor: Executor, settings: Settings,
     budget: RunBudget,
 ) -> str:
     name = sanitize_package(package)
@@ -81,7 +81,7 @@ async def _api_surface(
     code = _API_PROBE.replace("%NAME%", json.dumps(name))
     try:
         run = await executor.run_poc(
-            build, hyp.config, poc_code=code, hypothesis_id="_api",
+            build, config, poc_code=code, hypothesis_id="_api",
             timeout_s=min(30, settings.poc_timeout_s), offline=True, phase="poc",
         )
     except Exception as e:  # an unavailable probe must not stop the pipeline
@@ -117,7 +117,7 @@ async def repair_round(
         return runs, results
 
     t0 = events.start("repair", f"{len(targets)} PoC(s) crashed before judging; one repair round")
-    api = await _api_surface(build, targets[0][0], package, executor, settings, budget)
+    api = await api_surface(build, targets[0][0].config, package, executor, settings, budget)
     items = "\n\n".join(
         f"id: {h.id}\noracle pattern: {h.oracle.pattern}\ncode:\n{h.poc_code}\nstderr:\n{(r.stderr or '')[:700]}"
         for h, r in targets
@@ -129,6 +129,7 @@ async def repair_round(
             schema_hint=_HINT,
             max_tokens=9000,
             enable_thinking=True,
+            temperature=0.0,
         )
     except Exception as e:
         events.error("repair", t0, f"repair failed: {e}")
