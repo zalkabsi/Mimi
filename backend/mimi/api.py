@@ -11,6 +11,7 @@ SSE carries stage events as the pipeline runs.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 import json
 import os
 import queue
@@ -46,6 +47,20 @@ _event_queues: dict[str, list[queue.Queue]] = {}
 _event_lock = threading.Lock()
 # Reports whose pipeline has finished, so a late subscriber still terminates.
 _finished: set[str] = set()
+
+
+# Spend ceiling for a hosted deployment: live runs spend real inference and
+# sandbox credits, so cap them per UTC day (0 or negative disables the cap).
+_MAX_LIVE_RUNS_PER_DAY = int(os.environ.get("MIMI_MAX_LIVE_RUNS_PER_DAY", "50"))
+
+
+def _live_runs_today() -> int:
+    today = datetime.now(timezone.utc).date().isoformat()
+    return sum(
+        1
+        for r in _db.list_reports(limit=1000)
+        if r.get("source") == "api" and str(r.get("created_at", "")).startswith(today)
+    )
 
 
 def _publish(report_id: str, event: dict) -> None:
@@ -109,6 +124,14 @@ async def submit_report(
         raise HTTPException(
             status_code=402,
             detail="demo mode is read-only; use the judge credential or self-host to run live reports",
+        )
+    if _MAX_LIVE_RUNS_PER_DAY > 0 and _live_runs_today() >= _MAX_LIVE_RUNS_PER_DAY:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"daily live-run limit reached ({_MAX_LIVE_RUNS_PER_DAY}); this protects the "
+                "hosted credits. The recorded runs stay available, or self-host without a cap."
+            ),
         )
     report_id = uuid.uuid4().hex[:12]
 

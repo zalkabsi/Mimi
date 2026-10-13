@@ -259,3 +259,12 @@ def test_api_stays_responsive_while_a_blocking_pipeline_runs(client, monkeypatch
     assert client.get("/api/health").status_code == 200
     assert time.monotonic() - t0 < 0.7
     time.sleep(1.8)  # let the worker thread finish before the next test
+
+
+def test_daily_live_run_cap_returns_429(client, monkeypatch):
+    monkeypatch.setattr(api, "_check_access", lambda key: "judge")
+    monkeypatch.setattr(api, "_MAX_LIVE_RUNS_PER_DAY", 1)
+    rid = uuid.uuid4().hex[:12]
+    api._db.upsert_report(Dossier(report_id=rid, report_text="r", package_spec="a@1.0.0", source="api"))
+    r = client.post("/api/reports", json={"report_text": "x", "package_spec": "a@1.0.0"})
+    assert r.status_code == 429 and "daily live-run limit" in r.json()["detail"]
