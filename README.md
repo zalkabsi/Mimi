@@ -12,6 +12,10 @@ Mimi is built for the Nebius × NVIDIA Global AI Hackathon 2026 (Track 2: Best A
 
 The frontend includes a clearly labelled fixture dossier. It needs no backend, credentials, or provider credits. Replay mode makes no provider calls, does not show an access-key field, and does not accept submissions. The dossier is sample UI data and is not a measured Mimi run.
 
+The repository includes a GitHub Pages workflow for publishing this same
+read-only replay. It is not a live URL until the repository owner enables
+Pages and confirms a successful deployment; see [the deployment guide](docs/deployment.md).
+
 ```bash
 cd frontend
 npm ci

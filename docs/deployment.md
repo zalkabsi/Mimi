@@ -16,20 +16,21 @@ is a UI replay, not an end-to-end live analysis.
 
 ### GitHub Pages
 
-The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages on
-pushes to `master` and when run manually. It builds with the repository base
-path and hash routing, so direct links work without server-side SPA fallback.
-The expected URL is `https://zalkabsi.github.io/Mimi/`; it is not live until a
-successful Actions deployment appears for the repository.
+The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages
+when run manually. It builds with the repository base path and hash routing,
+so direct links work without server-side SPA fallback. The expected URL is
+`https://zalkabsi.github.io/Mimi/`; it is not live until a successful Actions
+deployment appears for the repository.
 
 To publish it, make the repository public (the hackathon also requires a
 public source repository), then open **Settings → Pages** and select **GitHub
-Actions** as the build and deployment source if it is not already selected.
-Open **Actions → Deploy read-only demo → Run workflow**. After the run
-succeeds, open the expected URL in a clean browser and check the inbox and the
-sample dossier. Keep the demo free of login requirements through the judging
-period. This hosted replay is read-only and must not be presented as a live
-Mimi analysis.
+Actions** as the build and deployment source. This one-time owner setting is
+required: the workflow token cannot create or enable the Pages site. Then open
+**Actions → Deploy read-only demo → Run workflow**. After the run succeeds,
+open the expected URL in a clean browser and check the inbox and sample
+dossier. Keep the demo free of login requirements through the judging period.
+This hosted replay is read-only and must not be presented as a live Mimi
+analysis.
 
 For a container host, the frontend includes a self-contained static replay
 image. Build it from `frontend/` and route traffic to port `8080`:
@@ -82,8 +83,11 @@ row as `error` rather than leaving it stuck.
 ## Current deployment status
 
 The static build and `mimi-replay` container image built locally on
-2026-10-16. The GitHub Pages workflow is committed, but no successful public
-deployment or clean-browser check is recorded yet. Do not submit the expected
-URL until the Pages workflow succeeds and the clean-browser check passes. If
-published as a replay demo, label it read-only and do not describe the fixture
-as a live pipeline result.
+2026-10-16. The GitHub Pages build job succeeded on its first run, but
+`configure-pages` could not create the Pages site because the Actions token
+does not have that repository-admin permission. After the owner enables Pages
+in Settings, rerun the workflow. No successful public deployment or
+clean-browser check is recorded yet. Do not submit the expected URL until the
+deployment succeeds and the clean-browser check passes. If published as a
+replay demo, label it read-only and do not describe the fixture as a live
+pipeline result.

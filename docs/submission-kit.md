@@ -97,6 +97,14 @@ before promising live execution.
 - Source: https://github.com/zalkabsi/Mimi
 - Setup: see the repository README.
 
+### Testing instructions (use after the hosted URL is verified)
+
+Open the demo URL in a browser. No account, key, or payment is needed. Select
+the labelled sample report to view its dossier and recorded timeline. This is
+a fixed read-only replay: it makes no provider calls, runs no proof-of-concept
+code, and does not accept report submissions. The README explains how to run
+the project locally and distinguishes the replay from live analysis.
+
 ## Three-minute demo script
 
 Target length: 2:40, leaving room for an intro/outro. Show only a real app
