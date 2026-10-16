@@ -18,9 +18,9 @@ is a UI replay, not an end-to-end live analysis.
 
 The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages
 when run manually. It builds with the repository base path and hash routing,
-so direct links work without server-side SPA fallback. The expected URL is
-`https://zalkabsi.github.io/Mimi/`; it is not live until a successful Actions
-deployment appears for the repository.
+so direct links work without server-side SPA fallback. The live URL is
+[`https://zalkabsi.github.io/Mimi/`](https://zalkabsi.github.io/Mimi/). The
+published page is a read-only replay, not a live vulnerability analysis.
 
 To publish it, make the repository public (the hackathon also requires a
 public source repository), then open **Settings → Pages** and select **GitHub
@@ -83,11 +83,11 @@ row as `error` rather than leaving it stuck.
 ## Current deployment status
 
 The static build and `mimi-replay` container image built locally on
-2026-10-16. The GitHub Pages build job succeeded on its first run, but
-`configure-pages` could not create the Pages site because the Actions token
-does not have that repository-admin permission. After the owner enables Pages
-in Settings, rerun the workflow. No successful public deployment or
-clean-browser check is recorded yet. Do not submit the expected URL until the
-deployment succeeds and the clean-browser check passes. If published as a
-replay demo, label it read-only and do not describe the fixture as a live
+2026-10-16. The first Pages run could not create the Pages site because the
+owner had not enabled Pages. After Pages and Actions were enabled, deployment
+run [38957108737](https://github.com/zalkabsi/Mimi/actions/runs/38957108737)
+completed both build and deploy successfully. The owner confirmed that the
+public URL loads the inbox and fixed sample dossier in a browser on
+2026-10-16. Before final submission, also check it in a private window or
+another browser. Keep describing it as a read-only replay; it is not a live
 pipeline result.

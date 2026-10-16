@@ -10,11 +10,11 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 
 ## Demo status
 
-The repository includes a **read-only sample dossier** that runs without an account, API key, or provider credits. It is fixture data for exploring the interface; it is not the result of a live vulnerability analysis. The hosted GitHub Pages demo is not published yet. See the [deployment guide](docs/deployment.md) for the owner setup steps.
+The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
 Live report analysis needs provider credentials and permissions. The latest Sandboxes access probe returned HTTP 403, so live untrusted-code execution and execution-dependent evaluation results have not been verified. See [constraints and open items](docs/00-constraints-and-open-items.md) for the current record.
 
-## Explore the sample
+## Run the sample locally
 
 ```bash
 cd frontend

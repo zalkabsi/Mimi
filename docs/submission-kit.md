@@ -91,20 +91,21 @@ before promising live execution.
 
 ### Try it
 
-- Hosted demo: **[add the public URL after deployment and a clean-browser check]**
+- Hosted demo: https://zalkabsi.github.io/Mimi/
 - Demo mode: open the hosted read-only replay and use the labelled sample
   report. This static replay never accepts submissions; the separate live API
   path requires a judge key and working Sandboxes access.
 - Source: https://github.com/zalkabsi/Mimi
 - Setup: see the repository README.
 
-### Testing instructions (use after the hosted URL is verified)
+### Testing instructions
 
-Open the demo URL in a browser. No account, key, or payment is needed. Select
-the labelled sample report to view its dossier and recorded timeline. This is
-a fixed read-only replay: it makes no provider calls, runs no proof-of-concept
-code, and does not accept report submissions. The README explains how to run
-the project locally and distinguishes the replay from live analysis.
+Open https://zalkabsi.github.io/Mimi/ in a browser. No account, key, or
+payment is needed. Select the labelled sample report to view its dossier and
+recorded timeline. This is a fixed read-only replay: it makes no provider
+calls, runs no proof-of-concept code, and does not accept report submissions.
+The README explains how to run the project locally and distinguishes the
+replay from live analysis.
 
 ## Three-minute demo script
 
@@ -139,7 +140,8 @@ live evidence.
 - [x] Architecture diagram exported as SVG and visibly labels the live Sandbox access limit.
 - [x] Devpost copy and an honest demo script are drafted above.
 - [x] Push the final source changes and confirm the latest GitHub Actions CI run is green (2026-10-16).
-- [ ] Publish a hosted URL and test access from a clean browser.
+- [x] Publish the hosted read-only replay; the owner confirmed the inbox and sample dossier load at the public URL on 2026-10-16.
+- [ ] Confirm access in a private/clean browser before final submission.
 - [ ] Verify Sandboxes access and child user/network namespace isolation before live
   PoC execution.
 - [ ] Run and report the planned E1/E2/E3/E4 results with sample sizes; keep

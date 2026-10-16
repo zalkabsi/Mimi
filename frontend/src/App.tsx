@@ -10,6 +10,8 @@ export function App() {
   const [healthState, setHealthState] = useState<HealthState>("checking");
 
   useEffect(() => {
+    if (USE_MOCK) return;
+
     let cancelled = false;
     void (async () => {
       const ok = await health();
@@ -37,13 +39,24 @@ export function App() {
             auto-closes a report.
           </p>
           <div className="ml-auto flex items-center gap-3">
-            <HealthDot state={healthState} />
-            <span
-              className="font-mono text-[11px] text-slate-600"
-              title={`Backend base URL: ${API_BASE}`}
-            >
-              {API_BASE.replace(/^https?:\/\//, "")}
-            </span>
+            {USE_MOCK ? (
+              <span
+                className="font-mono text-[11px] uppercase tracking-wider text-amber-300"
+                title="Fixed sample data; no backend connection is used."
+              >
+                read-only replay
+              </span>
+            ) : (
+              <>
+                <HealthDot state={healthState} />
+                <span
+                  className="font-mono text-[11px] text-slate-600"
+                  title={`Backend base URL: ${API_BASE}`}
+                >
+                  {API_BASE.replace(/^https?:\/\//, "")}
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="mt-3 h-px w-full bg-gradient-to-r from-slate-800 via-slate-700/60 to-transparent" />
@@ -56,11 +69,10 @@ export function App() {
         >
           <p className="font-mono text-xs text-amber-200">
             <span className="mr-2 rounded border border-amber-500/60 bg-amber-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
-              mock mode
+              read-only replay
             </span>
-            VITE_USE_MOCK=1 — the UI is serving the fixture in{" "}
-            <span className="text-amber-100">src/mocks/dossier.json</span>.
-            Submissions are disabled; no live data is shown.
+            Fixed sample data only. No provider calls or live analysis; report
+            submissions and access keys are disabled.
           </p>
         </div>
       ) : null}
