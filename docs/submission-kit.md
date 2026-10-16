@@ -92,8 +92,9 @@ before promising live execution.
 ### Try it
 
 - Hosted demo: **[add the public URL after deployment and a clean-browser check]**
-- Demo mode: open the hosted app and use the labelled sample report; submissions
-  are read-only until a live judge credential and Sandboxes access are ready.
+- Demo mode: open the hosted read-only replay and use the labelled sample
+  report. This static replay never accepts submissions; the separate live API
+  path requires a judge key and working Sandboxes access.
 - Source: https://github.com/zalkabsi/Mimi
 - Setup: see the repository README.
 
@@ -137,7 +138,7 @@ live evidence.
 - [x] Started the replay container locally and confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200; the container health status is healthy after disabling proxy use for its loopback health probe.
 - [x] Architecture diagram exported as SVG and visibly labels the live Sandbox access limit.
 - [x] Devpost copy and an honest demo script are drafted above.
-- [ ] Push the final source changes and confirm the latest GitHub Actions CI run is green.
+- [x] Push the final source changes and confirm the latest GitHub Actions CI run is green (2026-10-16).
 - [ ] Publish a hosted URL and test access from a clean browser.
 - [ ] Change `zalkabsi/Mimi` to public in GitHub so judges can access the source.
 - [ ] Verify Sandboxes access and child user/network namespace isolation before live

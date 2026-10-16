@@ -7,6 +7,8 @@ All work in this repository was created during the hackathon Submission Period (
 ### 2026-10-16 (submission readiness)
 - Added GitHub Actions CI for Python 3.12/3.13 backend tests plus live and read-only frontend production builds, with read-only repository permissions and no secrets.
 - Rebuilt and started the current backend image in read-only mode; verified the fixture dossier and SSE completion, and confirmed unauthenticated live lookups/submissions return 401/402.
+- Added a manually triggered GitHub Pages workflow for the no-credential replay, with a repo-prefixed asset path and hash routing; local build and static-path checks pass. The first Actions build completed, but publication is waiting on the owner to enable Pages in repository settings.
+- Re-read the live Official Rules and updated the Devpost copy and final checklist. The complete source is on `master`; the latest CI run passed on 2026-10-16.
 
 ### 2026-10-15 (week 3: onboarding and access status)
 - Protected live report metadata, contents, events, and streams behind the judge key while leaving the fixed public replay available. The browser keeps the key only for the current tab; the shared-key limitation is documented. Fixed SSE completion ordering, explicit completion signaling, and stopped fallback polling at terminal events.
