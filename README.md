@@ -1,20 +1,20 @@
 # Mimi
 
-**Every vulnerability report gets a verdict with receipts.**
+**Evidence-first npm vulnerability triage for open-source maintainers.**
 
-![Mimi's evidence dossier preview. The illustration uses sample data and is not a live run.](docs/assets/mimi-thumbnail.svg)
+Mimi turns a vulnerability report into a reviewable dossier: what the package source supports, which checks ran, what they found, and what a maintainer could say next. It is designed to test a report against the affected package version, then give the maintainer the final say. Mimi does not auto-close reports.
 
-Mimi helps open-source maintainers triage vulnerability reports. Its pipeline is designed to test a report's claim against the exact affected package version in a Nebius Token Factory Sandbox and return an evidence dossier: what was proven, what was contradicted, and how much was tested. Mimi never auto-closes a report; the maintainer decides.
+![Mimi evidence dossier preview. This illustration shows sample data, not a live run.](docs/assets/mimi-thumbnail.svg)
 
-Mimi is built for the Nebius × NVIDIA Global AI Hackathon 2026 (Track 2: Best Apps and Agents). It uses Nebius Token Factory inference with NVIDIA Nemotron 3 Nano, Super, and Ultra, and Tavily for public-advisory research. Sandboxes is the configured boundary for untrusted proof-of-concept execution, but current credentials receive HTTP 403; the live execution path and evaluation results are not verified.
+Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2: Best Apps and Agents. It combines Nebius Token Factory inference, NVIDIA Nemotron models, Tavily advisory research, and Nebius Sandboxes as the boundary for untrusted proof-of-concept code.
 
-## Try the read-only demo
+## Demo status
 
-The frontend includes a clearly labelled fixture dossier. It needs no backend, credentials, or provider credits. Replay mode makes no provider calls, does not show an access-key field, and does not accept submissions. The dossier is sample UI data and is not a measured Mimi run.
+The repository includes a **read-only sample dossier** that runs without an account, API key, or provider credits. It is fixture data for exploring the interface; it is not the result of a live vulnerability analysis. The hosted GitHub Pages demo is not published yet. See the [deployment guide](docs/deployment.md) for the owner setup steps.
 
-The repository includes a GitHub Pages workflow for publishing this same
-read-only replay. It is not a live URL until the repository owner enables
-Pages and confirms a successful deployment; see [the deployment guide](docs/deployment.md).
+Live report analysis needs provider credentials and permissions. The latest Sandboxes access probe returned HTTP 403, so live untrusted-code execution and execution-dependent evaluation results have not been verified. See [constraints and open items](docs/00-constraints-and-open-items.md) for the current record.
+
+## Explore the sample
 
 ```bash
 cd frontend
@@ -22,17 +22,25 @@ npm ci
 VITE_USE_MOCK=1 npm run dev
 ```
 
-Open the local URL printed by Vite. The inbox links to the sample dossier; submissions are disabled in this mode. To use PowerShell, run `$env:VITE_USE_MOCK = "1"` before `npm run dev`.
+Open the local URL printed by Vite and select the sample report. Replay mode makes no provider calls, hides the access-key field, and disables report submissions. On Windows PowerShell, set `$env:VITE_USE_MOCK = "1"` before running `npm run dev`.
 
-You can also browse the same read-only sample through the FastAPI backend: install the backend as described below, start `uvicorn`, and run the frontend without `VITE_USE_MOCK`. The API includes the bundled demo report and its recorded timeline even when no provider credentials are configured; submissions and live report reads require `MIMI_JUDGE_KEY`.
+## How Mimi works
 
-## Run Mimi locally
+1. **Ground the report.** Nemotron Nano structures the claim. Deterministic checks compare cited files, symbols, and versions with the affected package source. Source grounding is supporting evidence; it cannot reject a report on its own.
+2. **Research public advisories.** Tavily searches with public identifiers such as package names, versions, CVE IDs, and GHSA IDs. Report prose and proof-of-concept code are excluded from search queries.
+3. **Plan bounded checks.** Nemotron proposes test hypotheses with predeclared deterministic oracles. The backend validates each operation against an allowlist; the model cannot issue arbitrary tool calls.
+4. **Run in an isolated boundary.** Mimi builds the affected package and is designed to run each hypothesis in a separate Nebius Sandbox. Runs have time and output limits, and provider credentials are not sent into a sandbox. This live path still needs access verification.
+5. **Return a dossier.** Deterministic tier logic reports the verdict, coverage, commands, outputs, and a draft maintainer reply.
 
-Live report triage needs a Nebius Token Factory key, a Nebius project ID with Sandboxes permissions, and (optionally) a Tavily key. Store credentials in environment variables or the ignored root `.env` file; never paste keys into source control or chat. Copy `.env.example` to `.env` and fill in the values.
+Verdicts are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A negative verdict requires executed, conclusive checks and reports which hypotheses and configurations were covered. Failed builds, incomplete runs, and unknown fixed-version results cannot become a clean negative. Every report remains under maintainer control.
+
+## Run the application locally
+
+The read-only sample API can run without provider credentials. Live submissions require a Nebius Token Factory key, a Nebius project with Sandboxes permissions, and optionally a Tavily key. Copy `.env.example` to `.env` and keep credentials out of source control.
 
 Prerequisites: Python 3.12 or 3.13, Node.js 18 or 20+, and npm.
 
-Install the backend and start the API from the repository root:
+Start the backend from the repository root:
 
 ```bash
 python3.12 -m venv .venv
@@ -41,9 +49,7 @@ python -m pip install -e ./backend
 uvicorn mimi.api:app --app-dir backend --reload --port 8000
 ```
 
-On Windows PowerShell, create the environment with `py -3.12 -m venv .venv` and activate with `.venv\Scripts\Activate.ps1`. If using Python 3.13, substitute its executable when creating the environment.
-
-In a second terminal, start the frontend:
+In another terminal, start the frontend:
 
 ```bash
 cd frontend
@@ -51,11 +57,11 @@ npm ci
 npm run dev
 ```
 
-The UI uses `http://localhost:8000` by default. Live submissions and access to real report contents require the configured `MIMI_JUDGE_KEY`. Without it, the API exposes only the bundled read-only dossier. The UI keeps the entered key in `sessionStorage` for the current tab so it can load protected reports; use **Clear key** to remove it. This is a shared judge credential: anyone who has it can read all reports on that deployment, so use public sample reports only on a shared demo. For local development, set the same environment variable before starting the backend. The database defaults to `mimi.db` in the current directory; set `MIMI_DB_PATH` to change it.
+The frontend uses `http://localhost:8000` by default. Without `MIMI_JUDGE_KEY`, the API serves only the bundled read-only dossier. For live report access, set the same judge key in the backend environment and enter it in the UI. The UI keeps it in `sessionStorage` for the current tab; **Clear key** removes it. Anyone holding this shared key can read every report on that deployment, so use only public sample reports on a shared demo. The database defaults to `mimi.db`; set `MIMI_DB_PATH` to use another location.
 
 ### CLI
 
-After installing the backend, run a report from a file and save the dossier as JSON:
+After installing the backend, the CLI can analyze a report file and write a JSON dossier:
 
 ```bash
 mimi report --package minimist@1.2.5 \
@@ -63,56 +69,39 @@ mimi report --package minimist@1.2.5 \
   --out dossier.json
 ```
 
-The command uses live providers and Sandboxes. `mimi whoami` checks Sandboxes access without printing credentials. `mimi demo` runs the bundled, already-public CVE-2021-44906 sample through the live pipeline; it is not a no-credentials demo. Use the read-only frontend fixture above when you only want to explore the interface.
-
-## How it works
-
-1. **Extract and ground:** Nemotron Nano structures the claim; deterministic checks compare cited files, symbols, and versions against the package source. Grounding is evidence only and can never reject a report by itself.
-2. **Research:** Tavily searches using public identifiers such as package, version, and CVE/GHSA IDs. Report prose and PoC code are checked out of the query path.
-3. **Form hypotheses:** Nemotron Ultra proposes bounded test plans with predeclared deterministic oracles. The backend executes only validated, allowlisted operations; the model does not issue arbitrary tool calls.
-4. **Build and execute:** Mimi builds the affected package once, then forks isolated Sandboxes for each hypothesis. PoC execution has time and output limits; no provider credentials are put in a sandbox.
-5. **Differential and dossier:** Mimi repeats fired hypotheses against a researched fixed version when available. Deterministic tier logic produces the verdict, coverage statement, exact commands, run outputs, and a draft maintainer reply.
-
-The tiers are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A negative verdict requires executed, conclusive checks and reports the hypotheses and configurations covered. Failed builds, incomplete runs, and unknown fixed-version results cannot become a clean negative. No tier triggers an external action.
+This command uses live providers and Sandboxes. `mimi whoami` checks Sandbox access without printing credentials. `mimi demo` runs the bundled public CVE-2021-44906 sample through the live pipeline; it is not a no-credentials demo.
 
 ## Configuration
 
-| Variable | Required for | Notes |
-| --- | --- | --- |
-| `NEBIUS_API_KEY` | Token Factory inference and Sandboxes | Keep it in an environment secret or ignored `.env`. |
-| `NEBIUS_PROJECT_ID` | Sandboxes | The project ID is sent as the `Project` header. The token also needs the Sandboxes grants. |
-| `TAVILY_API_KEY` | Live advisory research | Optional; without it, the dossier records that research was skipped. |
-| `MIMI_JUDGE_KEY` | API submissions and live report reads | Requests must include this value in `X-Mimi-Key`; without it, the API serves only the bundled read-only dossier. |
-| `MIMI_DB_PATH` | SQLite location | Defaults to `mimi.db` in the process working directory. |
-| `MIMI_CORS_ORIGINS` | Browser access to the API | Comma-separated allowed origins; defaults to the two local Vite URLs. Set the deployed frontend origin when hosting. |
-| `MIMI_FORCE_MODEL` | Evaluation ablations | Optional `nano`, `super`, or `ultra` override. |
-| `VITE_API_BASE` | Frontend | Defaults to `http://localhost:8000`. Set it in `frontend/.env` for another backend URL. |
-| `VITE_USE_MOCK` | Frontend fixture mode | Set to `1` to browse the bundled read-only fixture without a backend. |
+| Variable | Purpose |
+| --- | --- |
+| `NEBIUS_API_KEY` | Token Factory inference and Sandboxes access. Store it in an environment secret or ignored `.env` file. |
+| `NEBIUS_PROJECT_ID` | Project sent as the Sandboxes `Project` header; the token also needs the required grants. |
+| `TAVILY_API_KEY` | Optional live advisory research. Without it, the dossier records that research was skipped. |
+| `MIMI_JUDGE_KEY` | Protects API submissions and live report reads through the `X-Mimi-Key` header. |
+| `MIMI_DB_PATH` | SQLite database path; defaults to `mimi.db` in the process working directory. |
+| `MIMI_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API. Defaults to the local Vite URLs. |
+| `MIMI_FORCE_MODEL` | Optional evaluation override: `nano`, `super`, or `ultra`. |
+| `VITE_API_BASE` | API URL used by the frontend; defaults to `http://localhost:8000`. |
+| `VITE_USE_MOCK` | Set to `1` to browse the bundled read-only sample without the backend. |
 
-## Current status and limits
+## Evaluation and limits
 
-The repository contains the FastAPI backend and CLI, React inbox and dossier UI, deterministic oracle and tier logic, SQLite event storage, and an evaluation harness with 27 cases. The fixture UI can be explored locally without credentials. Live runs require the external provider credentials and permissions described above.
+The repository includes an evaluation harness with 27 cases. Cases that cannot run are recorded as `not_run`; missing results are never estimated. See [the evaluation guide](evals/README.md) for suites and commands. The corpus includes public npm vulnerability cases and clearly labelled synthetic reports. Synthetic cases are not real reports, and results do not generalize to C/C++ memory-safety vulnerabilities. The current product scope is npm.
 
-On **October 15, 2026**, the Sandboxes `whoami` probe returned HTTP 403 for both supported endpoint paths in the current build environment. This does not establish whether the token lacks a specific grant or whether access is otherwise unavailable; real sandbox execution and the execution-dependent evaluation suites remain blocked until the endpoint returns usable permissions. The fail-closed child user/network namespace guard is implemented but unverified in a live sandbox. No reproduction rate, model-routing result, sandbox cost, or live demo result is claimed here. Check `docs/00-constraints-and-open-items.md` and `CHANGELOG.md` for the latest recorded status.
+The current environment's Sandboxes `whoami` probe returned HTTP 403 on October 15, 2026, for both supported endpoint paths. The cause could not be narrowed to a specific missing grant. Real Sandbox execution, the fail-closed child user/network namespace guard, and execution-dependent evaluation suites therefore remain unverified. Mimi makes no claim about reproduction rates, model-routing results, Sandbox costs, or live demo results.
 
-The evaluation corpus includes public npm vulnerability cases and explicitly labelled synthetic fabricated reports. Synthetic cases are not real slop reports; results do not generalize to C/C++ memory-safety vulnerabilities. The code supports the npm MVP only.
-
-## Evaluation
-
-The harness records cases that cannot run as `not_run`; it never fills missing results with estimates. See [`evals/README.md`](evals/README.md) for the suites, required credentials, and commands. Results are written to the ignored `evals/out/` directory.
-
-## Project notes
+## Project links
 
 - [Architecture and evaluation protocol](docs/02-architecture.md)
-- [Architecture diagram (SVG)](docs/assets/architecture.svg)
+- [Architecture diagram](docs/assets/architecture.svg)
 - [Deployment guide](docs/deployment.md)
 - [Constraints and open items](docs/00-constraints-and-open-items.md)
 - [Product feedback log](docs/feedback-log.md)
 - [Hackathon submission copy and demo script](docs/submission-kit.md)
-- [Illustrative submission thumbnail](docs/assets/mimi-thumbnail.svg)
 - [Build log](CHANGELOG.md)
-- [License](LICENSE) — Apache-2.0
+- [Apache-2.0 license](LICENSE)
 
 ## Security
 
-Do not run reporter-supplied PoC code on the application host. Mimi is designed to execute it only inside Token Factory Sandboxes. Until Sandboxes access and per-run network isolation are verified, treat live execution of untrusted reports as blocked. Use public reports for demos and evaluations, and do not put credentials or private report data in a sandbox. Review `docs/02-architecture.md` for the trust boundaries and known limitations before exposing a live deployment.
+Do not run reporter-supplied proof-of-concept code on the application host. Mimi is designed to execute it inside Nebius Sandboxes, but that boundary has not been verified in the current environment. Treat live execution of untrusted reports as blocked until Sandbox access and per-run network isolation are confirmed. Review the [architecture and trust boundaries](docs/02-architecture.md) before exposing a live deployment. Never place provider credentials or private report data in a sandbox.
