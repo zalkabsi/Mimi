@@ -129,7 +129,7 @@ live evidence.
 
 ## Artifact checklist
 
-- [x] Source repository and Apache-2.0 license are present (repository is currently private).
+- [x] Public source repository and Apache-2.0 license are present.
 - [x] Redacted Gitleaks scans of the current tree and Git history returned zero findings on 2026-10-15.
 - [x] Local no-credential replay instructions are documented.
 - [x] Static replay frontend build, backend Docker image, and read-only frontend replay image built on 2026-10-16.
@@ -140,7 +140,6 @@ live evidence.
 - [x] Devpost copy and an honest demo script are drafted above.
 - [x] Push the final source changes and confirm the latest GitHub Actions CI run is green (2026-10-16).
 - [ ] Publish a hosted URL and test access from a clean browser.
-- [ ] Change `zalkabsi/Mimi` to public in GitHub so judges can access the source.
 - [ ] Verify Sandboxes access and child user/network namespace isolation before live
   PoC execution.
 - [ ] Run and report the planned E1/E2/E3/E4 results with sample sizes; keep
