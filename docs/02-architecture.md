@@ -1,10 +1,10 @@
-# Mimi: architecture and build plan (Phases 5-7, draft)
+# Mimi: architecture and evaluation protocol
 
-Status: **draft for review**. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Assumptions marked **VERIFY** are spikes for week 1; see `00-constraints-and-open-items.md`.
+Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Live sandbox execution and execution-dependent evaluations are still blocked by the current access response; see `00-constraints-and-open-items.md`. This document records the intended architecture and evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked **VERIFY** are listed in `00-constraints-and-open-items.md`.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Mimi reproduces the claim in isolated sandboxes at the exact affected version and tells the maintainer what is proven, what is contradicted, and how hard it looked.
+Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the claim in isolated sandboxes at the exact affected version and tell the maintainer what is proven, what is contradicted, and how hard it looked. Current Sandboxes access is blocked; see the status table below.
 
 ## Principles
 
@@ -39,9 +39,9 @@ flowchart LR
 | 1 | Extract claim | Nemotron Nano, JSON schema | `{package, versions, vuln_class, cited_symbols[], poc, expected_effect}` | Cheap, high volume. Schema-validated; retry once on invalid. |
 | 2 | Ground in source | Deterministic (git checkout at version, grep/AST for cited files and symbols) + Nano summary | `grounding_evidence[]` | **Evidence only. Never a sole basis for rejection** (SlopCheck contradicts 29.4% of confirmed vulns, and 90% of its contradictions are wrong). It ranks hypotheses. |
 | 3 | Research | Tavily search, Super to synthesise | known advisories, duplicates, fixed version / fix commit | Query builder uses public identifiers only; a redaction test enforces it. |
-| 4 | Hypothesise | Nemotron Ultra, reasoning on, tool calling | ranked hypotheses, each with test plan and a **predeclared oracle** | Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style oracles read a trusted post-PoC channel, never the PoC's own stdout. |
+| 4 | Hypothesise | Nemotron Ultra, reasoning on, schema-guided JSON | ranked hypotheses, each with test plan and a **predeclared oracle** | The backend invokes controlled Tavily/Sandboxes operations; the model proposes structured plans and never executes an arbitrary tool call. Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style oracles read a trusted post-PoC channel, never the PoC's own stdout. |
 | 5 | Build once | Sandboxes: run install/build with `disposable=false`, keep the result image UUID | base image | Network on for install only. |
-| 6 | Fork per hypothesis | Sandboxes: each PoC run starts from the base image UUID (independent fork), capped concurrency (<= 50, start with 8) | stdout/stderr/exit/timing/`cost` per run | PoC phase wrapped so it has no network (**VERIFY** `unshare -n`), hard timeout, output cap. |
+| 6 | Fork per hypothesis | Sandboxes: each PoC run starts from the base image UUID (independent fork), capped concurrency (<= 50, start with 8) | stdout/stderr/exit/timing/`cost` per run | The wrapper refuses to execute a PoC unless `unshare --user --map-root-user --net` succeeds; model output cannot opt into online execution. Hard timeout and output cap. Isolation effectiveness inside Sandboxes is still unverified. |
 | 7 | Differential | Same oracle on the fixed version from stage 3 | flipped true / false / **unknown** | Confirms the oracle measures the bug, not an artifact. Each hypothesis re-runs under its own environment. Any skipped, errored or unreached re-check leaves the flip *unknown*, never false. |
 | 8 | Verdict + dossier | Super; Ultra only when oracles disagree or are inconclusive | tier + coverage statement + exact commands | Tiers below. |
 | 9 | Draft reply | Super | maintainer-ready response | Asks for specific missing info, or acknowledges with repro steps. |
@@ -63,10 +63,10 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 |---|---|---|
 | Backend | Python 3.12, FastAPI, asyncio tasks | `contree-sdk` is Python (sync and async). No Celery/Redis: a report is one async job with bounded concurrency. |
 | Sandboxes | `contree-sdk` (async), image UUIDs as fork points | The core Nebius integration. |
-| Inference | OpenAI-compatible client to Token Factory (**VERIFY** base URL and model IDs) | One thin `LLMClient` with per-stage model choice, retry, token and latency logging. |
+| Inference | OpenAI-compatible client to Token Factory; base URL and Nano/Super/Ultra IDs verified 2026-10-15 | One thin `LLMClient` with per-stage model choice, retry, token and latency logging. Lightning is configured but not evaluated. |
 | Frontend | Vite + React + Tailwind, SSE for live stage events | Polished inbox and timeline matter for the Design criterion. |
 | Storage | SQLite (WAL) | Single file, trivial for judges to run, enough for this scale. |
-| Auth / access | Three tiers: (1) **demo mode**, no login: seeded inbox with recorded runs, read-only, costs nothing; (2) **judge credential**, published in the testing instructions, with its own reserved budget and no rate limit (Rules require access "free of charge and without any restriction" through Dec 15); (3) public "try your own" behind a per-session budget cap | The tool executes code and spends credits, so anonymous unlimited execution is off. Judges get an unrestricted path via the credential; demo mode keeps the product demonstrable if live credits run out. |
+| Auth / access | Planned: (1) **demo mode**, no login: seeded inbox with recorded runs, read-only, costs nothing; (2) **judge credential**, published in the testing instructions, with its own reserved budget and no rate limit (Rules require access "free of charge and without any restriction" through Dec 15); (3) public "try your own" behind a per-session budget cap. **Implemented today:** read-only demo plus `MIMI_JUDGE_KEY` checking for submissions and live report reads. Public try-your-own and a hosted credential are not in place. The shared key grants access to every live report, so the shared demo must use public sample reports only. | The tool executes code and spends credits, so anonymous unlimited execution is off. Judges get an unrestricted path via the credential; demo mode keeps the product demonstrable if live credits run out. |
 | Memory / RAG | None | Not needed: research is live search, grounding is direct source access. Add nothing sophisticated for its own sake. |
 | Observability | Structured JSON event per stage (model, tokens, latency, sandbox run ids, cost) stored in SQLite and shown in the UI timeline; the same data feeds the eval report | Cost and latency numbers in the video come from here. |
 | Deployment | Frontend static host; backend as one container; secrets in env. **Must stay up until Dec 15, 12:00 PM PT** at a known monthly ceiling | The Track 2 text encourages Serverless Endpoints (hosting) and Jobs (background work) but says neither is required. A Serverless Endpoint is a plausible, honest home for the backend and would put the app itself on AI Cloud. Decide in week 3 on two facts: CPU-only endpoint availability and cost, and whether it is simpler than a small PaaS. Do not adopt Jobs unless a real workload needs it. |
@@ -106,7 +106,7 @@ Limits to state publicly: SecBench.js is npm only; synthetic slop is not real sl
 
 | Week | Slice | Exit criterion |
 |---|---|---|
-| 1 (Sep 29 - Oct 5) | **Spikes + magic moment.** Token Factory call with tool calling and reasoning control; Sandboxes build-once and 5 parallel forks of a real npm vuln; `unshare -n` test; Tavily call. Then CLI: one report in, dossier JSON out | One real public npm vulnerability goes report to Confirmed with a fixed-version differential. Pivot-trigger review Oct 5 |
+| 1 (Sep 29 - Oct 5) | **Spikes + magic moment.** Token Factory call with tool calling and reasoning control; Sandboxes build-once and 5 parallel forks of a real npm vuln; child user/network namespace test; Tavily call. Then CLI: one report in, dossier JSON out | One real public npm vulnerability goes report to Confirmed with a fixed-version differential. Pivot-trigger review Oct 5 |
 | 2 (Oct 6 - 12) | Full pipeline (grounding, research, hypotheses, oracles, tiers); eval harness v0 on 20 cases; minimal inbox and live timeline | E1 runs end to end on 20 cases; failure taxonomy started |
 | 3 (Oct 13 - 19) | E1/E2/E3/E4 at the size the credits allow; fix top failure modes; UI polish; deploy hosted demo with judge credential and demo mode | Numbers stable; demo URL public; hostile-PoC tests pass |
 | 4 (Oct 20 - 26) | Feature freeze Oct 22. README, architecture diagram, license, Devpost text, screenshots, video, feedback notes | Everything submitted Oct 27; Oct 28-30 buffer only |
@@ -138,8 +138,19 @@ One person, four weeks, about $50 of credits. Cuts made up front:
 | Potential impact | Maintainer time per report (curl: 30 min to 3 h, several people), measured time and cost per report from our runs | We have no real-maintainer validation yet; seek 1-2 maintainer conversations and quote only what they actually say |
 | Quality of idea | Negative-result coverage; evidence-not-verdict stance backed by the SlopCheck result | Neighbouring work exists (Elastic internal, HackerOne, SlopCheck); novelty is the combination and the measured rigor |
 
-## Deliverables checklist (Phase 9, filled later)
+## Submission deliverables status (2026-10-15)
 
-README (12 required items), LICENSE (Apache-2.0, unmodified text, shown in the repo About section), `CHANGELOG.md`, architecture diagram (export of the flow above), Devpost description with a **Built With** list that names Nebius Token Factory, Sandboxes, the Nemotron models and Tavily, screenshots, 3-minute script (text names only, no third-party logos, no unlicensed music), demo recording plan, tagline and thumbnail, feedback (`docs/feedback-log.md`), testing instructions with the judge credential, deployment docs, and a final pass confirming no API key exists anywhere in the repo or git history.
+| Deliverable | Status | Evidence or remaining work |
+|---|---|---|
+| README, open-source license, changelog | Present | Root README, Apache-2.0 `LICENSE`, and `CHANGELOG.md`; confirm repository About metadata before submission. |
+| Architecture diagram | Source and export present | Mermaid source is in this document; SVG export is at `docs/assets/architecture.svg` and marks the live-access blocker. |
+| Devpost description and Built With | Drafted | `docs/submission-kit.md`; replace the hosted URL placeholder and reconcile claims with final live evidence. |
+| Tagline and thumbnail | Drafted | Tagline and original, illustrative SVG at `docs/assets/mimi-thumbnail.svg`; it is not a product screenshot. |
+| Feedback | Recorded | `docs/feedback-log.md` includes hands-on observations for Token Factory, Sandboxes, NVIDIA Nemotron, and Tavily. AI Cloud has not been used. |
+| Local setup and deployment instructions | Present | Root README and `docs/deployment.md`; backend Docker image and static replay build both built on 2026-10-15. |
+| Hosted URL and judge access | Open | No public URL or deployed backend. Sandboxes currently returns HTTP 403; no judge credential or hosted credit budget is configured. |
+| Screenshots and video under three minutes | Script drafted | Script in `docs/submission-kit.md`; capture real app screens and record only after the final demo flow is decided. |
+| End-to-end evaluations and safety evidence | Open | E1/E2/E3/E4 are not run because Sandboxes cannot execute. Keep those cases marked `not_run` until access works. |
+| Repository visibility and history secret review | Partly checked | GitHub reports `zalkabsi/Mimi` is private. Gitleaks' redacted full-history scan found no credential patterns, and no local or committed `.env` path was found. Change visibility in GitHub before submission. |
 
-Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning. Working tagline: *"Mimi: every vulnerability report gets a verdict with receipts."*
+Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning: *"Mimi: every vulnerability report gets a verdict with receipts."*

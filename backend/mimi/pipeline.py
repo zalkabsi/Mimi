@@ -233,7 +233,7 @@ class Pipeline:
         prices = {
             "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B": (0.06, 0.24),
             "nvidia/nemotron-3-super-120b-a12b": (0.30, 0.90),
-            "nvidia/NVIDIA-Nemotron-3-Ultra-550b-a55b": (1.00, 3.00),
+            "nvidia/Nemotron-3-Ultra-550b-a55b": (1.00, 3.00),
         }
         cost = 0.0
         priced_events = 0
@@ -288,7 +288,7 @@ class Pipeline:
             )
         if any(getattr(r, "network_isolated", None) is False for r in dossier.runs):
             dossier.limitations.append(
-                "PoC runs used network isolation only where `unshare -n` was available."
+                "At least one PoC run could not establish network isolation; that run was refused or is inconclusive."
             )
         if dossier.runs and all(r.cost is None for r in dossier.runs):
             dossier.limitations.append(

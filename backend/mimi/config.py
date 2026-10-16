@@ -1,12 +1,13 @@
 """Configuration: environment, model routing table, limits.
 
-Secrets are read from environment variables only (never from the repo):
+Secrets are read from environment variables or an ignored local ``.env`` file:
 
 - ``NEBIUS_API_KEY``      Token Factory key; also the bearer for Sandboxes.
 - ``NEBIUS_PROJECT_ID``   Nebius project id (Sandboxes require it as a ``Project`` header).
 - ``TAVILY_API_KEY``      Tavily key.
 
-``.env`` is git-ignored for local use; nothing here writes secrets anywhere.
+``.env`` is git-ignored and loaded for local development; nothing here writes
+secrets anywhere.
 """
 
 from __future__ import annotations
@@ -16,9 +17,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from dotenv import load_dotenv
+
+
+# Load a developer's ignored root .env, if present. Existing environment
+# variables remain authoritative (python-dotenv does not override by default).
+load_dotenv()
+
 
 # ---------------------------------------------------------------------------
-# Verified 2026-09-30 against Token Factory (see docs/00-constraints-and-open-items.md).
+# Verified 2026-10-15 against Token Factory (see docs/00-constraints-and-open-items.md).
 # IDs are case-sensitive and inconsistent across models; never guess an ID.
 # ---------------------------------------------------------------------------
 INFERENCE_BASE_URL = "https://api.tokenfactory.nebius.com/v1"
@@ -26,8 +34,8 @@ INFERENCE_BASE_URL = "https://api.tokenfactory.nebius.com/v1"
 NEMOTRON_MODELS = {
     "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
     "super": "nvidia/nemotron-3-super-120b-a12b",
-    "ultra": "nvidia/NVIDIA-Nemotron-3-Ultra-550b-a55b",
-    "lightning": "nvidia/NVIDIA-Nemotron-3_5-Lightning",
+    "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b",
+    "lightning": "nvidia/Nemotron-3_5-Lightning",
 }
 
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"

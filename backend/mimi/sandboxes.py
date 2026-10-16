@@ -3,8 +3,7 @@
 - ``SandboxExecutor``: real microVMs via ``contree-sdk``. Build once
   (``disposable=False`` keeps the result image UUID), then each hypothesis runs
   as an independent fork from that UUID. Network is on for install only; the
-  PoC phase is wrapped so it has no network when ``unshare -n`` works (the
-  week-1 spike verifies this).
+  PoC phase is refused unless a user and network namespace can be created.
 - ``FixtureExecutor``: replay of recorded runs for unit tests and the
   recorded-LLM golden suite (no credits, deterministic). Fixtures are never
   presented as real results — dossiers record which executor produced them.
@@ -181,6 +180,8 @@ def _poc_command_script(poc_command: str) -> str:
 
 def validate_run_config(config: "RunConfig", *, where: str = "run_config") -> None:
     """Reject anything outside the fixed command set. Raises ConfigRejected."""
+    if config.offline is not True:
+        raise ConfigRejected(f"{where}.offline must be true; online PoC execution is disabled")
     if not _NODE_VERSION_RE.match(config.node_version or ""):
         raise ConfigRejected(
             f"{where}.node_version must be a plain version like '20' (got {config.node_version!r})"
@@ -420,8 +421,16 @@ class SandboxExecutor:
         probe_env: Optional[dict[str, str]] = None,
         probe_snippet: Optional[str] = None,
     ) -> RunRecord:
-        client = self._ensure_client()
         t0 = time.monotonic()
+        if offline is not True:
+            return RunRecord(
+                hypothesis_id=hypothesis_id,
+                phase=_norm_phase(phase),
+                command=config.poc_command,
+                error="online PoC execution is disabled",
+                network_isolated=False,
+                elapsed_ms=(time.monotonic() - t0) * 1000.0,
+            )
         try:
             validate_run_config(config)
         except ConfigRejected as e:
@@ -432,6 +441,7 @@ class SandboxExecutor:
                 error=f"config rejected: {e}",
                 elapsed_ms=(time.monotonic() - t0) * 1000.0,
             )
+        client = self._ensure_client()
         try:
             image = await client.images.use(build.image_id)  # fork point
             # Stage the PoC file under its allowlisted name and the *shim* —
@@ -456,28 +466,22 @@ class SandboxExecutor:
             # fixed set, so it is safe to interpolate as a shell command —
             # quoting it would make the shell try to exec a literal path.
             runner = f"cd /work && {config.poc_command}"
-            if offline:
-                # `command -v unshare` only proves the binary is on PATH. A
-                # kernel without namespaces, or a seccomp filter that refuses
-                # the syscall, still leaves that check green while the PoC keeps
-                # its network — and the old wrapper had already printed
-                # `__MIMI_NET__:isolated` by then, so the record claimed
-                # isolation the run never had. The marker is now printed only
-                # after `unshare -n -- /bin/true` actually succeeds.
-                # Residual (documented): a process running as root can `setns()`
-                # out of the netns; the marker says the namespace was entered,
-                # not that leaving it is impossible.
-                wrapped = (
-                    "if command -v unshare >/dev/null 2>&1 && "
-                    "unshare -n -- /bin/true >/dev/null 2>&1; then "
-                    "echo __MIMI_NET__:isolated; unshare -n -- /bin/sh -c "
-                    + shlex.quote(runner)
-                    + "; else echo __MIMI_NET__:open; /bin/sh -c "
-                    + shlex.quote(runner)
-                    + "; fi"
-                )
-            else:
-                wrapped = f"echo __MIMI_NET__:open; {runner}"
+            # Enter a child user namespace as well as a network namespace.
+            # Root inside that child namespace has no CAP_SYS_ADMIN in the
+            # parent user namespace, so it cannot rejoin the original network
+            # namespace with setns(). The PoC is refused unless this exact
+            # boundary works in the microVM.
+            namespace = "unshare --user --map-root-user --net --"
+            wrapped = (
+                "if command -v unshare >/dev/null 2>&1 && "
+                + namespace
+                + " /bin/true >/dev/null 2>&1; then "
+                "echo __MIMI_NET__:isolated; "
+                + namespace
+                + " /bin/sh -c "
+                + shlex.quote(runner)
+                + "; else echo __MIMI_NET__:open; exit 125; fi"
+            )
             # The shim is preloaded into the PoC's own process so it can see
             # in-process state (prototype pollution, real egress attempts).
             # NODE_OPTIONS is executor-owned: validate_run_config refuses a
@@ -531,6 +535,14 @@ class SandboxExecutor:
         else:
             isolated = False if offline else None  # marker missing: do not claim isolation
 
+        run_error = None
+        if offline and isolated is not True:
+            run_error = (
+                "network isolation was unavailable; the PoC was not executed"
+                if first is not None and first[0] == "__MIMI_NET__:open"
+                else "network isolation could not be verified; the run is inconclusive"
+            )
+
         stdout, trunc1 = _cap(raw_stdout, self.settings.output_cap_bytes)
         stderr, trunc2 = _cap(raw_stderr, self.settings.output_cap_bytes)
         probe_output, trunc3 = _cap(probe_out, self.settings.output_cap_bytes)
@@ -550,6 +562,7 @@ class SandboxExecutor:
             sandbox_image_id=getattr(result, "uuid", None),
             sandbox_run_id=getattr(result, "id", None) or getattr(result, "uuid", None),
             network_isolated=isolated,
+            error=run_error,
             truncated=trunc1 or trunc2 or trunc3,
             config_key=config_key(config),
         )

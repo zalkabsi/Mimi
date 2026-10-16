@@ -4,6 +4,30 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-16 (submission readiness)
+- Added GitHub Actions CI for Python 3.12/3.13 backend tests plus live and read-only frontend production builds, with read-only repository permissions and no secrets.
+- Rebuilt and started the current backend image in read-only mode; verified the fixture dossier and SSE completion, and confirmed unauthenticated live lookups/submissions return 401/402.
+
+### 2026-10-15 (week 3: onboarding and access status)
+- Protected live report metadata, contents, events, and streams behind the judge key while leaving the fixed public replay available. The browser keeps the key only for the current tab; the shared-key limitation is documented. Fixed SSE completion ordering, explicit completion signaling, and stopped fallback polling at terminal events.
+- Made PoC network isolation mandatory: hypothesis configs cannot request online execution, and the executor refuses direct calls that disable isolation. The wrapper requires `unshare --user --map-root-user --net` and records a refused run as inconclusive if that namespace cannot be created. Live isolation remains unverified until Sandboxes access is available.
+- Changed live report endpoints to authenticate before looking up report IDs, preventing unauthenticated callers from distinguishing valid IDs from missing ones; the public fixture remains readable.
+- Replaced the placeholder root README with the read-only fixture quick start, live local setup, CLI examples, configuration table, pipeline summary, and current limitations. It explicitly labels the bundled dossier as fixture data rather than a measured run.
+- Made the documented ignored root `.env` workflow real: backend settings load it with `python-dotenv`, and added safe `.env.example` files for backend and frontend configuration.
+- Fixed backend package metadata to include its build README and the bundled sample report, and bounded the supported Python range to the `contree-sdk` range used by this project.
+- Completed the API-backed read-only demo promised in the architecture: the FastAPI inbox now includes the bundled fixture dossier and its recorded event stream without provider credentials. The UI labels fixture evidence clearly; submission behavior stays read-only unless a judge key is configured.
+- Restricted browser API access to configured frontend origins (local Vite origins by default) and added a `MIMI_CORS_ORIGINS` setting for deployment.
+- Drafted the Devpost description and a three-minute, fixture-honest demo script; added an original illustrative SVG thumbnail. Hosted URL, screenshots, recording, and final submission remain open.
+- Added a non-root Python backend container and a non-root Nginx container for the self-contained static replay. Both images build locally; no production host, registry push, or public URL is configured.
+- Fixed the replay container's Nginx config permissions so its unprivileged server can read the copied config. Started the rebuilt image locally and confirmed the inbox, deep report route, and health endpoint return HTTP 200.
+- Disabled proxy use in the replay container's health probe so loopback checks reach Nginx directly in proxied environments; the first runtime smoke check showed the previous probe was receiving a proxy 403 while the app itself served successfully.
+- Updated API test teardown to remove its SQLite WAL and shared-memory sidecars; rerunning the full suite no longer leaves untracked database artifacts in the checkout.
+- Exported an architecture SVG that visibly marks the current Sandboxes access block and unverified network isolation.
+- Set the Vite dev port to match the API's default CORS allowlist and excluded local credentials, caches, and generated output from Docker build contexts.
+- Ran redacted Gitleaks scans on the current tree and Git history; neither found credential patterns. GitHub metadata reports the source repository is private, so public visibility is still required for submission.
+- Re-ran live Token Factory and Tavily spikes. Nano, Super, and Ultra each completed reasoning on/off calls and a function-tool call; Tavily returned 14 results from five public-identifier-only queries. The Ultra call exposed a case error in the configured model ID (HTTP 404); corrected the ID in model routing and cost accounting, then retried successfully. Recorded per-model observations and the query count in `docs/feedback-log.md`.
+- Re-ran the Sandboxes `whoami` probe. Both supported endpoint paths returned HTTP 403 without a permission payload; updated the status notes to distinguish this from the earlier 2026-09-30 response, which was HTTP 200 with all permissions false. Live sandbox execution remains blocked; no live reproduction or evaluation result is claimed.
+
 ### 2026-10-07 (week 2: honesty contracts re-verified and pinned)
 - Re-verified the 2026-10-06 honesty round against source and fixed what it still got wrong. 205 tests pass under `backend/tests/`; `mypy backend/mimi` is clean.
 - **`assert_no_leak` no longer self-exempts.** The previous exemption treated *any* query token as public, so a leaky query that contained report prose made those words exempt and the guard went quiet. Public words are now derived from identifier shape (advisory-id pieces, version pieces, fixed vocabulary) plus at most one package-shaped token — the shape `build_queries` emits. Separately, a CVE id appearing in both the report and the query used to be flagged as "report text leaked", which **silently disabled research** for every report that cites an advisory (no fixed version → no differential → cannot reach Confirmed). That false positive is gone; report prose, URLs and `ghp_`-shaped tokens still raise.

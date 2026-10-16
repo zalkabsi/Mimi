@@ -1,10 +1,14 @@
 # Hard constraints and open items
 
-Updated 2026-10-06. Team: **solo**. Project name: **Mimi**.
+Updated 2026-10-15. Team: **solo**. Project name: **Mimi**.
+
+## Current build-environment check (2026-10-15)
+
+The Sandboxes `whoami` probe returned HTTP 403 for both `/whoami` and `/v1/whoami` at `https://api.sandbox.nebius.ai/v1`. The response did not include a permissions block, so this check does **not** distinguish a missing grant from another access or endpoint issue. The managed environment reports the Nebius key and project bindings as ready and Sandboxes egress as enforced; those are setup signals, not proof the service accepts the key. No sandbox execution or execution-dependent evaluation can proceed until a usable permission response is available. The previous 2026-09-30 check returned HTTP 200 with every permission set to `false`; that is historical and is not the result of today's check.
 
 ## Provenance
 
-The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. Those are the primary source for everything marked **[Rules §n]** below. Rules can be amended (§11), so re-read the live Rules page once before submitting. Section 11 says the Official Rules prevail over any other Hackathon material, which settles the judging-start discrepancy: use the Rules' **Dec 1, 2026** (the Schedule page's Nov 2 is not authoritative).
+The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. I re-read the live [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) on 2026-10-16. The live page still lists the submission deadline as **Oct 30, 2026 at 10:00 AM Pacific**, the judging period as **Dec 1–15, 2026**, and the public-repository, hosted-demo, public YouTube video under three minutes, track-selection, and product-feedback requirements below. Re-read the page immediately before final submission because the rules can be amended (§11). The Official Rules prevail over other Hackathon material, including the Schedule page.
 
 ## Dates [Rules §1]
 
@@ -16,22 +20,22 @@ The Official Rules and the two organiser updates ("How to build a winning projec
 
 Internal target: submit **Tue Oct 27**. After the deadline the Submission cannot be changed [§5]. Only a portfolio copy may keep evolving.
 
-## Requirements and how Mimi meets them
+## Requirements and current status
 
-| # | Requirement | Source | Plan |
+| # | Requirement | Source | Status on 2026-10-15 |
 |---|---|---|---|
-| 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Every pipeline stage calls Token Factory inference at runtime. |
-| 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra with stage routing. |
+| 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Pipeline inference is implemented; direct runtime smoke calls to Nano, Super, and Ultra succeeded. A live end-to-end Mimi run is not verified. |
+| 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra are configured in stage routing and were used in direct smoke calls. |
 | 3 | One of four tracks | §4 | Track 2, Best Apps and Agents. The Track 2 text asks for Nemotron via Token Factory, Ultra for serious reasoning, Nano/Super for fast everyday calls. Serverless Endpoints/Jobs are "encouraged", explicitly "neither is required". |
-| 4 | Project must function as shown in the video and text | §4 | Video and text are written from measured runs only. |
-| 5 | Working demo / hosted app / test build URL | §4 | Hosted demo (see access design). |
-| 6 | Text description of features and functionality | §4 | Devpost description drafted in Phase 9. |
-| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | `zalkabsi/Mimi`. |
-| 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | Unmodified Apache-2.0 text in `LICENSE`, so GitHub's detector shows it. |
-| 9 | README with setup and run instructions; highlight NVIDIA models, where Token Factory accelerated the workflow, other Nebius services | §4 | README drafted in Phase 9. |
-| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | See video rules below. |
+| 4 | Project must function as shown in the video and text | §4 | Final video and final copy are pending; record only from the actual demo path and distinguish replay from live execution. |
+| 5 | Working demo / hosted app / test build URL | §4 | Static replay build and local container image are ready; no public hosted URL is configured. |
+| 6 | Text description of features and functionality | §4 | Draft is in `docs/submission-kit.md`; it still needs the final URL and evidence-based status. |
+| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | GitHub metadata reports `zalkabsi/Mimi` is **private**. The source is present, but this requirement is not met until visibility changes. |
+| 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | Unmodified Apache-2.0 text is in `LICENSE`; GitHub About metadata is not confirmed. |
+| 9 | README with setup and run instructions; highlight NVIDIA models, where Token Factory accelerated the workflow, other Nebius services | §4 | Root README has setup, model, provider, current-status, and security notes. |
+| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | A 2:40 script is drafted in `docs/submission-kit.md`; no recording or upload yet. |
 | 11 | Identify the track | §4 | Track 2. |
-| 12 | **Feedback** on Token Factory, AI Cloud and NVIDIA tools/models used (required field) | §4, update | `docs/feedback-log.md`, kept as we build. |
+| 12 | **Feedback** on Token Factory, AI Cloud and NVIDIA tools/models used (required field) | §4, update | Hands-on Token Factory, Nemotron, Sandboxes, and Tavily notes are in `docs/feedback-log.md`; AI Cloud was not used. |
 | 13 | If the project existed before Aug 26, explain what was significantly updated | §4 | The repo was empty at start (no commits). Keep `CHANGELOG.md` anyway. |
 | 14 | English | §4 | Yes. |
 | 15 | Original work, solely owned; open-source components allowed if we build meaningful functionality on top and honour licenses | §4 | Third-party licenses tracked below. |
@@ -109,14 +113,14 @@ Confirm all of these yourself; I cannot:
 
 Add them as **environment secrets** in the Claude Code cloud environment settings; never in the repo or in chat. `.env` is git-ignored for local use.
 
-## Technical facts still to verify on day 1
+## Technical facts and remaining open items
 
 | Item | Why it matters | Known so far |
 |---|---|---|
-| Per-run network isolation in Sandboxes | We execute reporter-supplied PoC code | `contree-sdk 0.3.6` run request has **no network field**. Plan: test `unshare -n` in the microVM. |
-| ~~Token Factory inference base URL and Nemotron model IDs~~ | Code depends on them | **Verified 2026-09-30.** Base `https://api.tokenfactory.nebius.com/v1` (OpenAI-compatible, `GET /models`, `POST /chat/completions`). Nemotron IDs (exact case): `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3-Ultra-550b-a55b`, and a fourth, `nvidia/Nemotron-3_5-Lightning`, not yet evaluated. |
-| Reasoning control (partly verified) and tool calling (open) | Routing design | Nano is a reasoning model: the reply arrives in `message.reasoning` plus `message.content`. With `max_tokens=20` the call returned **empty content** (budget spent thinking, no error). `chat_template_kwargs: {"enable_thinking": false}` works: 2 completion tokens instead of 62, 0.75 s versus 1.40 s for the same prompt. `completion_tokens_details` is `null`, so reasoning tokens are not itemised. Tool calling on each model still to test. |
-| **Sandboxes token permissions** | Sandboxes are Mimi's core | **BLOCKER (2026-09-30).** `whoami` succeeds (key and `Project` header accepted) but every permission is `false`: import, spawn, spawn_disposable, list, cancel, set_image_tag. `GET /v1/images` returns `403 Insufficient permissions: list`. Nothing can run until this token has Sandboxes grants. Docs say only that the fix is "a token with different grants"; they do not say how to obtain one. Limits reported: 50 concurrent instances, 3600 s max timeout, 12 GiB max layer. **Re-checked after the owner changed the project ID: unchanged.** `whoami` returns the same result (200, all permissions false) for the owner's ID and for two fake IDs, so it only requires the `Project` header to be present and the permissions shown depend on the token. A different project ID alone will not fix this; the key itself needs Sandboxes grants. (Whether real calls validate the project cannot be tested until `spawn` is allowed.) |
+| Per-run network isolation in Sandboxes | We execute reporter-supplied PoC code | `contree-sdk 0.3.6` run request has **no network field**. The executor now requires a child user and network namespace (`unshare --user --map-root-user --net`) and rejects configs that request online PoC execution. This guard fails closed but remains unverified in a real microVM because the Sandboxes access check returns HTTP 403. |
+| ~~Token Factory inference base URL and Nemotron model IDs~~ | Code depends on them | Base `https://api.tokenfactory.nebius.com/v1` is OpenAI-compatible. Re-verified 2026-10-15 with `GET /models` and chat calls for Nano, Super and Ultra. Exact IDs from the live model list: `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3-Ultra-550b-a55b`, and `nvidia/Nemotron-3_5-Lightning`. The old code had `NVIDIA` uppercase in the Ultra ID and got HTTP 404; the exact ID from `/models` is now in routing and cost accounting, and a retry succeeded for reasoning-on/off and tool calling. Lightning has not been evaluated. |
+| Reasoning control and tool calling | Routing design | Re-checked 2026-10-15: Nano, Super and Ultra each accepted a function-tool call and reasoning on/off. On one short prompt, Nano with `max_tokens=20` returned empty content; Super and Ultra returned `ready`. Nano returned `completion_tokens_details: null`; Super and Ultra itemised reasoning tokens. These are smoke checks, not structured-output or routing evaluations. |
+| **Sandboxes token permissions** | Sandboxes are Mimi's core | **BLOCKED (2026-10-15).** Latest `whoami` returned HTTP 403 for both supported endpoint paths and no permissions block, so the cause is not established. Previous hands-on result (2026-09-30): HTTP 200 with all permissions false, and `/v1/images` returned `403 Insufficient permissions: list`; changing the project ID did not change that result. Neither result allows execution. Limits previously reported: 50 concurrent instances, 3600 s max timeout, 12 GiB max layer. Re-check once access is corrected; do not claim spawn permission based on credentials being present. |
 | Key lifetime for judge access | Judge access must last to Dec 15 | **Corrected 2026-09-30.** `whoami`'s `token_expiration` is a *rolling* value: it read exactly 5 minutes after each call (06:56:55 to 07:01:55, then 07:02:41 to 07:07:41), and the key kept working afterwards for Sandboxes `whoami`, inference and Tavily. It is **not** the key's lifetime. The real lifetime of `NEBIUS_API_KEY` is still unknown. Whatever key the hosted demo uses must be valid through Dec 15, 2026, so check the expiry shown for the key in the console when creating it. |
 | Sandboxes billing | Credits budget | Is it drawn from the same credits as inference? Unknown. |
 | `ProcessResources.cost` units | Cost accounting | Field exists; units unknown. |

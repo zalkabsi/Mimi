@@ -49,9 +49,16 @@ export function ReportView() {
     setLive(true);
     setFallbackNote(null);
 
-    const stopStream = streamEvents(reportId, onEvent, (reason) => {
-      if (!cancelled) setFallbackNote(reason);
-    });
+    const stopStream = streamEvents(
+      reportId,
+      onEvent,
+      (reason) => {
+        if (!cancelled) setFallbackNote(reason);
+      },
+      () => {
+        if (!cancelled) setLive(false);
+      },
+    );
 
     void (async () => {
       try {
@@ -61,6 +68,8 @@ export function ReportView() {
         setLoad("ready");
       } catch (e) {
         if (cancelled) return;
+        stopStream();
+        setLive(false);
         setLoadError(
           e instanceof ApiError && e.status === 404
             ? "No such report. It may have been deleted, or the id is wrong."
@@ -123,7 +132,7 @@ export function ReportView() {
   const d = dossier;
   if (!d) return null;
 
-  const running = !pipelineDone;
+  const running = live && !pipelineDone;
 
   return (
     <div className="space-y-6">
@@ -143,6 +152,14 @@ export function ReportView() {
           </span>
         ) : null}
       </div>
+
+      {d.source === "demo" ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+          <p className="font-mono text-xs text-amber-200">
+            Recorded sample dossier: its evidence and timeline are fixture data, not a live Mimi analysis.
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3">
         <Timeline

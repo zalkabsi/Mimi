@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="760" viewBox="0 0 1720 760" role="img" aria-labelledby="title desc">
+  <title id="title">Mimi vulnerability report triage architecture</title>
+  <desc id="desc">A report is extracted, grounded and researched; Nemotron proposes bounded tests; the configured Sandboxes branch runs hypotheses and compares affected and fixed versions; a deterministic layer produces an evidence dossier and a reply draft for human review. Sandbox execution is currently blocked by provider access.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111e"/>
+      <stop offset="1" stop-color="#0d1b2a"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#6b8aa5"/>
+    </marker>
+    <style>
+      .label { font: 700 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; }
+      .sub { font: 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #a8bacb; }
+      .tiny { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #8296aa; }
+      .step { font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #7dd3fc; letter-spacing: 1.3px; }
+    </style>
+  </defs>
+  <rect width="1720" height="760" rx="22" fill="url(#background)"/>
+  <text x="48" y="62" class="step">MIMI · EVIDENCE-FIRST VULNERABILITY TRIAGE</text>
+  <text x="48" y="97" class="sub">Model-proposed checks, deterministic oracles, and a human-owned final decision</text>
+
+  <!-- connectors -->
+  <g fill="none" stroke="#6b8aa5" stroke-width="2.5" marker-end="url(#arrow)">
+    <path d="M188 342H230"/>
+    <path d="M405 334C420 300 420 230 443 205"/>
+    <path d="M405 354C420 390 420 463 443 489"/>
+    <path d="M635 205C660 225 670 275 688 320"/>
+    <path d="M635 489C660 470 670 420 688 376"/>
+    <path d="M868 348H912"/>
+    <path d="M1110 348H1150"/>
+    <path d="M1350 348H1390"/>
+    <path d="M1570 348H1604"/>
+  </g>
+
+  <!-- input -->
+  <g>
+    <rect x="38" y="292" width="150" height="112" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="57" y="326" class="step">INPUT</text>
+    <text x="57" y="356" class="label">Report</text>
+    <text x="57" y="379" class="sub">package@version</text>
+  </g>
+
+  <!-- extract -->
+  <g>
+    <rect x="230" y="292" width="175" height="112" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="249" y="326" class="step">1 · EXTRACT</text>
+    <text x="249" y="356" class="label">Structure claim</text>
+    <text x="249" y="379" class="sub">Nemotron Nano</text>
+  </g>
+
+  <!-- ground -->
+  <g>
+    <rect x="443" y="142" width="192" height="126" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="462" y="176" class="step">2 · GROUND</text>
+    <text x="462" y="206" class="label">Check package</text>
+    <text x="462" y="230" class="sub">Files, symbols, version</text>
+    <text x="462" y="251" class="tiny">evidence only</text>
+  </g>
+
+  <!-- research -->
+  <g>
+    <rect x="443" y="428" width="192" height="126" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="462" y="462" class="step">3 · RESEARCH</text>
+    <text x="462" y="492" class="label">Find advisories</text>
+    <text x="462" y="516" class="sub">Tavily + Nemotron Super</text>
+    <text x="462" y="537" class="tiny">public identifiers only</text>
+  </g>
+
+  <!-- hypotheses -->
+  <g>
+    <rect x="688" y="292" width="180" height="112" rx="13" fill="#1b1730" stroke="#7966ae" stroke-width="1.5"/>
+    <text x="707" y="326" class="step" fill="#c4b5fd">4 · HYPOTHESIZE</text>
+    <text x="707" y="356" class="label">Bounded plans</text>
+    <text x="707" y="379" class="sub">Nemotron Ultra + oracle</text>
+  </g>
+
+  <!-- execution boundary -->
+  <g>
+    <rect x="912" y="200" width="198" height="296" rx="16" fill="#171d27" stroke="#d3973a" stroke-width="1.8"/>
+    <text x="932" y="234" class="step" fill="#fbbf24">5–6 · SANDBOXES</text>
+    <text x="932" y="265" class="label">Build once</text>
+    <text x="932" y="288" class="sub">Affected package + setup</text>
+    <path d="M932 307H1090" stroke="#4a3a25"/>
+    <rect x="932" y="326" width="47" height="38" rx="7" fill="#252532" stroke="#594b65"/>
+    <rect x="986" y="326" width="47" height="38" rx="7" fill="#252532" stroke="#594b65"/>
+    <rect x="1040" y="326" width="50" height="38" rx="7" fill="#252532" stroke="#594b65"/>
+    <text x="946" y="350" class="tiny">H1</text>
+    <text x="1000" y="350" class="tiny">H2</text>
+    <text x="1052" y="350" class="tiny">Hn</text>
+    <text x="932" y="390" class="sub">Fork per hypothesis</text>
+    <text x="932" y="413" class="sub">PoC network isolation*</text>
+    <rect x="932" y="437" width="158" height="37" rx="7" fill="#3b2814" stroke="#9a641e"/>
+    <text x="944" y="460" class="tiny" fill="#fde68a">ACCESS BLOCKED · HTTP 403</text>
+  </g>
+
+  <!-- oracle and differential -->
+  <g>
+    <rect x="1150" y="292" width="200" height="112" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="1169" y="326" class="step">7 · CHECK</text>
+    <text x="1169" y="356" class="label">Oracle + compare</text>
+    <text x="1169" y="379" class="sub">Affected vs fixed version</text>
+  </g>
+
+  <!-- verdict -->
+  <g>
+    <rect x="1390" y="292" width="180" height="112" rx="13" fill="#102523" stroke="#3e887a" stroke-width="1.5"/>
+    <text x="1409" y="326" class="step" fill="#6ee7b7">8 · DOSSIER</text>
+    <text x="1409" y="356" class="label">Tier + evidence</text>
+    <text x="1409" y="379" class="sub">Coverage, commands, limits</text>
+  </g>
+
+  <!-- human decision -->
+  <g>
+    <rect x="1604" y="292" width="92" height="112" rx="13" fill="#111f2f" stroke="#38516b" stroke-width="1.5"/>
+    <text x="1622" y="326" class="step">9</text>
+    <text x="1618" y="356" class="label">Human</text>
+    <text x="1618" y="379" class="sub">decides</text>
+  </g>
+
+  <!-- observability -->
+  <g>
+    <path d="M1480 405V583H1070" fill="none" stroke="#465d72" stroke-width="1.7" stroke-dasharray="6 7" marker-end="url(#arrow)"/>
+    <rect x="740" y="555" width="330" height="76" rx="12" fill="#0e1927" stroke="#334b60"/>
+    <text x="763" y="585" class="step">OBSERVABILITY</text>
+    <text x="763" y="609" class="sub">SQLite events → API → React inbox / timeline</text>
+  </g>
+
+  <text x="48" y="689" class="tiny">* PoC network isolation is not yet verified. The demo dossier is recorded fixture data; current sandbox access blocks live execution.</text>
+  <text x="48" y="719" class="tiny">Mimi never auto-closes a report. Build costs, run metrics, and evaluation scores are shown only when measured.</text>
+</svg>

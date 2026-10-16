@@ -24,6 +24,11 @@ cd backend
 uvicorn mimi.api:app --reload --port 8000
 ```
 
+With no provider credentials, the backend serves one read-only, clearly labelled
+sample dossier and its recorded timeline. This is fixture data, not a live
+analysis. Live submissions require `MIMI_JUDGE_KEY` plus the provider
+credentials and Sandboxes access described in the root README.
+
 ## Configuration
 
 | Variable          | Default                 | Meaning                                              |

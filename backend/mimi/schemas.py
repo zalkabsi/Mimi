@@ -175,7 +175,7 @@ class RunConfig(BaseModel):
     poc_command: str = "node poc.js"
     env: dict[str, str] = Field(default_factory=dict)
     setup_commands: list[str] = Field(default_factory=list)  # from a fixed allowlist
-    offline: bool = True  # PoC phase runs with network off when achievable
+    offline: bool = True  # online PoC execution is rejected by the executor
     notes: str = ""
 
 

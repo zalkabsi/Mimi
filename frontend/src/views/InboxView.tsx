@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiError, USE_MOCK, listReports, submitReport } from "../lib/api";
+import {
+  ApiError,
+  USE_MOCK,
+  getStoredAccessKey,
+  listReports,
+  storeAccessKey,
+  submitReport,
+} from "../lib/api";
 import type { ReportListItem } from "../types";
 import { TierBadge } from "../components/TierBadge";
 import { dash, fmtTs } from "../lib/format";
@@ -15,7 +22,7 @@ export function InboxView() {
 
   const [packageSpec, setPackageSpec] = useState("");
   const [reportText, setReportText] = useState("");
-  const [accessKey, setAccessKey] = useState("");
+  const [accessKey, setAccessKey] = useState(getStoredAccessKey);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [specError, setSpecError] = useState<string | null>(null);
@@ -58,12 +65,13 @@ export function InboxView() {
         { report_text: reportText.trim(), package_spec: spec },
         accessKey,
       );
+      storeAccessKey(accessKey);
       navigate(`/reports/${res.report_id}`);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 402) {
           setSubmitError(
-            "Demo mode is read-only. Enter the judge access key to run live reports, or self-host the backend and run without a key cap.",
+            "Demo mode is read-only. Configure MIMI_JUDGE_KEY on the backend and enter that key to run live reports.",
           );
         } else if (err.status === 401) {
           setSubmitError("Unknown access key. Check the credential and try again.");
@@ -78,10 +86,34 @@ export function InboxView() {
     }
   };
 
+  const unlockReports = () => {
+    storeAccessKey(accessKey);
+    void refresh();
+  };
+
+  const clearAccessKey = () => {
+    setAccessKey("");
+    storeAccessKey(null);
+    void refresh();
+  };
+
   return (
     <div className="space-y-8">
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
+          {USE_MOCK ? (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-5">
+              <h2 className="font-mono text-sm font-semibold tracking-wide text-amber-100">
+                Read-only replay demo
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-amber-100/80">
+                This page uses a fixed sample dossier. It makes no provider
+                calls and does not accept report submissions or access keys.
+                Open the sample report in the inbox below to explore its
+                recorded timeline and evidence.
+              </p>
+            </div>
+          ) : (
           <div className="rounded-lg border border-slate-800 bg-slate-900/70">
             <header className="border-b border-slate-800 px-4 py-3">
               <h2 className="font-mono text-sm font-semibold tracking-wide text-slate-200">
@@ -124,7 +156,7 @@ export function InboxView() {
                   value={reportText}
                   onChange={(e) => setReportText(e.target.value)}
                   rows={8}
-                  placeholder="Paste the vulnerability report body. It never leaves the system toward external search — only public identifiers (package, versions, CVE/GHSA ids) do."
+                  placeholder="Paste the vulnerability report body. Report prose and PoC code are not included in advisory search queries; only public identifiers (package, versions, CVE/GHSA IDs) are sent to search."
                   className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm leading-relaxed text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
                 />
               </div>
@@ -133,7 +165,7 @@ export function InboxView() {
                   htmlFor="access-key"
                   className="mb-1 block font-mono text-xs uppercase tracking-wider text-slate-500"
                 >
-                  Access key <span className="normal-case text-slate-600">(optional)</span>
+                  Judge access key
                 </label>
                 <input
                   id="access-key"
@@ -141,9 +173,13 @@ export function InboxView() {
                   value={accessKey}
                   onChange={(e) => setAccessKey(e.target.value)}
                   autoComplete="off"
-                  placeholder="judge credential, sent as X-Mimi-Key"
+                  placeholder="required to open live reports"
                   className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  Saved in this tab only. It unlocks live report contents and is
+                  sent to the backend with your requests.
+                </p>
               </div>
 
               {submitError ? (
@@ -152,15 +188,32 @@ export function InboxView() {
                 </div>
               ) : null}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded bg-sky-600 px-4 py-2 font-mono text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? "Submitting…" : "Run triage"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={unlockReports}
+                  className="rounded border border-slate-600 px-3 py-2 font-mono text-xs text-slate-200 hover:bg-slate-800"
+                >
+                  Unlock inbox
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAccessKey}
+                  className="rounded border border-slate-700 px-3 py-2 font-mono text-xs text-slate-400 hover:bg-slate-800"
+                >
+                  Clear key
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded bg-sky-600 px-4 py-2 font-mono text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? "Submitting…" : "Run triage"}
+                </button>
+              </div>
             </form>
           </div>
+          )}
         </div>
 
         <aside className="lg:col-span-2">
@@ -201,6 +254,14 @@ export function InboxView() {
       </section>
 
       <section>
+        {!USE_MOCK && rows.some((row) => row.source === "demo") ? (
+          <div className="mb-4 rounded border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+            <p className="font-mono text-xs text-amber-200">
+              Recorded sample dossier: its evidence and timeline are fixture data, not a live Mimi analysis.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mb-3 flex items-center gap-3">
           <h2 className="font-mono text-sm font-semibold tracking-wide text-slate-200">
             Inbox
@@ -255,8 +316,8 @@ export function InboxView() {
             <p className="font-mono text-sm text-slate-300">Inbox is empty.</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
               No reports have been triaged yet. Submit one above — demo mode is
-              read-only, so a judge credential or a self-hosted backend is
-              needed for live runs.
+              read-only, so the backend must have MIMI_JUDGE_KEY configured for
+              live runs.
             </p>
           </div>
         ) : null}
@@ -302,12 +363,6 @@ export function InboxView() {
           </div>
         ) : null}
 
-        {USE_MOCK ? (
-          <p className="mt-3 font-mono text-[11px] text-amber-300/80">
-            Mock mode: the inbox lists the fixture dossier only. Submissions are
-            disabled.
-          </p>
-        ) : null}
       </section>
     </div>
   );

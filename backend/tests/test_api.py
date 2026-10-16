@@ -38,9 +38,9 @@ from mimi.schemas import Dossier, ReportSubmission  # noqa: E402
 @pytest.fixture(autouse=True, scope="module")
 def _scratch_db_cleanup():
     yield
-    if _TEST_DB.exists():
+    for path in (_TEST_DB, Path(f"{_TEST_DB}-wal"), Path(f"{_TEST_DB}-shm")):
         try:
-            _TEST_DB.unlink()
+            path.unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -140,8 +140,13 @@ def test_health(client):
     assert r.json() == {"ok": True, "service": "mimi"}
 
 
-def test_get_unknown_report_is_404(client):
-    assert client.get("/api/reports/does-not-exist").status_code == 404
+def test_unknown_report_id_is_hidden_until_authenticated(client, monkeypatch):
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
+    assert client.get("/api/reports/does-not-exist").status_code == 401
+    r = client.get(
+        "/api/reports/does-not-exist", headers={"X-Mimi-Key": "judge-secret"}
+    )
+    assert r.status_code == 404
 
 
 def test_demo_mode_cannot_submit(client):
@@ -163,13 +168,20 @@ def test_unknown_access_key_is_401(client, monkeypatch):
     assert r.status_code == 401
 
 
-def test_stream_for_unknown_report_is_404_not_a_hang(client):
-    # The old behaviour looped on keep-alives forever. It must be refused.
-    r = client.get(f"/api/reports/{uuid.uuid4().hex[:12]}/stream")
+def test_stream_hides_unknown_report_id_until_authenticated(client, monkeypatch):
+    # Refuse unauthenticated ID probes before distinguishing a missing report.
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
+    report_id = uuid.uuid4().hex[:12]
+    r = client.get(f"/api/reports/{report_id}/stream")
+    assert r.status_code == 401
+    r = client.get(
+        f"/api/reports/{report_id}/stream", headers={"X-Mimi-Key": "judge-secret"}
+    )
     assert r.status_code == 404
 
 
-def test_stream_for_finished_run_replays_history_and_terminates(client):
+def test_stream_for_finished_run_replays_history_and_terminates(client, monkeypatch):
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
     rid = uuid.uuid4().hex[:12]
     dossier = Dossier(report_id=rid, report_text="r", package_spec="lodash@4.17.20")
     api._db.upsert_report(dossier, status="complete")
@@ -178,7 +190,9 @@ def test_stream_for_finished_run_replays_history_and_terminates(client):
     log.emit("verdict", "ok", "tier=likely")
     api._finish(rid)
 
-    with client.stream("GET", f"/api/reports/{rid}/stream") as r:
+    with client.stream(
+        "GET", f"/api/reports/{rid}/stream", headers={"X-Mimi-Key": "judge-secret"}
+    ) as r:
         assert r.status_code == 200
         assert r.headers["content-type"].startswith("text/event-stream")
         body = "".join(r.iter_text())
@@ -188,7 +202,8 @@ def test_stream_for_finished_run_replays_history_and_terminates(client):
     assert "tier=likely" in body
 
 
-def test_stream_for_run_still_running_terminates_after_finish(client):
+def test_stream_for_run_still_running_terminates_after_finish(client, monkeypatch):
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
     rid = uuid.uuid4().hex[:12]
     dossier = Dossier(report_id=rid, report_text="r", package_spec="lodash@4.17.20")
     api._db.upsert_report(dossier, status="running")
@@ -210,7 +225,9 @@ def test_stream_for_run_still_running_terminates_after_finish(client):
     t = threading.Thread(target=_drive, daemon=True)
     t.start()
 
-    with client.stream("GET", f"/api/reports/{rid}/stream") as r:
+    with client.stream(
+        "GET", f"/api/reports/{rid}/stream", headers={"X-Mimi-Key": "judge-secret"}
+    ) as r:
         assert r.status_code == 200
         body = "".join(r.iter_text())
 

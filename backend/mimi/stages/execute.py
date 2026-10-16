@@ -1,8 +1,10 @@
 """Stages 5-6 — Build once, then fork per hypothesis.
 
 The base environment is built a single time with network on (install only);
-each hypothesis then runs as an independent fork from the kept image UUID,
-with the PoC phase offline when ``unshare -n`` is available. Concurrency is
+each hypothesis then runs as an independent fork from the kept image UUID.
+The PoC phase is refused unless a child user and network namespace can be
+created successfully.
+Concurrency is
 bounded (start with 8; the API caps at 50 concurrent instances).
 """
 

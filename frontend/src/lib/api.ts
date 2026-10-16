@@ -22,6 +22,35 @@ export const API_BASE: string =
 export const USE_MOCK: boolean = import.meta.env.VITE_USE_MOCK === "1";
 
 const mockDossier = mockDossierJson as unknown as Dossier;
+const ACCESS_KEY_STORAGE_KEY = "mimi.access_key";
+let inMemoryAccessKey: string | null | undefined;
+
+export function getStoredAccessKey(): string {
+  if (inMemoryAccessKey !== undefined) return inMemoryAccessKey ?? "";
+  try {
+    return window.sessionStorage.getItem(ACCESS_KEY_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function storeAccessKey(accessKey: string | null): void {
+  const value = accessKey?.trim() || null;
+  inMemoryAccessKey = value;
+  try {
+    if (value) window.sessionStorage.setItem(ACCESS_KEY_STORAGE_KEY, value);
+    else window.sessionStorage.removeItem(ACCESS_KEY_STORAGE_KEY);
+  } catch {
+    // Keep the key in memory for this page if browser storage is unavailable.
+  }
+}
+
+function requestHeaders(init?: RequestInit): Headers {
+  const headers = new Headers(init?.headers);
+  const key = getStoredAccessKey();
+  if (key && !headers.has("X-Mimi-Key")) headers.set("X-Mimi-Key", key);
+  return headers;
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -36,7 +65,10 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, init);
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: requestHeaders(init),
+    });
   } catch {
     throw new ApiError(
       0,
@@ -118,16 +150,19 @@ export function streamEvents(
   reportId: string,
   onEvent: (event: StageEvent) => void,
   onFallback?: (reason: string) => void,
+  onComplete?: () => void,
 ): () => void {
   if (USE_MOCK) {
     for (const ev of mockDossier.events) onEvent(ev);
+    onComplete?.();
     return () => undefined;
   }
 
   const encoded = encodeURIComponent(reportId);
   let cleaned = false;
+  let completed = false;
   let pollTimer: number | null = null;
-  let source: EventSource | null = null;
+  let controller: AbortController | null = null;
   // Polling returns the FULL recorded history each tick. Keep a seen-set so a
   // tick only forwards events the timeline has not already received (from a
   // previous tick, or from the live SSE stream before it dropped).
@@ -141,14 +176,33 @@ export function streamEvents(
     onEvent(ev);
   };
 
+  const isTerminal = (ev: StageEvent): boolean =>
+    (ev.stage === "reply" && ev.status !== "started") ||
+    (ev.stage === "pipeline" && ev.status === "error");
+
+  const finish = () => {
+    if (cleaned || completed) return;
+    completed = true;
+    if (pollTimer !== null) {
+      window.clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    controller?.abort();
+    controller = null;
+    onComplete?.();
+  };
+
   const startPolling = (reason: string) => {
-    if (cleaned || pollTimer !== null) return;
+    if (cleaned || completed || pollTimer !== null) return;
     if (onFallback) onFallback(reason);
     const poll = async () => {
       try {
         const events = await getEvents(reportId);
-        if (cleaned) return;
-        for (const ev of events) deliver(ev);
+        if (cleaned || completed) return;
+        for (const ev of events) {
+          deliver(ev);
+          if (isTerminal(ev)) finish();
+        }
       } catch {
         // keep polling; the next tick may succeed
       }
@@ -157,28 +211,91 @@ export function streamEvents(
     pollTimer = window.setInterval(() => void poll(), 5000);
   };
 
-  try {
-    source = new EventSource(`${API_BASE}/api/reports/${encoded}/stream`);
-    source.onmessage = (msg: MessageEvent<string>) => {
+  const dispatchFrame = (frame: string): boolean => {
+    let eventName = "message";
+    const data: string[] = [];
+    for (const line of frame.split("\n")) {
+      if (line === "" || line.startsWith(":")) continue;
+      const separator = line.indexOf(":");
+      const field = separator < 0 ? line : line.slice(0, separator);
+      let value = separator < 0 ? "" : line.slice(separator + 1);
+      if (value.startsWith(" ")) value = value.slice(1);
+      if (field === "event") eventName = value;
+      else if (field === "data") data.push(value);
+    }
+    if (eventName === "done") {
+      finish();
+      return true;
+    }
+    if (eventName === "message" && data.length > 0) {
       try {
-        deliver(JSON.parse(msg.data) as StageEvent);
+        deliver(JSON.parse(data.join("\n")) as StageEvent);
       } catch {
-        // ignore malformed frames (keep-alives are comments, not messages)
+        // Ignore malformed frames; a later event can still be useful.
       }
-    };
-    source.onerror = () => {
-      source?.close();
-      source = null;
-      startPolling("live stream unavailable — polling recorded events instead");
-    };
-  } catch {
-    startPolling("EventSource could not be created — polling instead");
-  }
+    }
+    return false;
+  };
+
+  const readStream = async () => {
+    controller = new AbortController();
+    try {
+      const headers = new Headers();
+      const key = getStoredAccessKey();
+      if (key) headers.set("X-Mimi-Key", key);
+      const response = await fetch(
+        `${API_BASE}/api/reports/${encoded}/stream`,
+        { headers, signal: controller.signal },
+      );
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 404) finish();
+        else startPolling("live stream unavailable — polling recorded events instead");
+        return;
+      }
+      if (!response.body) {
+        startPolling("live stream is unavailable — polling recorded events instead");
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (!cleaned && !completed) {
+        const { value, done } = await reader.read();
+        if (done) {
+          buffer += decoder.decode().replace(/\r\n/g, "\n");
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        // Normalize after appending so a CRLF pair split across network
+        // chunks still becomes a frame delimiter.
+        buffer = buffer.replace(/\r\n/g, "\n");
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          const frame = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          if (dispatchFrame(frame)) return;
+          boundary = buffer.indexOf("\n\n");
+        }
+      }
+      if (!completed && !cleaned && buffer.trim()) dispatchFrame(buffer);
+      if (!completed && !cleaned) {
+        startPolling("live stream ended early — polling recorded events instead");
+      }
+    } catch {
+      if (!cleaned && !completed) {
+        startPolling("live stream unavailable — polling recorded events instead");
+      }
+    }
+  };
+
+  void readStream();
 
   return () => {
     cleaned = true;
     if (pollTimer !== null) window.clearInterval(pollTimer);
-    if (source !== null) source.close();
+    controller?.abort();
+    controller = null;
   };
 }
 
