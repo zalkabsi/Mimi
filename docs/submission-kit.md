@@ -129,7 +129,7 @@ live evidence.
 - [x] Started the replay container locally and confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200; the container health status is healthy after disabling proxy use for its loopback health probe.
 - [x] Architecture diagram exported as SVG and visibly labels the live Sandbox access limit.
 - [x] Devpost copy and an honest demo script are drafted above.
-- [ ] Commit the final source changes, push them, and confirm the GitHub Actions CI run is green.
+- [ ] Push the final source changes and confirm the latest GitHub Actions CI run is green.
 - [ ] Publish a hosted URL and test access from a clean browser.
 - [ ] Change `zalkabsi/Mimi` to public in GitHub so judges can access the source.
 - [ ] Verify Sandboxes access and child user/network namespace isolation before live

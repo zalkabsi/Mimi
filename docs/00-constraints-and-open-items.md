@@ -22,13 +22,13 @@ Internal target: submit **Tue Oct 27**. After the deadline the Submission cannot
 
 ## Requirements and current status
 
-| # | Requirement | Source | Status on 2026-10-15 |
+| # | Requirement | Source | Status on 2026-10-16 |
 |---|---|---|---|
 | 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Pipeline inference is implemented; direct runtime smoke calls to Nano, Super, and Ultra succeeded. A live end-to-end Mimi run is not verified. |
 | 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra are configured in stage routing and were used in direct smoke calls. |
 | 3 | One of four tracks | §4 | Track 2, Best Apps and Agents. The Track 2 text asks for Nemotron via Token Factory, Ultra for serious reasoning, Nano/Super for fast everyday calls. Serverless Endpoints/Jobs are "encouraged", explicitly "neither is required". |
 | 4 | Project must function as shown in the video and text | §4 | Final video and final copy are pending; record only from the actual demo path and distinguish replay from live execution. |
-| 5 | Working demo / hosted app / test build URL | §4 | Static replay build and local container image are ready; no public hosted URL is configured. |
+| 5 | Working demo / hosted app / test build URL | §4 | A GitHub Pages workflow now builds the read-only replay; public deployment and a clean-browser check are pending. Expected URL: `https://zalkabsi.github.io/Mimi/`. |
 | 6 | Text description of features and functionality | §4 | Draft is in `docs/submission-kit.md`; it still needs the final URL and evidence-based status. |
 | 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | GitHub metadata reports `zalkabsi/Mimi` is **private**. The source is present, but this requirement is not met until visibility changes. |
 | 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | Unmodified Apache-2.0 text is in `LICENSE`; GitHub About metadata is not confirmed. |

@@ -10,11 +10,26 @@ npm ci
 VITE_USE_MOCK=1 npm run build
 ```
 
-Upload `frontend/dist/` to a static host and enable single-page-app fallback
-to `index.html` so links such as `/reports/mock0000demo` load directly. This
-build embeds the labelled fixture, makes no backend or provider calls, hides
-the submission and access-key fields, and is safe to expose publicly. It is a
-UI replay, not an end-to-end live analysis.
+The build embeds the labelled fixture, makes no backend or provider calls,
+hides the submission and access-key fields, and is safe to expose publicly. It
+is a UI replay, not an end-to-end live analysis.
+
+### GitHub Pages
+
+The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages on
+pushes to `master` and when run manually. It builds with the repository base
+path and hash routing, so direct links work without server-side SPA fallback.
+The expected URL is `https://zalkabsi.github.io/Mimi/`; it is not live until a
+successful Actions deployment appears for the repository.
+
+To publish it, make the repository public (the hackathon also requires a
+public source repository), then open **Settings → Pages** and select **GitHub
+Actions** as the build and deployment source if it is not already selected.
+Open **Actions → Deploy read-only demo → Run workflow**. After the run
+succeeds, open the expected URL in a clean browser and check the inbox and the
+sample dossier. Keep the demo free of login requirements through the judging
+period. This hosted replay is read-only and must not be presented as a live
+Mimi analysis.
 
 For a container host, the frontend includes a self-contained static replay
 image. Build it from `frontend/` and route traffic to port `8080`:
@@ -66,9 +81,9 @@ row as `error` rather than leaving it stuck.
 
 ## Current deployment status
 
-The static build is ready for upload, and the `mimi-replay` container image
-built locally on 2026-10-15. Neither has been published to a host or container
-registry. No public URL or hosted backend is configured yet; creating a URL,
-setting the correct audience, and checking it from a clean browser are still
-required before submission. If published as a replay demo, label it read-only
-and do not describe the fixture as a live pipeline result.
+The static build and `mimi-replay` container image built locally on
+2026-10-16. The GitHub Pages workflow is committed, but no successful public
+deployment or clean-browser check is recorded yet. Do not submit the expected
+URL until the Pages workflow succeeds and the clean-browser check passes. If
+published as a replay demo, label it read-only and do not describe the fixture
+as a live pipeline result.
