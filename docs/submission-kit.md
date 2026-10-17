@@ -343,7 +343,7 @@ eligibility confirmations and submit the entry.
 - [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
 - [ ] Run and report the planned E1/E2/E3/E4 results with sample sizes; keep
   blocked cases marked `not_run`.
-- [ ] Capture real inbox and dossier screenshots from the running app.
+- [x] Captured three 3:2 screenshots from the production replay build: inbox, recorded dossier timeline, and recorded research/hypotheses (`docs/assets/demo-inbox.png`, `docs/assets/demo-dossier.png`, `docs/assets/demo-evidence.png`). All show the fixture-only disclosure.
 - [x] Create a 2:40 draft demo with interactive replay footage, architecture, captions, and disclosure that the replay is fixture data and no end-to-end vulnerability analysis is claimed.
 - [ ] After all other artifacts are final, replace the robotic narration with a natural voice, export the final video, upload it publicly to YouTube, and add the URL to Devpost.
 - [ ] Re-read the Official Rules, confirm eligibility and agreement statements, then submit Devpost with the public replay URL, screenshots, and video.
