@@ -108,7 +108,7 @@ Switch to Envsmith, or narrow Mimi, if any of these hold after the day-1 spikes 
 The three pivot triggers cannot be evaluated as written, because they all depend on the day-1 spikes and the 10-case pilot, and Sandboxes permissions are still missing (no `spawn`, so nothing can execute). Status of each trigger:
 
 1. **Fewer than 5 of 10 real npm vulns confirmed** — *undetermined*. No reproduction runs have been possible. The pipeline code, oracle set and eval corpus now exist so the pilot can run the day execution is granted.
-2. **Fork runs cannot be made offline / residual risk unacceptable** — *undetermined*. The executor requires `unshare --user --map-root-user --net`, rejects any config that requests online execution, and fails closed when namespace creation fails. The real sandbox behavior is still unverified because the current Sandboxes access check returns HTTP 403.
+2. **Fork runs cannot be made offline / residual risk unacceptable** — *undetermined*. The executor requires `unshare --user --map-root-user --net`, rejects any config that requests online execution, and fails closed when namespace creation fails. Real sandbox behavior is still unverified; the latest recorded Sandboxes access check (2026-10-15) returned HTTP 403.
 3. **Sandboxes cannot fork at the needed concurrency** — *undetermined*.
 
 **Decision: continue with Mimi.** No trigger is confirmed; switching to Envsmith now would discard a complete non-execution stack (extraction, grounding, research, hypotheses, tiers, UI, eval harness) on an absence of data. The narrower alternative — hosted demo replay-only — remains the fallback if trigger 2 turns out badly. Re-run this review within 48 hours of `spawn` becoming available, before week-3 evaluation money is spent.

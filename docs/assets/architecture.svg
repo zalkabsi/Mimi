@@ -126,6 +126,6 @@
     <text x="763" y="609" class="sub">SQLite events → API → React inbox / timeline</text>
   </g>
 
-  <text x="48" y="689" class="tiny">* PoC network isolation is not yet verified. The demo dossier is recorded fixture data; current sandbox access blocks live execution.</text>
+  <text x="48" y="689" class="tiny">* PoC network isolation is not yet verified. The dossier is fixture data; the latest recorded Sandbox access check returned HTTP 403.</text>
   <text x="48" y="719" class="tiny">Mimi never auto-closes a report. Build costs, run metrics, and evaluation scores are shown only when measured.</text>
 </svg>

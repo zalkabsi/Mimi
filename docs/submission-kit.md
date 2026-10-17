@@ -2,7 +2,8 @@
 
 Updated 2026-10-17 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
 [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) were
-re-read on this date. The deadline is October 30, 2026 at 10:00 AM Pacific.
+last re-read on 2026-10-16. The deadline is October 30, 2026 at 10:00 AM
+Pacific; re-read the rules again immediately before submission.
 Replace bracketed fields only after the linked artifact is real. Keep the
 hosted replay demo, live provider checks, and end-to-end sandbox execution
 clearly distinguished in public copy.
@@ -53,8 +54,9 @@ auto-closes a report.
 
 The hosted demo is a fixed, read-only replay. It makes no provider calls and
 does not run a live vulnerability analysis. Live inference and advisory-search
-integrations were exercised individually, but Nebius Sandboxes returned HTTP
-403. No end-to-end PoC execution or sandbox-isolation result is claimed. For
+integrations were exercised individually, but the latest recorded Nebius
+Sandboxes check (2026-10-15) returned HTTP 403. No end-to-end PoC execution or
+sandbox-isolation result is claimed. For
 live analysis, report text is sent to Nebius Token Factory; Tavily receives
 only public identifiers, not report prose or PoC code.
 
@@ -83,9 +85,10 @@ results; these checks were not a routing benchmark or an end-to-end evaluation.
 The main design challenge was making a negative result useful without treating
 missing evidence as proof. Mimi requires declared oracles and records coverage;
 build failures and incomplete runs cannot become clean negative results. The
-other challenge was validating safe execution of untrusted PoC code. Sandboxes
-access returned HTTP 403, so I could not verify live execution or isolation. I
-kept that limitation visible in the app and submission materials instead of
+other challenge was validating safe execution of untrusted PoC code. The latest
+recorded Sandboxes access check (2026-10-15) returned HTTP 403, so I could not
+verify live execution or isolation. I kept that limitation visible in the app
+and submission materials instead of
 presenting the replay fixture as a real run.
 
 ### Inspiration
@@ -109,7 +112,8 @@ external action.
 
 The repository includes a no-credential, read-only replay demo using an
 explicitly labelled fixture. Live inference and Tavily calls were exercised
-individually. At the latest status check, Sandboxes returned HTTP 403, so live
+individually. At the latest recorded Sandboxes check (2026-10-15), the service
+returned HTTP 403, so live
 untrusted-code execution and the execution-dependent evaluations remain
 blocked. No live reproduction rate or end-to-end sandbox result is claimed.
 
@@ -128,8 +132,9 @@ The core challenge is making a negative result interpretable without treating
 missing evidence as proof. Mimi requires a declared oracle, records coverage,
 and will not turn build errors or incomplete runs into a clean negative. The
 other major challenge is safely executing untrusted proof-of-concept code.
-Our current Nebius Sandboxes credential receives HTTP 403, so the live
-execution boundary has not yet been validated in this environment. The
+The latest recorded Nebius Sandboxes check (2026-10-15) returned HTTP 403, so
+the live execution boundary has not been validated. The review environment's
+key/project binding readiness is currently unknown. The
 repository and demo disclose that limitation instead of substituting fixture
 data for a real run.
 
@@ -210,8 +215,8 @@ warn clearly when a token budget is exhausted before visible answer content is
 returned. Practical examples for reasoning controls and output-budget sizing
 would also help developers avoid Nano's empty-content case. For Mimi's broader
 workflow, actionable Sandboxes permission errors would help distinguish a
-missing grant from other access failures; the current HTTP 403 blocked live
-PoC execution without a permissions payload.
+missing grant from other access failures; the recorded HTTP 403 did not include
+a permissions payload, blocking live PoC execution at that time.
 
 ### What I hope to see next from the Nemotron team
 
@@ -294,7 +299,7 @@ execution outputs as measured results.
 | 0:38–1:15 | **Timeline.** Scroll through extract, grounding, research, hypotheses, build, forks, differential, verdict, and reply. “Here is the recorded pipeline: claim extraction, package grounding, public advisory research, bounded test hypotheses, environment builds, isolated forks, a fixed-version comparison, a verdict, and a reply draft. Everything shown here is fixture data, including timestamps, model labels, durations, and token counts; these are not live measurements. Missing or incomplete evidence stays visible instead of being turned into an estimate.” |
 | 1:15–1:55 | **Dossier.** Show claim, research, hypotheses, runs, and oracle results. “The dossier starts with the claim, package version, and symbols shown in the sample. Its advisory reference is public, and report prose is not sent to the search provider. Each planned test names a deterministic oracle before execution. This fixture shows two hypotheses, one configuration, and zero triggers; it cannot tell us whether a real report reproduces. In a real run, Contradicted requires completed execution and stated coverage. Grounding alone can never reject a report. The reply is a draft, and the maintainer decides what happens next.” |
 | 1:55–2:22 | **Architecture.** Show the architecture diagram. “The architecture uses Nebius Token Factory with NVIDIA Nemotron Nano, Super, and Ultra for language-model tasks, and Tavily for research using public identifiers. Nebius Sandboxes is the required boundary for untrusted proof-of-concept code. Deterministic logic packages the evidence dossier and reply for human review. The planned isolation has not been verified here.” |
-| 2:22–2:40 | **Limits and close.** “The current Sandboxes access check returned HTTP 403. This walkthrough is replay-only: we do not claim an end-to-end reproduction or verified network isolation. Mimi reports evidence and its limits, and every report remains open for a maintainer to decide.” |
+| 2:22–2:40 | **Limits and close.** “The latest recorded Sandboxes access check returned HTTP 403. This walkthrough is replay-only: we do not claim an end-to-end reproduction or verified network isolation. Mimi reports evidence and its limits, and every report remains open for a maintainer to decide.” |
 
 If Sandboxes access becomes available before recording, replace the replay-only
 section with a fresh run on an already-public report, show its actual event
@@ -309,24 +314,23 @@ eligibility confirmations and submit the entry.
 
 ## Artifact checklist
 
-- [x] Public source repository and Apache-2.0 license file are present; confirm the GitHub About description and displayed license metadata before submission.
-- [x] Redacted Gitleaks scans of the current tree and Git history returned zero findings on 2026-10-15.
+- [x] Public source repository and Apache-2.0 license file are present; GitHub showed the project description and Apache-2.0 license metadata on 2026-10-17.
+- [x] Redacted Gitleaks scans of the tree and Git history returned zero findings on 2026-10-15; this predates the latest code changes, so rerun before final submission.
 - [x] Local no-credential replay instructions are documented.
-- [x] Static replay frontend build, backend Docker image, and read-only frontend replay image built on 2026-10-16; these are historical checks before the current local edits.
-- [x] Backend test suite passed: 183 tests on 2026-10-16 (one upstream Starlette/httpx deprecation warning), before the current local edits.
-- [x] A backend image smoke check on 2026-10-16, before the current local edits, confirmed health, inbox, sample dossier, events, and completed SSE; a live-ID lookup returned 401 and submission returned 402.
+- [x] Static replay frontend build and replay image built on 2026-10-16; the merged frontend also passed live and read-only production builds in GitHub Actions on 2026-10-17.
+- [x] Backend test suite passed: 183 tests on Python 3.12 and 3.13 in GitHub Actions on 2026-10-17 (one upstream Starlette/httpx deprecation warning).
+- [x] Backend Docker image rebuilt from the reviewed source on 2026-10-17; no-credential health, inbox, sample dossier, events, completed SSE, live-ID access denial (401), and submission denial (402) smoke checks passed.
 - [x] A replay container smoke check on 2026-10-16 confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200.
 - [x] Architecture diagram exported as SVG and visibly labels the live Sandbox access limit.
 - [x] 3:2 project thumbnail added at `docs/assets/mimi-project-thumbnail.jpg` (1536 × 1024, under 200 KB), within Devpost's 5 MB limit.
 - [x] Devpost copy and an honest demo script are drafted above.
-- [x] A GitHub Actions CI run was green on 2026-10-16, before the current local edits.
-- [ ] Rebuild the backend container and repeat the no-credential API/SSE smoke check against the published revision.
-- [ ] Reconcile and publish the current workspace changes to the latest public `master` (including the local `CLAUDE.md` deletion), then confirm Actions is green on that revision.
-- [x] Publish the hosted read-only replay; the owner confirmed the inbox and sample dossier load at the public URL on 2026-10-16.
+- [x] GitHub Actions CI passed on the merged `master` revision on 2026-10-17.
+- [x] Workspace changes, including deletion of `CLAUDE.md`, were merged to the latest public `master` on 2026-10-17.
+- [x] The read-only Pages workflow built and deployed the merged frontend successfully on 2026-10-17. The owner confirmed the public URL loads on 2026-10-16; check again in a private/clean browser before submission.
 - [ ] Confirm access in a private/clean browser before final submission.
-- [ ] Confirm the GitHub About description and Apache-2.0 license metadata are visible.
-- [ ] Verify Sandboxes access and child user/network namespace isolation before live
-  PoC execution.
+- [x] Confirmed the GitHub About description and Apache-2.0 license metadata are visible through repository metadata on 2026-10-17.
+- [ ] Ask Nebius to confirm Sandboxes access for the project; current review environment binding readiness is unknown, and no new `whoami` probe was run.
+- [ ] Verify Sandbox access and child user/network namespace isolation before live PoC execution.
 - [ ] Run and report the planned E1/E2/E3/E4 results with sample sizes; keep
   blocked cases marked `not_run`.
 - [ ] Capture real inbox and dossier screenshots from the running app.
