@@ -4,11 +4,24 @@ Updated 2026-10-17. Team: **solo**. Project name: **Mimi**.
 
 ## Latest Sandboxes access and smoke check (2026-10-17)
 
-The October 15 probe targeted the old `https://api.sandbox.nebius.ai/v1` endpoint and returned HTTP 403 without a permissions payload. Nebius's [ConTree migration guide](https://contree.dev/blog/contree-joins-token-factory/) says the service moved into Token Factory in May 2026, with the API root `https://api.tokenfactory.nebius.com/sandboxes`. A read-only `GET /v1/whoami` on October 17 returned HTTP 200 and all six permissions were true (`import`, `spawn`, `spawn_disposable`, `list`, `cancel`, `set_image_tag`). The project code defaults to this endpoint. A safe no-op run on October 17 built node:20 with is-number@7.0.0 and executed successfully. Mimi reported its child network namespace active, and an outbound TCP connection attempt returned ENETUNREACH. This confirms basic SDK operation and the app-level namespace guard for a harmless smoke, not containment of hostile PoC code or provider-level microVM isolation. No vulnerability PoC, live report analysis, or execution-dependent evaluation was run. The September 30 check against the earlier service returned HTTP 200 with all permissions false; it is historical.
+The October 15 probe targeted the old `https://api.sandbox.nebius.ai/v1` endpoint and
+returned HTTP 403 without a permissions payload. Nebius's [ConTree migration
+guide](https://contree.dev/blog/contree-joins-token-factory/) says the service moved into
+Token Factory in May 2026, with the API root
+`https://api.tokenfactory.nebius.com/sandboxes`. A read-only `GET /v1/whoami` on October 17
+returned HTTP 200 and all six permissions were true (`import`, `spawn`, `spawn_disposable`,
+`list`, `cancel`, `set_image_tag`). The project code defaults to this endpoint. A safe no-op
+run on October 17 built node:20 with is-number@7.0.0 and executed successfully. Mimi
+reported its child network namespace active, and an outbound TCP connection attempt returned
+ENETUNREACH. This confirms basic SDK operation and the app-level namespace guard for a
+harmless smoke, not containment of hostile PoC code or provider-level microVM isolation. No
+vulnerability PoC, live report analysis, or execution-dependent evaluation was run. The
+September 30 check against the earlier service returned HTTP 200 with all permissions false;
+it is historical.
 
 ## Provenance
 
-The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. I re-read the live [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) on 2026-10-16. The live page still lists the submission deadline as **Oct 30, 2026 at 10:00 AM Pacific**, the judging period as **Dec 1–15, 2026**, and the public-repository, hosted-demo, public YouTube video under three minutes, track-selection, and product-feedback requirements below. Re-read the page immediately before final submission because the rules can be amended (§11). The Official Rules prevail over other Hackathon material, including the Schedule page.
+The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. I re-read the live [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) on 2026-10-17. The live page still lists the submission deadline as **Oct 30, 2026 at 10:00 AM Pacific**, the judging period as **Dec 1–15, 2026**, and the public-repository, hosted-demo, public YouTube video under three minutes, track-selection, and product-feedback requirements below. Re-read the page immediately before final submission because the rules can be amended (§11). The Official Rules prevail over other Hackathon material, including the Schedule page.
 
 ## Dates [Rules §1]
 

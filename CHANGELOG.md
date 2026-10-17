@@ -5,10 +5,19 @@ All work in this repository was created during the hackathon Submission Period (
 ## Unreleased
 
 ### 2026-10-17 (Sandboxes SDK smoke and runtime fixes)
-- Replaced the incompatible ContreeAsyncClient usage with the async Contree client and IAMAuth configuration exposed by contree-sdk 0.3.6. Fixed persistent image staging by setting disposable=false for PoC setup and execution runs; kept the independent probe disposable.
-- Normalized SDK UUID values before storing run records, read cost and elapsed time from the SDK result shape, and changed Node probe input from /dev/stdin to stdin's supported dash form.
-- Completed a safe no-op run using node:20 and is-number@7.0.0. The image built and the command ran; Mimi reported its child network namespace active, and a TCP connection attempt to 1.1.1.1:80 returned ENETUNREACH. The SDK reported 0.00826591 raw Contree cost units for the build and 0.00069384 for the run; currency conversion is unknown.
-- This was a basic integration and app-level egress smoke check only. No vulnerability PoC, hostile payload, end-to-end triage, provider-level isolation assessment, or evaluation suite was run.
+- Replaced the incompatible ContreeAsyncClient usage with the async Contree client and IAMAuth
+  configuration exposed by contree-sdk 0.3.6. Made staged image runs persistent for PoC
+  setup and execution; kept the independent probe disposable.
+- Normalized SDK UUID values before storing run records, read cost and elapsed time from the
+  SDK result shape, and changed Node probe input from /dev/stdin to stdin's supported dash
+  form.
+- Completed a safe no-op run using node:20 and is-number@7.0.0. The image built and the
+  command ran; Mimi reported its child network namespace active, and a TCP connection
+  attempt to 1.1.1.1:80 returned ENETUNREACH. The SDK reported 0.00826591 raw Contree cost
+  units for the build and 0.00069384 for the run; currency conversion is unknown.
+- This was a basic integration and app-level egress smoke check only. No vulnerability PoC,
+  hostile payload, end-to-end triage, provider-level isolation assessment, or evaluation
+  suite was run.
 
 ### 2026-10-17 (Sandboxes endpoint correction)
 - Updated the Sandboxes base URL to the current Token Factory endpoint documented by Nebius. The previous October 15 check targeted the former host and returned 403; the corrected read-only `whoami` check returned HTTP 200 with all six permissions enabled. No sandbox execution or PoC run has been claimed.

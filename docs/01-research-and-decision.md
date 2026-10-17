@@ -105,7 +105,12 @@ Switch to Envsmith, or narrow Mimi, if any of these hold after the day-1 spikes 
 
 ### Update 2026-10-17: pivot review (was due Oct 5)
 
-The pivot triggers that depend on the 10-case pilot and concurrency still cannot be evaluated. Since the October 17 access check, a harmless node:20 / is-number@7.0.0 Sandbox smoke has built and executed successfully. Mimi confirmed its child network namespace, and a TCP connection attempt was blocked with ENETUNREACH. This is basic integration evidence, not a vulnerability reproduction or proof of provider-level isolation against hostile code. Status of each trigger:
+The pivot triggers that depend on the 10-case pilot and concurrency still cannot be
+evaluated. Since the October 17 access check, a harmless node:20 / is-number@7.0.0 Sandbox
+smoke has built and executed successfully. Mimi confirmed its child network namespace, and a
+TCP connection attempt was blocked with ENETUNREACH. This is basic integration evidence, not
+a vulnerability reproduction or proof of provider-level isolation against hostile code.
+Status of each trigger:
 
 1. **Fewer than 5 of 10 real npm vulns confirmed** — *undetermined*. No real vulnerability reproduction runs have been completed.
 2. **Fork runs cannot be made offline / residual risk unacceptable** — *partially checked*. Mimi's child network namespace blocked an outbound connection attempt during a harmless smoke. Hostile-code behavior and provider-level containment remain unverified.

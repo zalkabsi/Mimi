@@ -1,10 +1,21 @@
 # Mimi: architecture and evaluation protocol
 
-Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Sandboxes access and a safe no-op build/run are confirmed. Mimi's child network namespace and app-level egress guard worked in that smoke, but no vulnerability PoC, hostile payload, provider-level isolation assessment, or execution-dependent evaluation has been run; see 00-constraints-and-open-items.md. This document records the intended architecture and evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked VERIFY are listed in 00-constraints-and-open-items.md.
+Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Sandboxes access
+and a safe no-op build/run are confirmed. Mimi's child network namespace and app-level
+egress guard worked in that smoke, but no vulnerability PoC, hostile payload, provider-level
+isolation assessment, or execution-dependent evaluation has been run; see
+00-constraints-and-open-items.md. This document records the intended architecture and
+evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name
+conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked VERIFY
+are listed in 00-constraints-and-open-items.md.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the claim in isolated sandboxes at the exact affected version and tell the maintainer what is proven, what is contradicted, and how hard it looked. A safe no-op Sandbox run succeeded and Mimi's in-sandbox probe observed blocked outbound TCP. This validates the basic execution path only; no real vulnerability analysis or hostile-code isolation has been verified.
+Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the
+claim in isolated sandboxes at the exact affected version and tell the maintainer what is
+proven, what is contradicted, and how hard it looked. A safe no-op Sandbox run succeeded and
+Mimi's in-sandbox probe observed blocked outbound TCP. This validates the basic execution
+path only; no real vulnerability analysis or hostile-code isolation has been verified.
 
 ## Principles
 
@@ -83,11 +94,20 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 - Untrusted code runs only inside Sandboxes microVMs (own kernel per run). Never on the app host.
 - Package install and setup lifecycle code is also untrusted. It runs as the image's unprivileged `node` account, so it cannot replace the system launchers used later to create runtime namespaces.
 - No secrets, tokens or cloud credentials in any sandbox environment or image.
-- PoC phase: require a child user/network namespace and refuse execution if it cannot be created. A safe no-op smoke confirmed Mimi's namespace marker and observed an outbound TCP attempt blocked with ENETUNREACH. This is an app-level check; it does not establish provider-level microVM security against a hostile PoC. The hosted page remains a seeded read-only replay.
-- Timeouts, output truncation, per-report run limits, and allowlists for public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is best-effort, not a guaranteed USD spending cap.
-- Prompt injection: report text is data. Model outputs are parsed into a strict schema; commands executed come from a fixed command set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the report. The PoC file itself is executed but only in the sandbox.
-- Privacy: report text goes to Token Factory for inference and is excluded from Tavily queries; generated PoC code is sent to Sandboxes when live execution is enabled. The README documents the self-hosting option (own Nebius tenancy).
-- Demo and eval use only vulnerabilities that are already public.
+- PoC phase: require a child user/network namespace and refuse execution if it cannot be
+  created. A safe no-op smoke confirmed Mimi's namespace marker and observed an outbound TCP
+  attempt blocked with ENETUNREACH. This is an app-level check; it does not establish
+  provider-level microVM security against a hostile PoC. The hosted page remains a seeded
+  read-only replay. - Timeouts, output truncation, per-report run limits, and allowlists for
+  public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is
+  best-effort, not a guaranteed USD spending cap. - Prompt injection: report text is data.
+  Model outputs are parsed into a strict schema; commands executed come from a fixed command
+  set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the
+  report. The PoC file itself is executed but only in the sandbox. - Privacy: report text
+  goes to Token Factory for inference and is excluded from Tavily queries; generated PoC
+  code is sent to Sandboxes when live execution is enabled. The README documents the
+  self-hosting option (own Nebius tenancy). - Demo and eval use only vulnerabilities that
+  are already public.
 
 ## Evaluation (protocol fixed before running)
 
