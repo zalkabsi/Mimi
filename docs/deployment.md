@@ -63,18 +63,20 @@ serves the bundled dossier and timeline. Set `MIMI_CORS_ORIGINS` to the
 frontend's exact origin when the frontend is on another origin. Keep secrets
 in the host's secret manager; never add them to the image or its build args.
 
-Live submissions require `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, and
-`MIMI_JUDGE_KEY`; live report contents and event streams also require the
-judge key. `TAVILY_API_KEY` enables live research. This is one shared key, not
-per-user report isolation: every key holder can read all live reports. Do not
-accept private reports on a shared demo. Keep the live submission endpoint
-unavailable until a sandbox operation and per-run network isolation are
-verified. A read-only `whoami` check now confirms all Sandboxes permissions on
-the current Token Factory endpoint, but does not verify execution; see
-[`00-constraints-and-open-items.md`](00-constraints-and-open-items.md). A
-judge credential must be configured by the deployment owner and remain
-available through the judging period. No credential is included in this
-repository.
+Live submissions require `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, and `MIMI_JUDGE_KEY`; live report
+contents and event streams also require the judge key. `TAVILY_API_KEY` enables live research.
+This is one shared key, not per-user report isolation: every key holder can read all live
+reports. Do not accept private reports on a shared demo.
+
+Keep the live submission endpoint unavailable until a real vulnerability run and a security
+review of the execution boundary are complete. A harmless no-op Sandbox operation succeeded:
+Mimi confirmed its child network namespace and its probe observed an outbound TCP attempt
+blocked with ENETUNREACH. This verifies the basic integration and app-level guard for that
+run, not arbitrary PoC containment or provider-level microVM security. See [constraints and
+open items](00-constraints-and-open-items.md).
+
+A judge credential must be configured by the deployment owner and remain available through
+the judging period. No credential is included in this repository.
 
 Run one backend worker. Job tracking and live event fan-out are process-local;
 multiple Uvicorn workers would not share the active job registry or SSE queues.

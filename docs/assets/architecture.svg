@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1720" height="760" viewBox="0 0 1720 760" role="img" aria-labelledby="title desc">
   <title id="title">Mimi vulnerability report triage architecture</title>
-  <desc id="desc">A report is extracted, grounded and researched; Nemotron proposes bounded tests; the configured Sandboxes branch is designed to run hypotheses and compare affected and fixed versions; a deterministic layer produces an evidence dossier and a reply draft for human review. Read-only Sandbox permissions are confirmed, while execution and network isolation remain unverified.</desc>
+  <desc id="desc">A report is extracted, grounded and researched; Nemotron proposes bounded tests; the configured Sandboxes branch is designed to run hypotheses and compare affected and fixed versions; a deterministic layer produces an evidence dossier and a reply draft for human review. Sandbox access and a safe no-op run are confirmed; Mimi's namespace probe observed blocked outbound TCP, but hostile PoC execution and provider-level isolation remain unverified.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#07111e"/>
@@ -91,7 +91,7 @@
     <text x="932" y="390" class="sub">Fork per hypothesis</text>
     <text x="932" y="413" class="sub">PoC network isolation*</text>
     <rect x="932" y="437" width="158" height="37" rx="7" fill="#3b2814" stroke="#9a641e"/>
-    <text x="944" y="460" class="tiny" fill="#fde68a">ACCESS OK · RUN UNVERIFIED</text>
+    <text x="944" y="460" class="tiny" fill="#fde68a">NO-OP OK · HOSTILE RUN UNVERIFIED</text>
   </g>
 
   <!-- oracle and differential -->
@@ -126,6 +126,6 @@
     <text x="763" y="609" class="sub">SQLite events → API → React inbox / timeline</text>
   </g>
 
-  <text x="48" y="689" class="tiny">* Read-only permissions are confirmed. PoC execution and network isolation are not yet verified; the dossier is fixture data.</text>
+  <text x="48" y="689" class="tiny">* Safe no-op smoke passed; hostile PoC containment remains unverified. The dossier is fixture data.</text>
   <text x="48" y="719" class="tiny">Mimi never auto-closes a report. Build costs, run metrics, and evaluation scores are shown only when measured.</text>
 </svg>

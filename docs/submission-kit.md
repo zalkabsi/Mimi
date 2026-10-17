@@ -2,7 +2,7 @@
 
 Updated 2026-10-17 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
 [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) were
-last re-read on 2026-10-16. The deadline is October 30, 2026 at 10:00 AM
+last re-read on 2026-10-17. The deadline is October 30, 2026 at 10:00 AM
 Pacific; re-read the rules again immediately before submission.
 Replace bracketed fields only after the linked artifact is real. Keep the
 hosted replay demo, live provider checks, and end-to-end sandbox execution
@@ -27,11 +27,12 @@ auto-closes a report.
 
 ### Elevator pitch
 
-Mimi gives open-source maintainers an evidence dossier for npm vulnerability
-reports: package grounding, public advisory context, bounded tests,
-deterministic oracle results, and explicit coverage. It shows what the checks
-established and leaves the decision with a human. The hosted demo is a clearly
-labelled replay; live sandbox execution remains unverified.
+Mimi gives open-source maintainers an evidence dossier for npm vulnerability reports:
+package grounding, public advisory context, bounded tests, deterministic oracle results,
+and explicit coverage. It shows what the checks established and leaves the decision with
+a human. The hosted demo is a clearly labelled replay. A harmless no-op Sandbox run
+succeeded and Mimi's namespace probe observed blocked outbound TCP; no real
+vulnerability analysis or hostile-PoC containment is claimed.
 
 ### About the project
 
@@ -52,26 +53,28 @@ predeclared deterministic oracles. The dossier is designed to show commands,
 outputs, and coverage alongside a draft maintainer response. Mimi never
 auto-closes a report.
 
-The hosted demo is a fixed, read-only replay. It makes no provider calls and
-does not run a live vulnerability analysis. Live inference and advisory-search
-integrations were exercised individually. A read-only Sandboxes permission
-check on 2026-10-17 returned HTTP 200 with all six permissions enabled through
-the current Token Factory endpoint. No end-to-end PoC execution or
-sandbox-isolation result is claimed. For
-live analysis, report text is sent to Nebius Token Factory; Tavily receives
-only public identifiers, not report prose or PoC code.
+The hosted demo is a fixed, read-only replay. It makes no provider calls and does not
+run a live vulnerability analysis. Live inference and advisory-search integrations were
+exercised individually. A read-only Sandboxes permission check returned HTTP 200 with
+all six permissions enabled. A safe no-op run using node:20 and is-number@7.0.0 built
+and executed; Mimi confirmed its child network namespace, and an outbound TCP connection
+attempt returned ENETUNREACH. This does not demonstrate a vulnerability reproduction or
+provider-level containment of hostile code. For live analysis, report text is sent to
+Nebius Token Factory; Tavily receives only public identifiers, not report prose or PoC
+code.
 
 #### How I built it
 
-The backend uses Python, FastAPI, and SQLite; the frontend uses React,
-TypeScript, Vite, and Tailwind CSS. Nebius Token Factory runs NVIDIA Nemotron
-Nano, Super, and Ultra for language-model tasks, while Tavily searches public
-advisory sources. Deterministic backend logic evaluates declared test oracles
-and reports coverage. Incomplete runs and missing evidence stay inconclusive;
-grounding alone cannot produce a negative verdict. The live execution path is
-designed to place untrusted PoC code in isolated Nebius Sandboxes. Access is
-confirmed by the read-only permission check; the execution boundary still
-needs a live operation and isolation verification.
+The backend uses Python, FastAPI, and SQLite; the frontend uses React, TypeScript, Vite,
+and Tailwind CSS. Nebius Token Factory runs NVIDIA Nemotron Nano, Super, and Ultra for
+language-model tasks, while Tavily searches public advisory sources. Deterministic
+backend logic evaluates declared test oracles and reports coverage. Incomplete runs and
+missing evidence stay inconclusive; grounding alone cannot produce a negative verdict.
+The live execution path is designed to place untrusted PoC code in Nebius Sandboxes. The
+safe no-op smoke verified SDK integration, persistent image staging, the child namespace
+marker, and Mimi-level egress blocking for one harmless run. Provider-level security
+against hostile code, real vulnerability execution, and the complete triage pipeline
+remain unverified.
 
 #### What I learned
 
@@ -84,15 +87,16 @@ results; these checks were not a routing benchmark or an end-to-end evaluation.
 
 #### Challenges
 
-The main design challenge was making a negative result useful without treating
-missing evidence as proof. Mimi requires declared oracles and records coverage;
-build failures and incomplete runs cannot become clean negative results. The
-other challenge was validating safe execution of untrusted PoC code. The
-October 15 check targeted an outdated Sandboxes endpoint and returned HTTP
-403. After updating to the current Token Factory endpoint, the October 17
-read-only check showed all six permissions enabled. I still have not run a
-sandbox job, so live execution and isolation remain unverified. I kept that
-limitation visible instead of presenting the replay fixture as a real run.
+The design challenge was making a negative result useful without treating missing
+evidence as proof. Mimi requires declared oracles and records coverage; build failures
+and incomplete runs cannot become clean negative results. A second challenge was getting
+the Sandboxes integration right. The outdated endpoint was corrected, then a safe no-op
+run exposed an incorrect SDK client, disposable runs that would discard staged files,
+result-type mismatches, and a probe stdin path unsupported in the sandbox. I fixed these
+issues and reran the harmless operation. Mimi's namespace probe observed an outbound TCP
+attempt blocked with ENETUNREACH. This validates basic integration and the app-level
+guard, not a real vulnerability reproduction or provider-level containment of hostile
+code. The hosted replay remains clearly labelled fixture data.
 
 ### Inspiration
 
@@ -113,12 +117,13 @@ outputs, cost and latency only when measured, and the number of hypotheses and
 configurations covered. Every result remains for human review; Mimi takes no
 external action.
 
-The repository includes a no-credential, read-only replay demo using an
-explicitly labelled fixture. Live inference and Tavily calls were exercised
-individually. The current Sandboxes endpoint returned HTTP 200 with all six
-permissions in a read-only check on 2026-10-17. No sandbox job has been run, so
-untrusted-code execution, isolation, and execution-dependent evaluations remain
-unverified. No live reproduction rate or end-to-end sandbox result is claimed.
+The repository includes a no-credential, read-only replay demo using an explicitly
+labelled fixture. Live inference and Tavily calls were exercised individually. The
+current Sandboxes endpoint returned HTTP 200 with all six permissions in a read-only
+check. A harmless no-op operation also built and ran successfully; Mimi's child
+namespace probe observed an outbound TCP attempt blocked with ENETUNREACH. No
+vulnerability PoC, hostile payload, full report analysis, or end-to-end evaluation has
+run. No live reproduction rate is claimed.
 
 ### How we built it
 
@@ -131,27 +136,26 @@ a verdict by itself and treats incomplete runs as inconclusive.
 
 ### Challenges
 
-The core challenge is making a negative result interpretable without treating
-missing evidence as proof. Mimi requires a declared oracle, records coverage,
-and will not turn build errors or incomplete runs into a clean negative. The
-other major challenge is safely executing untrusted proof-of-concept code.
-The October 15 Nebius Sandboxes check targeted the old API host and returned
-HTTP 403. The corrected October 17 permission check returned HTTP 200 with all
-permissions enabled, but the live execution boundary has not been validated
-with a sandbox job. The repository and demo disclose that limitation instead
-of substituting fixture data for a real run.
+The core challenge is making a negative result interpretable without treating missing
+evidence as proof. Mimi requires a declared oracle, records coverage, and will not turn
+build errors or incomplete runs into a clean negative. The other major challenge is
+safely executing untrusted proof-of-concept code. The October 15 Nebius Sandboxes check
+targeted the old API host and returned HTTP 403. After correcting the endpoint, a
+harmless no-op Sandbox run exposed and helped fix incompatibilities in the declared SDK
+integration and image persistence. The corrected operation built and executed, while
+Mimi's namespace probe observed blocked outbound TCP. These checks validate the basic
+path only; the repo does not claim a real vulnerability run or hostile-code isolation.
 
 ### What we learned
 
 Single-prompt smoke calls showed that Nano, Super, and Ultra each completed a
-function-tool call through Token Factory, while reasoning usage and latency
-varied by model and prompt. These are onboarding observations, not a routing
-benchmark. Tavily returned 14 results from five queries made only from public
-identifiers; report prose was checked out of the search path. The Sandboxes
-check also exposed a stale API base URL: switching to Nebius's current Token
-Factory endpoint made the permission check succeed. A successful `whoami` is
-useful for access diagnosis, but an execution run is still needed before
-claiming that the sandbox pipeline works end to end.
+function-tool call through Token Factory; Tavily returned advisory results from public
+identifiers. These were integration checks, not a routing benchmark. The Sandboxes
+access probe exposed a stale endpoint, and the subsequent safe no-op run uncovered SDK
+and probe-command assumptions that I fixed. The harmless run succeeded and Mimi's
+namespace probe observed outbound TCP blocked with ENETUNREACH. This is useful
+integration evidence, not an end-to-end vulnerability-triage result or provider-level
+security validation.
 
 ### Built with
 
@@ -168,8 +172,7 @@ Yes. The live backend integrates a Tavily client in Mimi's research stage and
 makes runtime `/search` requests using public package and advisory identifiers.
 A live API smoke run returned 14 results from five identifier-only queries.
 The hosted demo is a fixed read-only replay and makes no Tavily calls. The
-current Sandboxes endpoint returned all permissions in a read-only check, but
-no end-to-end report run has been completed.
+current Sandboxes endpoint returned all permissions in a read-only check, but no end-to-end report run has been completed.
 
 ### Nebius platform capabilities used
 
@@ -182,22 +185,24 @@ The models completed individual integration smoke checks. I did not configure
 a GPU instance type, deploy a custom endpoint, load-test scaling, or complete a
 live end-to-end report run.
 
-Nebius Sandboxes is the intended isolation boundary for untrusted proof-of-
-concept execution. A read-only permission check succeeded on the current
-endpoint, but the live sandbox path still needs an execution and isolation
-check. The hosted demo is a fixed replay and makes no Nebius API calls.
+Nebius Sandboxes is the intended isolation boundary for untrusted proof-of-concept
+execution. A safe no-op operation using node:20 and is-number@7.0.0 built and ran
+successfully; Mimi's child namespace probe observed outbound TCP blocked with
+ENETUNREACH. This confirms the basic SDK integration and app-level network guard, but
+the full vulnerability workflow and provider-level containment of hostile code remain
+unverified. The hosted demo is a fixed replay and makes no Nebius API calls.
 
 ### Recommendation rating
 
-**8/10.** I would recommend Nemotron on Token Factory for teams that want a
-quick API integration and multiple model sizes for task-based routing. The
-OpenAI-compatible endpoint made initial calls straightforward, and all three
-tested model variants supported the same function-call smoke test. Developers
-should use exact model IDs and budget enough output tokens: Nano can spend a
-tiny budget on reasoning and return empty content. Token-usage details vary by
-model, and our latency and quality checks were too limited to establish
-production performance. This rating is for Token Factory inference; the
-separate Sandboxes permission check succeeded, but execution remains untested.
+**8/10.** I would recommend Nemotron on Token Factory for teams that want a quick API
+integration and multiple model sizes for task-based routing. The OpenAI-compatible
+endpoint made initial calls straightforward, and all three tested model variants
+supported the same function-call smoke test. Developers should use exact model IDs and
+budget enough output tokens: Nano can spend a tiny budget on reasoning and return empty
+content. Token-usage details vary by model, and our latency and quality checks were too
+limited to establish production performance. This rating concerns Token Factory
+inference; the harmless Sandboxes no-op verified basic integration, while vulnerability
+triage and hostile-code containment remain unevaluated.
 
 ### Experience compared with other environments
 
@@ -221,8 +226,9 @@ would also help developers avoid Nano's empty-content case. For Mimi's broader
 workflow, actionable Sandboxes permission errors would help distinguish a
 missing grant from other access failures. The October 15 check used the old
 API host and returned 403 without a permission payload; the current Token
-Factory endpoint now returns all permissions. An actual run is still needed
-to verify execution and isolation.
+Factory endpoint now returns all permissions. A harmless no-op run now verifies basic
+execution and app-level egress blocking; an actual vulnerability run and provider-level
+isolation review are still needed.
 
 ### What I hope to see next from the Nemotron team
 
@@ -244,11 +250,10 @@ for the most reasoning-intensive task while using smaller variants for routine
 work. Model outputs are constrained, deterministic checks evaluate declared
 oracles, and a maintainer makes the final decision.
 
-Each model completed an individual integration smoke call, but the full live
-pipeline and its model-routing performance have not been evaluated end to end.
-The current Sandboxes endpoint returned all permissions in a read-only check;
-no sandbox operation or execution-dependent test has run. The hosted demo is a
-fixed replay and makes no model calls.
+Each model completed an individual integration smoke call, but the full live pipeline
+and its model-routing performance have not been evaluated end to end. Sandboxes access
+and a harmless no-op build/run were confirmed; Mimi's child namespace probe observed
+blocked outbound TCP. The hosted demo remains a fixed replay and makes no model calls.
 
 ### Nemotron output quality rating
 
@@ -263,18 +268,17 @@ reasoning, and multilingual performance have not been evaluated.
 
 ### Fine-tuning and prompting
 
-I used the pretrained Nemotron models through Nebius Token Factory without
-fine-tuning. I prompt-engineered separate calls for each pipeline stage and
-constrained outputs with JSON schemas and tool definitions. Prompts treat
-report text as untrusted data and tell the model not to follow instructions
-inside it. For hypothesis generation, the model must provide a bounded test
-plan and a deterministic oracle; backend allowlists validate proposed
-operations, and deterministic code evaluates outcomes and coverage. The model
-does not issue arbitrary tools or decide the final verdict. I also tuned
-reasoning and output-token settings; a tiny token budget can leave Nano with
-empty answer content. Schema-validated JSON calls retry once on invalid output
-and then fail rather than inventing a result. Full end-to-end prompt quality
-remains unverified until the live pipeline is evaluated.
+I used the pretrained Nemotron models through Nebius Token Factory without fine-tuning.
+I prompt-engineered separate calls for each pipeline stage and constrained outputs with
+JSON schemas and tool definitions. Prompts treat report text as untrusted data and tell
+the model not to follow instructions inside it. For hypothesis generation, the model
+must provide a bounded test plan and a deterministic oracle; backend allowlists validate
+proposed operations, and deterministic code evaluates outcomes and coverage. The model
+does not issue arbitrary tools or decide the final verdict. I also tuned reasoning and
+output-token settings; a tiny token budget can leave Nano with empty answer content.
+Schema-validated JSON calls retry once on invalid output and then fail rather than
+inventing a result. Full end-to-end prompt quality remains unverified until the live
+pipeline is evaluated.
 
 ### Comparison with other models
 
@@ -305,14 +309,13 @@ execution outputs as measured results.
 | 0:18–0:38 | **Open the sample row.** Point out the visible replay label. “This labelled sample is recorded replay data. It lets anyone inspect the interface without credentials, but it is not a live analysis. The public page makes no provider calls. Every timestamp and finding belongs to the fixture.” |
 | 0:38–1:15 | **Timeline.** Scroll through extract, grounding, research, hypotheses, build, forks, differential, verdict, and reply. “Here is the recorded pipeline: claim extraction, package grounding, public advisory research, bounded test hypotheses, environment builds, isolated forks, a fixed-version comparison, a verdict, and a reply draft. Everything shown here is fixture data, including timestamps, model labels, durations, and token counts; these are not live measurements. Missing or incomplete evidence stays visible instead of being turned into an estimate.” |
 | 1:15–1:55 | **Dossier.** Show claim, research, hypotheses, runs, and oracle results. “The dossier starts with the claim, package version, and symbols shown in the sample. Its advisory reference is public, and report prose is not sent to the search provider. Each planned test names a deterministic oracle before execution. This fixture shows two hypotheses, one configuration, and zero triggers; it cannot tell us whether a real report reproduces. In a real run, Contradicted requires completed execution and stated coverage. Grounding alone can never reject a report. The reply is a draft, and the maintainer decides what happens next.” |
-| 1:55–2:22 | **Architecture.** Show the architecture diagram. “The architecture uses Nebius Token Factory with NVIDIA Nemotron Nano, Super, and Ultra for language-model tasks, and Tavily for research using public identifiers. Nebius Sandboxes is the required boundary for untrusted proof-of-concept code. Deterministic logic packages the evidence dossier and reply for human review. The planned isolation has not been verified here.” |
-| 2:22–2:40 | **Limits and close.** “A read-only Sandboxes permission check succeeded, but we have not yet run a sandbox job or verified network isolation. This walkthrough is replay-only: it does not claim an end-to-end reproduction. Mimi reports evidence and its limits, and every report remains open for a maintainer to decide.” |
+| 1:55–2:22 | **Architecture.** Show the architecture diagram. “The architecture uses Nebius Token Factory with NVIDIA Nemotron Nano, Super, and Ultra for language-model tasks, and Tavily for research using public identifiers. Nebius Sandboxes is the required boundary for untrusted proof-of-concept code. Deterministic logic packages the evidence dossier and reply for human review. A safe no-op smoke confirmed Mimi's child namespace and observed outbound TCP blocked with ENETUNREACH; provider-level isolation against hostile code remains unverified.” |
+| 2:22–2:40 | **Limits and close.** “A harmless no-op run through Nebius Sandboxes succeeded. Mimi's namespace probe observed outbound TCP blocked. This does not verify real vulnerability execution or isolation against hostile proof-of-concept code. This walkthrough remains a replay and makes no end-to-end analysis claim.” |
 
-If a sandbox operation and isolation check are completed before recording,
-replace the replay-only section with a fresh run on an already-public report, show its actual event
-timeline and dossier, and update this script and all public claims from the
-recorded evidence. Do not reuse fixture timestamps, IDs, outputs, or costs as
-live evidence.
+The harmless no-op Sandbox smoke is complete. Keep the walkthrough focused on the
+functioning replay UI and disclose that it is fixture data; do not present the separate
+smoke as a vulnerability analysis. Do not reuse fixture timestamps, IDs, outputs, or
+costs as live evidence.
 
 After the code, public copy, screenshots, and clean-browser check are settled,
 record and export the final video as the last project deliverable. Upload that
@@ -328,7 +331,7 @@ eligibility confirmations and submit the entry.
 - [x] Backend test suite passed: 183 tests on Python 3.12 and 3.13 in GitHub Actions on 2026-10-17 (one upstream Starlette/httpx deprecation warning).
 - [x] Backend Docker image rebuilt from the reviewed source on 2026-10-17; no-credential health, inbox, sample dossier, events, completed SSE, live-ID access denial (401), and submission denial (402) smoke checks passed.
 - [x] A replay container smoke check on 2026-10-16 confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200.
-- [x] Architecture diagram exported as SVG and visibly labels the live Sandbox access limit.
+- [x] Architecture diagram exported as SVG and updated to distinguish the successful no-op smoke from unverified hostile-PoC containment.
 - [x] 3:2 project thumbnail added at `docs/assets/mimi-project-thumbnail.jpg` (1536 × 1024, under 200 KB), within Devpost's 5 MB limit.
 - [x] Devpost copy and an honest demo script are drafted above.
 - [x] GitHub Actions CI passed on the merged `master` revision on 2026-10-17.
@@ -337,11 +340,11 @@ eligibility confirmations and submit the entry.
 - [ ] Confirm access in a private/clean browser before final submission.
 - [x] Confirmed the GitHub About description and Apache-2.0 license metadata are visible through repository metadata on 2026-10-17.
 - [x] Update the Sandboxes base URL to the current Token Factory endpoint and confirm `whoami` returns HTTP 200 with all six permissions.
-- [ ] Run a minimal sandbox operation and verify the child user/network namespace guard before live PoC execution.
+- [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
 - [ ] Run and report the planned E1/E2/E3/E4 results with sample sizes; keep
   blocked cases marked `not_run`.
 - [ ] Capture real inbox and dossier screenshots from the running app.
-- [x] Create a 2:40 draft demo with interactive replay footage, architecture, captions, and a disclosure that live execution remains unverified.
+- [x] Create a 2:40 draft demo with interactive replay footage, architecture, captions, and disclosure that the replay is fixture data and no end-to-end vulnerability analysis is claimed.
 - [ ] After all other artifacts are final, replace the robotic narration with a natural voice, export the final video, upload it publicly to YouTube, and add the URL to Devpost.
 - [ ] Re-read the Official Rules, confirm eligibility and agreement statements, then submit Devpost with the public replay URL, screenshots, and video.
 

@@ -1,10 +1,21 @@
 # Mimi: architecture and evaluation protocol
 
-Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. The current Sandboxes permission check succeeds, but live execution, isolation, and execution-dependent evaluations remain unverified; see `00-constraints-and-open-items.md`. This document records the intended architecture and evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked **VERIFY** are listed in `00-constraints-and-open-items.md`.
+Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Sandboxes access
+and a safe no-op build/run are confirmed. Mimi's child network namespace and app-level
+egress guard worked in that smoke, but no vulnerability PoC, hostile payload, provider-level
+isolation assessment, or execution-dependent evaluation has been run; see
+00-constraints-and-open-items.md. This document records the intended architecture and
+evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name
+conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked VERIFY
+are listed in 00-constraints-and-open-items.md.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the claim in isolated sandboxes at the exact affected version and tell the maintainer what is proven, what is contradicted, and how hard it looked. A read-only permission check now succeeds on the current Token Factory endpoint, but live Sandbox execution remains unverified. See the status table below.
+Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the
+claim in isolated sandboxes at the exact affected version and tell the maintainer what is
+proven, what is contradicted, and how hard it looked. A safe no-op Sandbox run succeeded and
+Mimi's in-sandbox probe observed blocked outbound TCP. This validates the basic execution
+path only; no real vulnerability analysis or hostile-code isolation has been verified.
 
 ## Principles
 
@@ -41,7 +52,7 @@ flowchart LR
 | 3 | Research | Tavily search, Super to synthesise | known advisories, duplicates, fixed version / fix commit | Query builder uses public identifiers only; a redaction test enforces it. |
 | 4 | Hypothesise | Nemotron Ultra, reasoning on, schema-guided JSON | ranked hypotheses, each with test plan and a **predeclared oracle** | The backend invokes controlled Tavily/Sandboxes operations; the model proposes structured plans and never executes an arbitrary tool call. Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style output comes from a separate post-PoC process, not the PoC's stdout, but the shim state file shares a writable VM with the PoC and is not tamper-proof. The dossier discloses this for runs that use a probe oracle. |
 | 5 | Build per image configuration | Sandboxes: run install/setup once for each distinct Node/install/setup configuration and keep each result image UUID | one base image per configuration | Build commands, including package lifecycle scripts, run as the image's unprivileged `node` account. Network is available during the build step. |
-| 6 | Fork per matching hypothesis | Each PoC starts from the image built for its configuration; runs are independent forks with bounded concurrency | stdout/stderr/exit/timing/`cost` per run | The wrapper drops to `node` before creating the child user/network namespace, and emits its isolation marker only inside the mapped namespace that runs the PoC. Staged files replace workspace links atomically. A run is refused or inconclusive if isolation cannot be verified. Hard timeout and output cap. Isolation effectiveness inside Sandboxes is still unverified. |
+| 6 | Fork per matching hypothesis | Each PoC starts from the image built for its configuration; runs are independent forks with bounded concurrency | stdout/stderr/exit/timing/cost per run | The wrapper drops to node before creating the child user/network namespace, and emits its isolation marker only inside the mapped namespace that runs the PoC. Staged files replace workspace links atomically. A run is refused or inconclusive if isolation cannot be verified. Hard timeout and output cap. A safe no-op smoke confirmed the namespace marker and blocked TCP egress; provider-level containment of hostile code remains unverified. |
 | 7 | Differential | Same oracle on the fixed version from stage 3 | flipped true / false / **unknown** | Confirms the oracle measures the bug, not an artifact. Each hypothesis re-runs under its own environment. Any skipped, errored or unreached re-check leaves the flip *unknown*, never false. |
 | 8 | Verdict + dossier | Super; Ultra only when oracles disagree or are inconclusive | tier + coverage statement + exact commands | Tiers below. |
 | 9 | Draft reply | Super | maintainer-ready response | Asks for specific missing info, or acknowledges with repro steps. |
@@ -83,11 +94,20 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 - Untrusted code runs only inside Sandboxes microVMs (own kernel per run). Never on the app host.
 - Package install and setup lifecycle code is also untrusted. It runs as the image's unprivileged `node` account, so it cannot replace the system launchers used later to create runtime namespaces.
 - No secrets, tokens or cloud credentials in any sandbox environment or image.
-- PoC phase: require a child user/network namespace and refuse execution if it cannot be created. The guard remains unverified in a real microVM; the hosted page is a seeded read-only replay.
-- Timeouts, output truncation, per-report run limits, and allowlists for public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is best-effort, not a guaranteed USD spending cap.
-- Prompt injection: report text is data. Model outputs are parsed into a strict schema; commands executed come from a fixed command set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the report. The PoC file itself is executed but only in the sandbox.
-- Privacy: report text goes to Token Factory for inference and is excluded from Tavily queries; generated PoC code is sent to Sandboxes when live execution is enabled. The README documents the self-hosting option (own Nebius tenancy).
-- Demo and eval use only vulnerabilities that are already public.
+- PoC phase: require a child user/network namespace and refuse execution if it cannot be
+  created. A safe no-op smoke confirmed Mimi's namespace marker and observed an outbound TCP
+  attempt blocked with ENETUNREACH. This is an app-level check; it does not establish
+  provider-level microVM security against a hostile PoC. The hosted page remains a seeded
+  read-only replay. - Timeouts, output truncation, per-report run limits, and allowlists for
+  public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is
+  best-effort, not a guaranteed USD spending cap. - Prompt injection: report text is data.
+  Model outputs are parsed into a strict schema; commands executed come from a fixed command
+  set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the
+  report. The PoC file itself is executed but only in the sandbox. - Privacy: report text
+  goes to Token Factory for inference and is excluded from Tavily queries; generated PoC
+  code is sent to Sandboxes when live execution is enabled. The README documents the
+  self-hosting option (own Nebius tenancy). - Demo and eval use only vulnerabilities that
+  are already public.
 
 ## Evaluation (protocol fixed before running)
 
@@ -134,7 +154,7 @@ One person, four weeks. The available credit balance is unverified. Cuts made up
 
 | Criterion | What we show | Where it is weakest today |
 |---|---|---|
-| Technological implementation | Build-once fork-many sandboxes, deterministic oracles, model routing with ablation, safety suite | Environment builds vary; network isolation unverified |
+| Technological implementation | Build-once fork-many sandboxes, deterministic oracles, model routing with ablation, safety suite | SDK-compatible safe no-op build/run and Mimi-level egress guard verified; real vulnerability execution, hostile-code containment, provider boundary, and evaluation results remain unverified |
 | Design | Inbox, live timeline, dossier with exact commands and coverage, no dead ends ("Needs human" is a designed state) | Needs a real design pass in week 3 |
 | Potential impact | Maintainer time per report (curl: 30 min to 3 h, several people); future measured time and cost per report | We have no live per-report measurements or real-maintainer validation yet; quote only evidence gathered directly. |
 | Quality of idea | Negative-result coverage; evidence-not-verdict stance backed by the SlopCheck result | Neighbouring work exists (Elastic internal, HackerOne, SlopCheck); novelty is the combination and the measured rigor |

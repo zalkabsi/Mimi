@@ -249,7 +249,7 @@ if (process.env.MIMI_CUSTOM_PROBE_B64) {
         '--preserve-environment', '-u', 'node', '--',
         '/bin/sh', '-c',
         'test ! -w /usr/bin/unshare && test ! -w /usr/sbin/runuser && ' +
-          'exec /usr/bin/unshare --user --map-root-user --net -- "$1" /dev/stdin',
+          'exec /usr/bin/unshare --user --map-root-user --net -- "$1" -',
         'mimi-custom-probe', process.execPath,
       ],
       {
@@ -307,7 +307,7 @@ def probe_command() -> str:
     The source never resides on the PoC-writable filesystem, so a PoC cannot
     replace the code that produces the independent probe-output channel.
     """
-    return "node /dev/stdin"
+    return "node -"
 
 
 def shim_node_options() -> str:
