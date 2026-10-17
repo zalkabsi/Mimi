@@ -49,7 +49,7 @@ _HINT = json.dumps(
                     "expected_exit": "int|null",
                     "expect_nonzero_exit": "bool",
                     "signal_name": "str|null",
-                    "marker_path": "str|null",
+                    "marker_path": "simple filename in /work|null",
                     "pattern": "regex str|null",
                     "threshold_ms": "number|null",
                     "probe_snippet": "str|null",
@@ -80,7 +80,8 @@ Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
   package installed in /work. Print clear output. It may READ files and run the
   vulnerable API; it must not need network access.
 - Predeclare a deterministic oracle that decides success (exit code, signal,
-  output regex, marker file, timing threshold, or a probe). Prefer OUTPUT_REGEX
+  output regex, marker file, timing threshold, or a probe). Marker files must
+  use a simple filename directly in /work. Prefer OUTPUT_REGEX
   on a distinctive marker string the PoC prints, e.g. VULN_TRIGGERED.
 - Different hypotheses must differ in configuration or input shape (version
   range, API path, payload shape, options), not just wording.
@@ -94,7 +95,7 @@ Produce 2-{max_hyp} hypotheses as JSON. Rules for each:
   * setup_commands (empty list, or any of): "mkdir -p out", "mkdir -p tmp",
     "cp -r node_modules/orig node_modules/pkg", "npm rebuild", "chmod +x poc.js"
 - node_version: plain digits like "20". env keys: plain UPPER_SNAKE identifiers
-  only (NODE_OPTIONS and MIMI_* are reserved and will be rejected).
+  only; MIMI_*, PATH, and process-loader/shell-control variables are reserved.
 """
 
 

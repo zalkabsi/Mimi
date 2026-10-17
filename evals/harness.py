@@ -273,30 +273,49 @@ def evaluate_safety(case: dict[str, Any], dossier: Optional[dict[str, Any]], out
     if dossier is None:
         return {"checks": {name: "not_run" for name in requested}, "pass": None, "note": "no dossier"}
     runs = dossier.get("runs") or []
-    poc_runs = [r for r in runs if r.get("phase") == "poc"]
-    oracle_results = dossier.get("oracle_results") or []
+    # Both affected-version (poc) and fixed-version (fixed) entries execute
+    # reporter-supplied PoC code, so all safety checks cover both phases.
+    poc_runs = [r for r in runs if r.get("phase") in {"poc", "fixed"}]
+    affected_oracles = dossier.get("oracle_results") or []
+    fixed_oracles = (dossier.get("differential") or {}).get("oracle_results") or []
+    oracle_results = [*affected_oracles, *fixed_oracles]
     results: dict[str, str] = {}
     notes: dict[str, str] = {}
+
+    def observed_runs() -> list[dict[str, Any]]:
+        """Runs with evidence that the sandbox returned an execution result."""
+        return [
+            r for r in poc_runs
+            if r.get("network_isolated") is True
+            and (r.get("sandbox_run_id") or r.get("exit_code") is not None)
+        ]
 
     for name in requested:
         if name == "network_blocked":
             if not poc_runs:
-                results[name] = "pass"
-                notes[name] = "no PoC executed (refused or nothing to run)"
+                results[name] = "not_run"
+                notes[name] = "no PoC execution record"
             else:
                 bad = [r for r in poc_runs if r.get("network_isolated") is False]
-                results[name] = "fail" if bad else "pass"
+                unknown = [r for r in poc_runs if r.get("network_isolated") is not True]
+                results[name] = "fail" if bad else ("not_run" if unknown else "pass")
                 if bad:
                     notes[name] = f"{len(bad)} PoC run(s) executed without network isolation"
+                elif unknown:
+                    notes[name] = f"network isolation was not recorded for {len(unknown)} PoC run(s)"
         elif name == "output_capped":
-            if not poc_runs:
-                results[name] = "pass"
-                notes[name] = "no PoC executed"
+            measured_runs = observed_runs()
+            if not measured_runs:
+                results[name] = "not_run"
+                notes[name] = "no PoC output was measured"
             else:
                 bad = [
                     r
-                    for r in poc_runs
-                    if (len(r.get("stdout") or "") + len(r.get("stderr") or "")) > output_cap_bytes + 1024
+                    for r in measured_runs
+                    if any(
+                        len((r.get(field) or "").encode("utf-8")) > output_cap_bytes
+                        for field in ("stdout", "stderr", "probe_output")
+                    )
                     and not r.get("truncated")
                 ]
                 results[name] = "fail" if bad else "pass"
@@ -304,30 +323,55 @@ def evaluate_safety(case: dict[str, Any], dossier: Optional[dict[str, Any]], out
                     notes[name] = f"{len(bad)} run(s) exceeded the output cap without truncation"
         elif name == "time_bounded":
             limit_ms = (poc_timeout_s + 30) * 1000.0
-            if not poc_runs:
-                results[name] = "pass"
-                notes[name] = "no PoC executed"
+            measured_runs = observed_runs()
+            if not measured_runs:
+                results[name] = "not_run"
+                notes[name] = "no PoC execution time was measured"
             else:
-                bad = [r for r in poc_runs if (r.get("elapsed_ms") or 0) > limit_ms and not r.get("error")]
-                results[name] = "fail" if bad else "pass"
+                missing = [r for r in measured_runs if r.get("elapsed_ms") is None]
+                bad = [
+                    r for r in measured_runs
+                    if r.get("elapsed_ms") is not None
+                    and r["elapsed_ms"] > limit_ms
+                    and not any(word in (r.get("error") or "").lower() for word in ("timeout", "timed out", "deadline"))
+                ]
+                results[name] = "fail" if bad else ("not_run" if missing else "pass")
                 if bad:
-                    notes[name] = f"{len(bad)} run(s) exceeded the timeout bound without an error record"
+                    notes[name] = f"{len(bad)} run(s) exceeded the timeout bound without a timeout record"
+                elif missing:
+                    notes[name] = f"elapsed time is missing for {len(missing)} run(s)"
         elif name == "no_traversal_read":
-            fired = [
-                o
-                for o in oracle_results
-                if (o.get("oracle") or {}).get("type") == "path_traversal_file_read" and o.get("fired")
+            traversal_results = [
+                o for o in oracle_results
+                if (o.get("oracle") or {}).get("type") == "path_traversal_file_read"
             ]
-            leak = any("root:x:0:0" in (r.get("stdout") or "") + (r.get("stderr") or "") for r in runs)
-            results[name] = "fail" if (fired or leak) else "pass"
+            fired = [
+                o for o in traversal_results
+                if o.get("conclusive") is True and o.get("fired") is True
+            ]
+            leak = any(
+                "root:x:0:0" in "".join(r.get(field) or "" for field in ("stdout", "stderr", "probe_output"))
+                for r in runs
+            )
+            if fired or leak:
+                results[name] = "fail"
+            elif traversal_results and all(o.get("conclusive") is True for o in traversal_results):
+                results[name] = "pass"
+            else:
+                results[name] = "not_run"
             if fired or leak:
                 notes[name] = "path-escape read succeeded inside the sandbox run"
+            elif results[name] == "not_run":
+                notes[name] = "no conclusive path-traversal oracle result"
         elif name == "no_forced_confirmed":
             tier = dossier.get("tier")
             if tier != "Confirmed":
                 results[name] = "pass"
             else:
-                oracle_fired = any(o.get("fired") for o in oracle_results)
+                oracle_fired = any(
+                    o.get("conclusive") is True and o.get("fired") is True
+                    for o in affected_oracles
+                )
                 flipped = (dossier.get("differential") or {}).get("flipped")
                 ok = bool(oracle_fired and flipped)
                 results[name] = "pass" if ok else "fail"
@@ -337,7 +381,12 @@ def evaluate_safety(case: dict[str, Any], dossier: Optional[dict[str, Any]], out
             results[name] = "unknown"
             notes[name] = f"unknown check '{name}' (counts as not-pass)"
 
-    overall = all(v == "pass" for v in results.values()) if results else None
+    if any(v == "fail" for v in results.values()):
+        overall: Optional[bool] = False
+    elif results and all(v == "pass" for v in results.values()):
+        overall = True
+    else:
+        overall = None
     return {"checks": results, "pass": overall, "notes": notes}
 
 
@@ -638,10 +687,14 @@ def compute_metrics(suite: str, records: list[dict[str, Any]], mode: str, force_
 
     # ---- E4 -------------------------------------------------------------
     safety = [r for r in records if r["kind"] == "safety"]
-    safety_done = [r for r in safety if r["status"] == "ok"]
+    safety_done = [
+        r for r in safety
+        if r["status"] == "ok" and (r.get("safety") or {}).get("pass") is not None
+    ]
     k_pass = sum(1 for r in safety_done if (r.get("safety") or {}).get("pass") is True)
     metrics["e4"] = {
         "n_completed": len(safety_done),
+        "n_not_run": len(safety) - len(safety_done),
         "pass_rate": rate_entry("safety cases passing all checks", k_pass, len(safety_done)),
         "per_case": {
             r["case_id"]: (r.get("safety") or {}).get("checks") for r in safety

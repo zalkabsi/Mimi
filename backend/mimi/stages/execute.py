@@ -1,7 +1,7 @@
-"""Stages 5-6 — Build once, then fork per hypothesis.
+"""Stages 5-6 — Build per image configuration, then fork matching hypotheses.
 
-The base environment is built a single time with network on (install only);
-each hypothesis then runs as an independent fork from the kept image UUID.
+Each distinct image configuration is built with network on for install only;
+each hypothesis then runs as an independent fork from its matching image UUID.
 The PoC phase is refused unless a child user and network namespace can be
 created successfully.
 Concurrency is
@@ -11,45 +11,79 @@ bounded (start with 8; the API caps at 50 concurrent instances).
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import Mapping, Optional
 
 from ..config import Settings
 from ..events import EventLog
 from ..oracles import check_oracle
 from ..probe import probe_env_for
-from ..sandboxes import BuildResult, Executor, RunBudget
+from ..sandboxes import BuildResult, Executor, RunBudget, build_group_key
 from ..schemas import Hypothesis, OracleResult, OracleType, ReportSubmission, RunRecord
 
 
-async def build_base(
+async def build_environments(
     submission: ReportSubmission,
     hypotheses: list[Hypothesis],
     executor: Executor,
     settings: Settings,
     events: EventLog,
-) -> BuildResult:
-    """Build the pinned environment once. Network is on here only."""
-    t0 = events.start("build", f"install {submission.package_spec}")
-    config = hypotheses[0].config if hypotheses else None
-    if config is None:
-        from ..schemas import RunConfig
+    budget: Optional[RunBudget] = None,
+) -> dict[str, BuildResult]:
+    """Build one affected-version image per image-affecting configuration."""
+    groups: dict[str, list[Hypothesis]] = {}
+    for hypothesis in hypotheses:
+        groups.setdefault(build_group_key(hypothesis.config), []).append(hypothesis)
 
-        config = RunConfig()
-    result = await executor.build(
-        config,
-        package_spec=submission.package_spec,
-        build_timeout_s=settings.build_timeout_s,
+    # Each required run needs an image, but hypotheses with identical image
+    # settings share one build. Do not build groups beyond the remaining run
+    # slots, and stop starting builds once measured cost reaches its threshold.
+    eligible_groups = (
+        {build_group_key(h.config) for h in hypotheses[:budget.remaining]}
+        if budget is not None
+        else set(groups)
     )
-    if not result.ok:
-        events.error("build", t0, result.detail or "build failed")
-    else:
-        events.ok("build", t0, f"base image {result.image_id[:8]}", cost=result.cost, cost_units=result.cost_units)
-    return result
+    builds: dict[str, BuildResult] = {}
+    for key, members in groups.items():
+        if key not in eligible_groups:
+            events.skip("build", f"{key}: no run slot remains for this configuration")
+            continue
+        if budget is not None and not budget.can_continue():
+            events.skip("build", f"{key}: measured cost/run threshold reached")
+            continue
+
+        config = members[0].config.model_copy(
+            update={"package_spec": submission.package_spec, "offline": True}
+        )
+        t0 = events.start(
+            "build", f"install {submission.package_spec} ({key})",
+            data={"sandbox_operation": "build"},
+        )
+        result = await executor.build(
+            config,
+            package_spec=submission.package_spec,
+            build_timeout_s=settings.build_timeout_s,
+        )
+        if budget is not None:
+            budget.charge(result.cost)
+        if not result.ok:
+            events.error(
+                "build", t0, result.detail or "build failed",
+                cost=result.cost, cost_units=result.cost_units,
+                data={"sandbox_operation": "build"},
+            )
+        else:
+            events.ok(
+                "build", t0, f"image {result.image_id[:8]} ready ({key})",
+                cost=result.cost, cost_units=result.cost_units,
+                data={"sandbox_operation": "build"},
+            )
+        builds[key] = result
+    return builds
 
 
 async def run_hypotheses(
     hypotheses: list[Hypothesis],
-    build: BuildResult,
+    build: BuildResult | Mapping[str, BuildResult],
     executor: Executor,
     settings: Settings,
     events: EventLog,
@@ -60,9 +94,11 @@ async def run_hypotheses(
     ``budget`` is the report-wide allowance shared with the differential;
     pass the same object so every PoC execution is charged once. When omitted
     a fresh allowance of ``max_runs_per_report`` is used, which is the correct
-    contract for a caller that only runs this stage.
+    contract for a caller that only runs this stage. A mapping supplies a
+    separate build for each image-affecting configuration; a single
+    ``BuildResult`` remains supported for stage-level callers.
     """
-    if not build.ok:
+    if isinstance(build, BuildResult) and not build.ok:
         events.skip("fork_run", "base build failed")
         return [], []
 
@@ -74,12 +110,26 @@ async def run_hypotheses(
 
     async def one(h: Hypothesis, index: int) -> None:
         async with sem:
+            image = (
+                build
+                if isinstance(build, BuildResult)
+                else build.get(build_group_key(h.config))
+            )
+            if image is None:
+                events.skip("fork_run", f"{h.id}: no built image for its configuration")
+                return
+            if not image.ok:
+                events.skip("fork_run", f"{h.id}: its configuration build failed")
+                return
             if not budget.take():
                 events.skip("fork_run", f"{h.id}: run budget exhausted")
                 return
-            t0 = events.start("fork_run", f"{h.id}: {h.test_plan[:80]}")
+            t0 = events.start(
+                "fork_run", f"{h.id}: {h.test_plan[:80]}",
+                data={"sandbox_operation": "run"},
+            )
             run = await executor.run_poc(
-                build,
+                image,
                 h.config,
                 poc_code=h.poc_code,
                 hypothesis_id=h.id,
@@ -97,7 +147,12 @@ async def run_hypotheses(
             run.phase = "poc"
             runs.append(run)
             if run.error:
-                events.error("fork_run", t0, f"{h.id}: {run.error}")
+                events.error(
+                    "fork_run", t0, f"{h.id}: {run.error}",
+                    cost=run.cost, cost_units=run.cost_units,
+                    sandbox_run_ids=[run.sandbox_run_id] if run.sandbox_run_id else [],
+                    data={"sandbox_operation": "run"},
+                )
             else:
                 events.ok(
                     "fork_run",
@@ -106,6 +161,7 @@ async def run_hypotheses(
                     cost=run.cost,
                     cost_units=run.cost_units,
                     sandbox_run_ids=[run.sandbox_run_id] if run.sandbox_run_id else [],
+                    data={"sandbox_operation": "run"},
                 )
             res = check_oracle(
                 h.oracle,

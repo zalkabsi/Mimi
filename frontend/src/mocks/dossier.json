@@ -207,6 +207,7 @@
         "probe_snippet": "if (({}).polluted !== undefined) process.exit(3);"
       },
       "fired": false,
+      "conclusive": true,
       "detail": "probe did not observe the attacker key on a plain object",
       "run_index": 1
     },
@@ -226,6 +227,7 @@
         "probe_snippet": null
       },
       "fired": false,
+      "conclusive": true,
       "detail": "pattern 'probe: yes' not present in combined output",
       "run_index": 2
     }
@@ -253,6 +255,7 @@
           "probe_snippet": "if (({}).polluted !== undefined) process.exit(3);"
         },
         "fired": false,
+        "conclusive": true,
         "detail": "no attacker key observed on fixed version either",
         "run_index": 3
       }

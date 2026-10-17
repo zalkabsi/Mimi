@@ -18,19 +18,18 @@ is a UI replay, not an end-to-end live analysis.
 
 The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages
 when run manually. It builds with the repository base path and hash routing,
-so direct links work without server-side SPA fallback. The live URL is
+so direct links work without server-side SPA fallback. The public URL is
 [`https://zalkabsi.github.io/Mimi/`](https://zalkabsi.github.io/Mimi/). The
 published page is a read-only replay, not a live vulnerability analysis.
 
-To publish it, make the repository public (the hackathon also requires a
-public source repository), then open **Settings → Pages** and select **GitHub
-Actions** as the build and deployment source. This one-time owner setting is
-required: the workflow token cannot create or enable the Pages site. Then open
-**Actions → Deploy read-only demo → Run workflow**. After the run succeeds,
-open the expected URL in a clean browser and check the inbox and sample
-dossier. Keep the demo free of login requirements through the judging period.
-This hosted replay is read-only and must not be presented as a live Mimi
-analysis.
+The owner has enabled the public repository, Actions, and Pages. To publish
+later changes, push the workflow and frontend updates to the repository, then
+open **Actions → Deploy read-only demo → Run workflow**. The workflow token
+cannot create or enable the Pages site, so the one-time owner setting must
+remain enabled. After each deployment, check the URL in a clean browser and
+open the inbox and sample dossier. Keep the page free of login requirements
+through the judging period. This hosted replay is read-only and must not be
+presented as a live Mimi analysis.
 
 For a container host, the frontend includes a self-contained static replay
 image. Build it from `frontend/` and route traffic to port `8080`:
@@ -83,11 +82,10 @@ row as `error` rather than leaving it stuck.
 ## Current deployment status
 
 The static build and `mimi-replay` container image built locally on
-2026-10-16. The first Pages run could not create the Pages site because the
-owner had not enabled Pages. After Pages and Actions were enabled, deployment
-run [38957108737](https://github.com/zalkabsi/Mimi/actions/runs/38957108737)
+2026-10-16. Deployment run
+[38957108737](https://github.com/zalkabsi/Mimi/actions/runs/38957108737)
 completed both build and deploy successfully. The owner confirmed that the
-public URL loads the inbox and fixed sample dossier in a browser on
-2026-10-16. Before final submission, also check it in a private window or
-another browser. Keep describing it as a read-only replay; it is not a live
-pipeline result.
+public URL loads the inbox and fixed sample dossier on 2026-10-16. A private or
+clean-browser check remains to be done before submission. Local source changes
+must be published and deployed before claiming that the hosted page reflects
+them. The page remains a replay, not a live pipeline result.

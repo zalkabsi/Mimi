@@ -108,7 +108,8 @@ export function App() {
         <p className="font-mono text-[11px] leading-relaxed text-slate-600">
           Grounding is evidence only — never a rejection basis. Untrusted PoC
           code runs only inside sandboxes. External research uses public
-          identifiers only; report text never leaves the system.
+          identifiers only. Report text is sent to Nebius Token Factory for
+          inference; it is not sent to Tavily.
         </p>
       </footer>
     </div>

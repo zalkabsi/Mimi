@@ -15,7 +15,7 @@ from .config import Settings
 from .db import Database
 from .events import EventLog, now_iso
 from .llm import LLMClient
-from .sandboxes import Executor, RunBudget, SandboxExecutor
+from .sandboxes import Executor, RunBudget, SandboxExecutor, build_group_key
 from .schemas import (
     CostSummary,
     DifferentialResult,
@@ -27,7 +27,7 @@ from .schemas import (
     Tier,
 )
 from .stages.differential import run_differential
-from .stages.execute import build_base, run_hypotheses
+from .stages.execute import build_environments, run_hypotheses
 from .stages.extract import extract_claim
 from .stages.ground import ground_claim
 from .stages.hypothesize import hypothesize
@@ -107,26 +107,39 @@ class Pipeline:
             if not dossier.hypotheses:
                 stopped_reason = "no executable hypotheses were generated"
 
-            # --- stages 5-6: build once, fork per hypothesis -----------
+            # --- stages 5-6: build per image config, fork hypotheses ---
             runs: list[RunRecord] = []
             oracle_results: list[OracleResult] = []
             # One allowance for the whole report: affected-phase forks and the
             # fixed-version differential re-runs share it, so the configured
             # max_runs_per_report is a real cap on untrusted executions. The
-            # cost cap rides on the same budget and only sees measured spend.
+            # measured-cost threshold rides on the same budget. It is a
+            # best-effort Contree-unit threshold, not a hard USD spending cap.
             budget = RunBudget(
                 self.settings.max_runs_per_report,
                 cost_cap=self.settings.per_report_cost_cap,
             )
             if dossier.hypotheses:
-                build = await build_base(submission, dossier.hypotheses, executor, self.settings, events)
-                build_failed = not build.ok
-                if build.ok:
-                    runs, oracle_results = await run_hypotheses(
-                        dossier.hypotheses, build, executor, self.settings, events, budget=budget
+                builds = await build_environments(
+                    submission, dossier.hypotheses, executor, self.settings, events, budget=budget
+                )
+                successful_builds = [b for b in builds.values() if b.ok]
+                build_failed = bool(builds) and not successful_builds
+                failed_count = len(builds) - len(successful_builds)
+                all_build_groups = {build_group_key(h.config) for h in dossier.hypotheses}
+                missing_count = len(all_build_groups - builds.keys())
+                stop_reasons = []
+                if failed_count:
+                    stop_reasons.append(f"{failed_count} configuration build(s) failed")
+                if missing_count:
+                    stop_reasons.append(
+                        f"{missing_count} configuration image(s) were skipped by the run/cost threshold"
                     )
-                else:
-                    stopped_reason = build.detail or "base build failed"
+                stopped_reason = "; ".join(stop_reasons)
+                if successful_builds:
+                    runs, oracle_results = await run_hypotheses(
+                        dossier.hypotheses, builds, executor, self.settings, events, budget=budget
+                    )
             dossier.runs = runs
             dossier.oracle_results = oracle_results
 
@@ -204,8 +217,7 @@ class Pipeline:
         finally:
             dossier.events = list(events.events)
             dossier.cost = self._cost_summary(dossier, wall_clock_ms=events.elapsed_ms)
-            if not dossier.limitations:
-                self._fill_limitations(dossier)
+            self._fill_limitations(dossier)
             if self.db is not None:
                 try:
                     self.db.upsert_report(dossier, status=final_status)
@@ -228,38 +240,36 @@ class Pipeline:
         tin = sum(e.tokens_in or 0 for e in dossier.events)
         tout = sum(e.tokens_out or 0 for e in dossier.events)
         sandbox_cost = [e.cost for e in dossier.events if e.cost is not None]
-        # Prices from docs/01 E12 (reported Token Factory prices). Flagged
-        # measured=False until we confirm them on a real invoice-level run.
+        # Price-table figures from docs/01 E12 are estimates, not invoice
+        # amounts. Sandbox values remain raw Contree units without a verified
+        # billing conversion; `measured` only reports telemetry completeness.
         prices = {
             "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B": (0.06, 0.24),
             "nvidia/nemotron-3-super-120b-a12b": (0.30, 0.90),
             "nvidia/Nemotron-3-Ultra-550b-a55b": (1.00, 3.00),
         }
         cost = 0.0
-        priced_events = 0
-        unpriced_events = 0
-        for e in dossier.events:
-            if not e.model or e.tokens_in is None:
-                continue
+        model_events = [e for e in dossier.events if e.model]
+        complete_price_events = 0
+        for e in model_events:
             p = prices.get(e.model)
-            if p is None:
-                unpriced_events += 1
+            if p is None or e.tokens_in is None or e.tokens_out is None:
                 continue
-            priced_events += 1
-            cost += (e.tokens_in / 1e6) * p[0] + ((e.tokens_out or 0) / 1e6) * p[1]
+            complete_price_events += 1
+            cost += (e.tokens_in / 1e6) * p[0] + (e.tokens_out / 1e6) * p[1]
 
-        # Never invent a dollar figure. If any model call had no listed price,
-        # the true cost is unknown — report None rather than $0.00, which reads
-        # as "we measured it and it was free".
-        if tin and priced_events and not unpriced_events:
+        sandbox_events = [
+            e for e in dossier.events
+            if e.data.get("sandbox_operation") in {"build", "run"}
+        ]
+        sandbox_results = [e for e in sandbox_events if e.status in {"ok", "error"}]
+
+        # Report a price-table estimate only when every model call has a listed
+        # price and both token counts. Never use a partial sum as the run cost.
+        if model_events and complete_price_events == len(model_events):
             inference_cost: Optional[float] = round(cost, 6)
-            priced_clean = True
-        elif tin and priced_events:
-            inference_cost = None
-            priced_clean = False
         else:
             inference_cost = None
-            priced_clean = not tin
 
         return CostSummary(
             inference_tokens_in=tin,
@@ -268,13 +278,34 @@ class Pipeline:
             sandbox_cost=sum(sandbox_cost) if sandbox_cost else None,
             sandbox_cost_units="contree-cost-units" if sandbox_cost else None,
             elapsed_ms=float(wall_clock_ms or 0.0),
-            measured=bool(priced_clean and (tin or sandbox_cost)),
+            measured=bool(model_events or sandbox_events)
+            and complete_price_events == len(model_events)
+            and len(sandbox_results) == sum(e.status == "started" for e in sandbox_events)
+            and all(e.cost is not None for e in sandbox_results),
         )
 
     @staticmethod
     def _fill_limitations(dossier: Dossier) -> None:
         if not dossier.research.used:
             dossier.limitations.append("Research (Tavily) was not available for this run.")
+        probe_types = {
+            "marker_file",
+            "prototype_pollution_probe",
+            "path_traversal_file_read",
+            "network_call",
+            "custom_probe",
+        }
+        probe_hypotheses = {
+            h.id for h in dossier.hypotheses if h.oracle.type.value in probe_types
+        }
+        if probe_hypotheses and any(
+            run.hypothesis_id in probe_hypotheses and not run.error
+            for run in dossier.runs
+        ):
+            dossier.limitations.append(
+                "Probe-style observations are collected in the same writable sandbox VM as the PoC. "
+                "Hostile code could forge or alter them, so treat these results as supporting evidence and corroborate them manually."
+            )
         if not dossier.differential.ran and dossier.tier in (Tier.CONTRADICTED, Tier.LIKELY):
             if "no fixed version" in (dossier.differential.detail or ""):
                 dossier.limitations.append("No fixed version was known, so the differential is missing.")
@@ -292,6 +323,7 @@ class Pipeline:
             )
         if dossier.runs and all(r.cost is None for r in dossier.runs):
             dossier.limitations.append(
-                "Sandbox cost was not measured on these runs, so the per-report "
-                "cost cap could not be enforced against them."
+                "Sandbox run cost was not reported for these runs, so their "
+                "contribution could not be counted against the best-effort "
+                "Contree-unit threshold."
             )

@@ -177,8 +177,7 @@ export function streamEvents(
   };
 
   const isTerminal = (ev: StageEvent): boolean =>
-    (ev.stage === "reply" && ev.status !== "started") ||
-    (ev.stage === "pipeline" && ev.status === "error");
+    ev.stage === "pipeline" && ev.data?.final === true;
 
   const finish = () => {
     if (cleaned || completed) return;

@@ -61,8 +61,8 @@ class EventLog:
             self._sink(json.loads(ev.model_dump_json()))
         return ev
 
-    def start(self, stage: str, detail: str = "") -> float:
-        self.emit(stage, "started", detail)
+    def start(self, stage: str, detail: str = "", **kw: Any) -> float:
+        self.emit(stage, "started", detail, **kw)
         return time.monotonic()
 
     def ok(self, stage: str, t0: float, detail: str = "", **kw: Any) -> StageEvent:

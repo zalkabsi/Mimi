@@ -4,7 +4,7 @@
 
 Mimi turns a vulnerability report into a reviewable dossier: what the package source supports, which checks ran, what they found, and what a maintainer could say next. It is designed to test a report against the affected package version, then give the maintainer the final say. Mimi does not auto-close reports.
 
-![Mimi evidence dossier preview. This illustration shows sample data, not a live run.](docs/assets/mimi-thumbnail.svg)
+![Mimi project thumbnail: a vulnerability report flows through package grounding, bounded checks, and human review. This is artwork, not a live analysis.](docs/assets/mimi-project-thumbnail.jpg)
 
 Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2: Best Apps and Agents. It combines Nebius Token Factory inference, NVIDIA Nemotron models, Tavily advisory research, and Nebius Sandboxes as the boundary for untrusted proof-of-concept code.
 
@@ -13,6 +13,8 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
 Live report analysis needs provider credentials and permissions. The latest Sandboxes access probe returned HTTP 403, so live untrusted-code execution and execution-dependent evaluation results have not been verified. See [constraints and open items](docs/00-constraints-and-open-items.md) for the current record.
+
+For live analysis, report text is sent to Nebius Token Factory for inference. Tavily receives only public identifiers, not report prose or PoC code. Generated PoC code is sent to Nebius Sandboxes when live execution is enabled.
 
 ## Run the sample locally
 
@@ -104,4 +106,4 @@ The current environment's Sandboxes `whoami` probe returned HTTP 403 on October 
 
 ## Security
 
-Do not run reporter-supplied proof-of-concept code on the application host. Mimi is designed to execute it inside Nebius Sandboxes, but that boundary has not been verified in the current environment. Treat live execution of untrusted reports as blocked until Sandbox access and per-run network isolation are confirmed. Review the [architecture and trust boundaries](docs/02-architecture.md) before exposing a live deployment. Never place provider credentials or private report data in a sandbox.
+Do not run reporter-supplied proof-of-concept code on the application host. Mimi is designed to execute it inside Nebius Sandboxes, but that boundary has not been verified in the current environment. Treat live execution of untrusted reports as blocked until Sandbox access and per-run network isolation are confirmed. Package install and setup scripts also run inside the sandbox as its unprivileged `node` account. Probe-style observations use state in the same writable sandbox VM as the PoC and are not tamper-proof against hostile code; the dossier flags this limitation. Review the [architecture and trust boundaries](docs/02-architecture.md) before exposing a live deployment. Never place provider credentials or private report data in a sandbox.

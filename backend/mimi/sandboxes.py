@@ -14,6 +14,7 @@ sandbox environment or image (docs/02-architecture.md security model).
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import shlex
@@ -23,8 +24,6 @@ from pathlib import Path
 from typing import Literal, Optional, Protocol
 
 from .probe import (
-    CUSTOM_PROBE_FILE,
-    PROBE_FILE,
     SHIM_FILE,
     STATE_FILE,
     PROBE_JS,
@@ -32,19 +31,38 @@ from .probe import (
     probe_command,
     shim_node_options,
 )
-from .schemas import RunConfig, RunRecord
+from .schemas import RunConfig, RunRecord, validate_package_spec
 
 _Phase = Literal["build", "poc", "fixed", "other"]
 _PHASES: dict[str, _Phase] = {"build": "build", "poc": "poc", "fixed": "fixed", "other": "other"}
 
 # Printed by the build shell only after every step succeeded under `set -e`.
 # Its presence in the log is the build's own claim that the install and the
-# package-resolve check both passed — the image UUID proves nothing on its own.
+# package-manifest check both passed — the image UUID proves nothing alone.
 BUILD_OK_TOKEN = "__MIMI_BUILD_OK__"
+_STAGE_OK_TOKEN = "__MIMI_STAGE_OK__"
 
 
 def _norm_phase(phase: str) -> _Phase:
     return _PHASES.get(phase, "poc")
+
+
+def _stage_file_command(destination: str) -> str:
+    """Atomically replace a workspace file without following a planted link."""
+    return (
+        "set -e; tmp=$(mktemp /work/.mimi-stage.XXXXXX); "
+        "cat > \"$tmp\"; chmod 0644 \"$tmp\"; "
+        f"mv -T -- \"$tmp\" {shlex.quote(destination)}; "
+        f"echo {_STAGE_OK_TOKEN}"
+    )
+
+
+def _require_staged(result, what: str) -> None:
+    """Fail closed if a source file could not be atomically staged."""
+    exit_code = getattr(result, "exit_code", None)
+    stdout = str(getattr(result, "stdout", "") or "")
+    if exit_code not in (0, None) or _STAGE_OK_TOKEN not in stdout:
+        raise ExecutorError(f"could not stage {what} into the sandbox")
 
 
 class ExecutorError(RuntimeError):
@@ -124,11 +142,15 @@ _NODE_VERSION_RE = re.compile(r"^\d{1,2}(\.\d{1,2}){0,2}$")
 # The PoC file is a bare script name; .mjs is allowed because one allowlisted
 # poc_command is `node poc.mjs`.
 _POC_FILE_RE = re.compile(r"^[A-Za-z0-9._-]+\.(?:js|mjs)$")
+_MARKER_FILE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
 # Env keys the executor owns. A hypothesis that sets these could disable the
 # observation shim or redirect its verdict file.
-_EXECUTOR_ENV_KEYS = {"NODE_OPTIONS", "MIMI_STATE_PATH", "MIMI_MARKER_PATH",
-                      "MIMI_TRAVERSAL_PATH", "MIMI_PROBE_NETWORK",
-                      "MIMI_PROBE_EGRESS", "MIMI_CUSTOM_PROBE_PATH"}
+_EXECUTOR_ENV_KEYS = {
+    "NODE_OPTIONS", "NODE_PATH", "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH",
+    "LD_AUDIT", "BASH_ENV", "ENV", "IFS", "SHELLOPTS", "BASHOPTS",
+    "MIMI_STATE_PATH", "MIMI_MARKER_PATH", "MIMI_TRAVERSAL_PATH",
+    "MIMI_PROBE_NETWORK", "MIMI_PROBE_EGRESS", "MIMI_CUSTOM_PROBE_B64",
+}
 
 
 class ConfigRejected(ValueError):
@@ -137,7 +159,7 @@ class ConfigRejected(ValueError):
 
 @dataclass
 class RunBudget:
-    """Shared cap on PoC executions (and measured cost) for one report.
+    """Shared run allowance and best-effort cost threshold for one report.
 
     ``max_runs_per_report`` bounds *executions*, not hypotheses: the
     fixed-version differential re-runs every hypothesis that fired and must
@@ -147,27 +169,32 @@ class RunBudget:
 
     ``cost_cap`` is ``per_report_cost_cap`` in the same units the sandbox
     returns (contree cost units, not USD — the two are never conflated).
-    ``charge()`` is called after every run; once the measured spend reaches
-    the cap no further execution is reserved. Runs that report no cost cannot
-    be charged, so the cap is honest only over measured spend — the dossier
-    states when cost was unmeasured rather than pretending the cap applied.
+    ``charge()`` is called after measured builds and runs; once measured spend
+    reaches the threshold, no further work is reserved. The threshold is
+    best-effort: an in-flight build/run can cross it, and missing cost data
+    cannot be charged. The dossier states when cost was unmeasured rather than
+    implying a hard dollar limit.
     """
 
     remaining: int
     cost_cap: Optional[float] = None
     spent: float = 0.0
 
+    def can_continue(self) -> bool:
+        """Whether another build or run may be started under measured limits."""
+        return self.remaining > 0 and (
+            self.cost_cap is None or self.spent < self.cost_cap
+        )
+
     def take(self) -> bool:
         """Reserve one PoC execution. False once a cap is reached."""
-        if self.remaining <= 0:
-            return False
-        if self.cost_cap is not None and self.spent >= self.cost_cap:
+        if not self.can_continue():
             return False
         self.remaining -= 1
         return True
 
     def charge(self, cost: Optional[float]) -> None:
-        """Record measured cost of a completed run against the cost cap."""
+        """Record measured build/run cost against the best-effort threshold."""
         if cost is not None:
             self.spent += float(cost)
 
@@ -216,7 +243,7 @@ def validate_run_config(config: "RunConfig", *, where: str = "run_config") -> No
     for k, v in config.env.items():
         if not re.match(r"^[A-Z_][A-Z0-9_]*$", k):
             raise ConfigRejected(f"{where}.env key {k!r} is not a plain identifier")
-        if k in _EXECUTOR_ENV_KEYS:
+        if k in _EXECUTOR_ENV_KEYS or k.startswith("MIMI_"):
             raise ConfigRejected(f"{where}.env[{k}] is reserved for the executor")
         _reject_meta(f"{where}.env[{k}]", v)
 
@@ -275,6 +302,17 @@ def config_key(config: "RunConfig") -> str:
     )
 
 
+def build_group_key(config: "RunConfig") -> str:
+    """Fingerprint settings that change an image built for one package spec.
+
+    Setup order matters because the commands run sequentially. The package
+    spec is omitted so affected and fixed versions of the same configuration
+    share the same group identity in their respective build maps.
+    """
+    setup = ",".join(config.setup_commands)
+    return f"node{config.node_version}|{config.install_command}|setup={setup}"
+
+
 def package_name(spec: str) -> str:
     """Package name of a ``name@version`` spec (scoped names included).
 
@@ -330,10 +368,11 @@ class SandboxExecutor:
         try:
             validate_run_config(config, where="build_config")
             # The submission's spec is an argument, not a RunConfig field, so
-            # validate_run_config never sees it. Check it here: it is about to
-            # be interpolated into a shell command.
+            # validate_run_config never sees it. Validate its npm name/version
+            # before using the name to check the installed package manifest.
+            name, _version = validate_package_spec(spec)
             _reject_meta("package_spec", spec)
-        except ConfigRejected as e:
+        except (ConfigRejected, ValueError) as e:
             return BuildResult(
                 image_id="",
                 ok=False,
@@ -341,7 +380,6 @@ class SandboxExecutor:
                 elapsed_ms=(time.monotonic() - t0) * 1000.0,
             )
         setup = " && ".join(config.setup_commands) if config.setup_commands else "true"
-        name = package_name(spec)
         # The allowlisted install_command is what actually runs. `npm ci`
         # installs from the lockfile only and takes no package argument, so it
         # is given a lockfile that pins the target first — dropping the spec
@@ -354,20 +392,31 @@ class SandboxExecutor:
             )
         else:
             install = f"{config.install_command} {shlex.quote(spec)}"
-        # The target package must really be in the image. `set -e` stops at the
-        # first failure and the success token is printed only at the end, so
-        # the token is the build's own claim that install *and* the resolve
-        # check passed — independent of whether the SDK reports an exit code.
+        # Check the installed manifest rather than CommonJS resolution:
+        # require.resolve rejects some valid ESM-only packages with conditional
+        # exports even though npm installed them correctly.
+        manifest = f"node_modules/{name}/package.json"
         verify = (
-            f"node -e 'require.resolve({json.dumps(name)})'" if name else "true"
+            f"node -e 'if (!require(\"fs\").existsSync({json.dumps(manifest)})) process.exit(1)'"
         )
-        cmd = (
-            f"set -e; mkdir -p /work && cd /work && "
-            f"npm init -y >/dev/null 2>&1 || true; "
+        build_runner = (
+            "set -e; test ! -w /usr/bin/unshare && test ! -w /usr/sbin/runuser; "
+            "cd /work; export HOME=/home/node USER=node LOGNAME=node; "
+            "npm init -y >/dev/null 2>&1 || true; "
             f"{install}; "
             f"{setup}; "
             f"{verify}; "
             f"echo {BUILD_OK_TOKEN}"
+        )
+        # Package lifecycle scripts are untrusted too. Build under the
+        # image's unprivileged node account so scripts may prepare the target
+        # package without being able to replace system tools used by later
+        # PoC/probe invocations. The same boundary includes allowlisted setup
+        # commands such as npm rebuild.
+        cmd = (
+            "set -e; mkdir -p /work && chmod 1777 /work && "
+            "/usr/sbin/runuser --preserve-environment -u node -- /bin/sh -c "
+            + shlex.quote(build_runner)
         )
         try:
             image = await client.images.use(f"node:{config.node_version}")
@@ -433,6 +482,18 @@ class SandboxExecutor:
             )
         try:
             validate_run_config(config)
+            marker_name = (probe_env or {}).get("MIMI_MARKER_PATH", "")
+            if marker_name and (
+                not _MARKER_FILE_RE.fullmatch(marker_name)
+                or marker_name.startswith(".mimi_")
+                or marker_name in {
+                    "node_modules", "package.json", "package-lock.json",
+                    config.poc_file_name,
+                }
+            ):
+                raise ConfigRejected(
+                    "probe marker path must be a simple non-reserved filename in /work"
+                )
         except ConfigRejected as e:
             return RunRecord(
                 hypothesis_id=hypothesis_id,
@@ -444,43 +505,53 @@ class SandboxExecutor:
         client = self._ensure_client()
         try:
             image = await client.images.use(build.image_id)  # fork point
-            # Stage the PoC file under its allowlisted name and the *shim* —
-            # the only observer that must exist on disk before the PoC starts,
-            # because it is loaded at process launch via NODE_OPTIONS. Each is
-            # written via stdin — never a heredoc — so nothing the model
-            # supplies can end a write.
-            #
-            # The probe script itself is deliberately NOT staged. A file in
-            # /work is writable by the PoC, so a report that overwrote
-            # /.mimi_probe.js used to author every probe verdict and the trusted
-            # channel was just the attacker's script with our file name. The
-            # probe now runs from stdin (`node /dev/stdin`), where the PoC has
-            # nothing to overwrite.
+            # Stage only the PoC and preloaded shim. The fixed-source probe is
+            # supplied over stdin, never from the PoC-writable filesystem.
             write = await image.run(
-                shell=f"cat > /work/{config.poc_file_name}",
+                shell=_stage_file_command(f"/work/{config.poc_file_name}"),
                 stdin=poc_code,
                 timeout=30,
             )
-            write = await write.run(shell=f"cat > {SHIM_FILE}", stdin=SHIM_JS, timeout=30)
+            _require_staged(write, "the PoC")
+            write = await write.run(
+                shell=_stage_file_command(SHIM_FILE), stdin=SHIM_JS, timeout=30
+            )
+            _require_staged(write, "the observation shim")
+            # A package lifecycle script can leave a state file or symlink in
+            # the persisted build image. Remove it and the marker target before
+            # the PoC starts so build-time artifacts cannot become evidence.
+            marker_name = (probe_env or {}).get("MIMI_MARKER_PATH", "")
+            cleanup = "rm -rf -- /work/.mimi_probe_state.json"
+            if marker_name:
+                cleanup += " && rm -rf -- " + shlex.quote(f"/work/{marker_name}")
+            write = await write.run(
+                shell=f"set -e; {cleanup}; echo {_STAGE_OK_TOKEN}",
+                timeout=30,
+            )
+            _require_staged(write, "the clean probe state")
             # Run the PoC. The command string is already validated against the
             # fixed set, so it is safe to interpolate as a shell command —
             # quoting it would make the shell try to exec a literal path.
-            runner = f"cd /work && {config.poc_command}"
-            # Enter a child user namespace as well as a network namespace.
-            # Root inside that child namespace has no CAP_SYS_ADMIN in the
-            # parent user namespace, so it cannot rejoin the original network
-            # namespace with setns(). The PoC is refused unless this exact
-            # boundary works in the microVM.
-            namespace = "unshare --user --map-root-user --net --"
-            wrapped = (
-                "if command -v unshare >/dev/null 2>&1 && "
-                + namespace
-                + " /bin/true >/dev/null 2>&1; then "
+            runner = (
+                "set -e; cd /work; command -v node >/dev/null; "
+                "test \"$(id -u)\" -eq 0; "
                 "echo __MIMI_NET__:isolated; "
-                + namespace
-                + " /bin/sh -c "
+                + config.poc_command
+            )
+            # Make /work writable for the image's unprivileged node account,
+            # then enter the user and network namespace as that account. The
+            # marker is emitted inside the exact namespace that runs the PoC.
+            # Running as node keeps PoC code from replacing system binaries
+            # such as /usr/bin/unshare, even inside its user namespace.
+            namespace_runner = (
+                "test \"$(id -u)\" -ne 0 && "
+                "test ! -w /usr/bin/unshare && test ! -w /usr/sbin/runuser && exec "
+                "/usr/bin/unshare --user --map-root-user --net -- /bin/sh -c "
                 + shlex.quote(runner)
-                + "; else echo __MIMI_NET__:open; exit 125; fi"
+            )
+            wrapped = (
+                "chmod 1777 /work && /usr/sbin/runuser --preserve-environment -u node -- /bin/sh -c "
+                + shlex.quote(namespace_runner)
             )
             # The shim is preloaded into the PoC's own process so it can see
             # in-process state (prototype pollution, real egress attempts).
@@ -488,6 +559,13 @@ class SandboxExecutor:
             # hypothesis that tries to set it.
             poc_env = dict(config.env or {})
             poc_env.update(probe_env or {})
+            # A model-selected PATH could resolve a package-supplied fake
+            # unshare before the system binary and forge the isolation marker.
+            # The wrapper also uses the absolute unshare path above.
+            poc_env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            poc_env["HOME"] = "/home/node"
+            poc_env["USER"] = "node"
+            poc_env["LOGNAME"] = "node"
             poc_env["NODE_OPTIONS"] = shim_node_options()
             poc_env["MIMI_STATE_PATH"] = STATE_FILE
             result = await write.run(shell=wrapped, timeout=timeout_s, env=poc_env or None)
@@ -503,17 +581,24 @@ class SandboxExecutor:
         raw_stdout = str(getattr(result, "stdout", "") or "")
         raw_stderr = str(getattr(result, "stderr", "") or "")
 
-        # Trusted probe, run after the PoC in the same image so it sees the
-        # post-PoC state. Its output is a separate channel the oracles trust.
-        env = dict(config.env or {})
-        env.update(probe_env or {})
+        # Fixed-source probe, run after the PoC in the same image so it sees
+        # post-PoC state. Its output is separate from PoC stdout, but the
+        # sandbox state it reads can still be tampered with by hostile code.
+        # The post-PoC process must not inherit model-selected executable or
+        # loader settings (PATH, LD_PRELOAD, NODE_OPTIONS, etc.). Pass only the
+        # fixed probe inputs and a stable system PATH.
+        env = dict(probe_env or {})
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         env["MIMI_STATE_PATH"] = STATE_FILE
         if probe_snippet:
-            env["MIMI_CUSTOM_PROBE_PATH"] = CUSTOM_PROBE_FILE
+            env["MIMI_CUSTOM_PROBE_B64"] = base64.b64encode(
+                probe_snippet.encode("utf-8")
+            ).decode("ascii")
         probe_out = ""
         try:
             probe_result = await result.run(
                 shell=probe_command(),
+                stdin=PROBE_JS,
                 timeout=min(30, timeout_s),
                 env=env or None,
             )
