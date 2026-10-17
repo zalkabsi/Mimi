@@ -1,8 +1,8 @@
 # Hard constraints and open items
 
-Updated 2026-10-15. Team: **solo**. Project name: **Mimi**.
+Updated 2026-10-17. Team: **solo**. Project name: **Mimi**.
 
-## Current build-environment check (2026-10-15)
+## Latest Sandboxes access check (2026-10-15)
 
 The Sandboxes `whoami` probe returned HTTP 403 for both `/whoami` and `/v1/whoami` at `https://api.sandbox.nebius.ai/v1`. The response did not include a permissions block, so this check does **not** distinguish a missing grant from another access or endpoint issue. The managed environment reports the Nebius key and project bindings as ready and Sandboxes egress as enforced; those are setup signals, not proof the service accepts the key. No sandbox execution or execution-dependent evaluation can proceed until a usable permission response is available. The previous 2026-09-30 check returned HTTP 200 with every permission set to `false`; that is historical and is not the result of today's check.
 
@@ -22,18 +22,18 @@ Internal target: submit **Tue Oct 27**. After the deadline the Submission cannot
 
 ## Requirements and current status
 
-| # | Requirement | Source | Status on 2026-10-16 |
+| # | Requirement | Source | Status on 2026-10-17 |
 |---|---|---|---|
 | 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Pipeline inference is implemented; direct runtime smoke calls to Nano, Super, and Ultra succeeded. A live end-to-end Mimi run is not verified. |
 | 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra are configured in stage routing and were used in direct smoke calls. |
 | 3 | One of four tracks | §4 | Track 2, Best Apps and Agents. The Track 2 text asks for Nemotron via Token Factory, Ultra for serious reasoning, Nano/Super for fast everyday calls. Serverless Endpoints/Jobs are "encouraged", explicitly "neither is required". |
-| 4 | Project must function as shown in the video and text | §4 | Final video and final copy are pending; record only from the actual demo path and distinguish replay from live execution. |
-| 5 | Working demo / hosted app / test build URL | §4 | A GitHub Pages workflow now builds the read-only replay; public deployment and a clean-browser check are pending. Expected URL: `https://zalkabsi.github.io/Mimi/`. |
-| 6 | Text description of features and functionality | §4 | Draft is in `docs/submission-kit.md`; it still needs the final URL and evidence-based status. |
-| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | GitHub metadata reports `zalkabsi/Mimi` is **private**. The source is present, but this requirement is not met until visibility changes. |
-| 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | Unmodified Apache-2.0 text is in `LICENSE`; GitHub About metadata is not confirmed. |
+| 4 | Project must function as shown in the video and text | §4 | Final video is pending. Record from the published replay, label fixture data, and disclose that live Sandboxes execution is unverified. The copy and script are in `docs/submission-kit.md`. |
+| 5 | Working demo / hosted app / test build URL | §4 | The owner confirmed the public GitHub Pages URL loads the read-only replay on 2026-10-16: `https://zalkabsi.github.io/Mimi/`. A private-window check is still pending. There is no hosted live-analysis backend. |
+| 6 | Text description of features and functionality | §4 | Draft copy and testing instructions are in `docs/submission-kit.md`; refresh them after the reviewed workspace changes are published. |
+| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | The owner made `zalkabsi/Mimi` public and public access was confirmed on 2026-10-16. This working tree contains local edits; publish and verify them before submission. |
+| 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | The Apache-2.0 `LICENSE` file is present. Confirm the repository About/license metadata is visible on GitHub before submission. |
 | 9 | README with setup and run instructions; highlight NVIDIA models, where Token Factory accelerated the workflow, other Nebius services | §4 | Root README has setup, model, provider, current-status, and security notes. |
-| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | A 2:40 script is drafted in `docs/submission-kit.md`; no recording or upload yet. |
+| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | A 2:40 draft exists with robotic narration. Replace the voice, verify the final cut, publish it on YouTube, and add its URL to Devpost as the final project deliverable before submission. |
 | 11 | Identify the track | §4 | Track 2. |
 | 12 | **Feedback** on Token Factory, AI Cloud and NVIDIA tools/models used (required field) | §4, update | Hands-on Token Factory, Nemotron, Sandboxes, and Tavily notes are in `docs/feedback-log.md`; AI Cloud was not used. |
 | 13 | If the project existed before Aug 26, explain what was significantly updated | §4 | The repo was empty at start (no commits). Keep `CHANGELOG.md` anyway. |
@@ -51,7 +51,7 @@ Design consequences:
 1. A dedicated **judge credential** with its own reserved budget large enough for realistic testing, no rate limit on that credential, published in the testing instructions.
 2. A read-only **demo mode** (seeded inbox with recorded runs) that needs no login and costs nothing, so the product is always demonstrable even if live credits run out.
 3. **Hosting that survives to Dec 15** at a cost we can predict. A fixed monthly ceiling must be known before submission.
-4. Budget planning uses measured cost per report (Token Factory tokens plus Sandboxes runs), never estimates.
+4. Budget planning needs verified Token Factory prices and Sandbox billing units. Current cost figures are estimates or raw Contree units, so no all-in per-report spending ceiling is established.
 
 ## Video rules to design around [§4]
 
@@ -98,10 +98,10 @@ Confirm all of these yourself; I cannot:
 | SlopCheck curl set | not yet checked | Same. |
 | Public vulnerabilities used in demo and eval | already-public advisories only | No real private or unpatched reports. |
 
-## Credits (still to verify by you)
+## Credits and cost controls (verify before submission)
 
-- ~$25 Token Factory credit via the Devpost/Nebius form, code `NEBIUS-DEVPOST-GLOBAL26`; ~$25 more (plus Tavily credit) via the Nebius Builders Program [Rules §4 confirms the Builder Program credits; the code itself came from community pages]. Tavily promo `BBDEVPOST` was seen in a community repo.
-- **Budget risk**: about $50 of credits must cover development, the evaluation runs, and six weeks of judge access. I will measure tokens and Sandboxes cost per report in the first spike and size the evaluation to what the credits allow.
+- Confirm current Token Factory, Sandboxes, and Tavily credit balances in their official dashboards. Do not rely on promo codes or amounts copied from community pages.
+- The available balance and cost of six weeks of judge access are not verified. Sandboxes `ProcessResources.cost` is retained in raw Contree units; the billing conversion is unknown. Mimi's `per_report_cost_cap` is a best-effort threshold in those raw units, not a USD limit. In-flight work can exceed it, and missing cost telemetry cannot be counted. Do not present it as a guaranteed spending ceiling.
 
 ## Secrets and environment (names the code will use)
 
@@ -109,9 +109,9 @@ Confirm all of these yourself; I cannot:
 |---|---|---|
 | `NEBIUS_API_KEY` | Token Factory API key. Used for inference **and** as the bearer token for Sandboxes | Nebius Token Factory console |
 | `NEBIUS_PROJECT_ID` | Nebius project ID. Sandboxes require it (sent as a `Project` header; verified live: omitting it returns `400 Missing "Project" header`). Note the **CLI** reads `NEBIUS_AI_PROJECT` / `CONTREE_PROJECT` instead, while the **SDK** reads `NEBIUS_PROJECT_ID`. Mimi uses the SDK | Nebius console |
-| `TAVILY_API_KEY` | Tavily key | `app.tavily.com`: sign in (email, Google, GitHub, LinkedIn or Microsoft), copy a key from the dashboard. Free plan reported as 1,000 API credits a month, no card. Extra hackathon credits come through the Nebius Builders Program [Rules §4] (promo `BBDEVPOST` seen in one community repo, unverified). `docs.tavily.com` is blocked in the build environment; `api.tavily.com` is reachable, which is all the code needs. |
+| `TAVILY_API_KEY` | Tavily key | Tavily dashboard. Confirm any plan or hackathon credit balance directly with Tavily/Nebius. |
 
-Add them as **environment secrets** in the Claude Code cloud environment settings; never in the repo or in chat. `.env` is git-ignored for local use.
+For local development, put them in the ignored `.env` file from `.env.example`. For deployment, use the host's secret manager. Never commit keys or paste them into chat.
 
 ## Technical facts and remaining open items
 
@@ -123,5 +123,5 @@ Add them as **environment secrets** in the Claude Code cloud environment setting
 | **Sandboxes token permissions** | Sandboxes are Mimi's core | **BLOCKED (2026-10-15).** Latest `whoami` returned HTTP 403 for both supported endpoint paths and no permissions block, so the cause is not established. Previous hands-on result (2026-09-30): HTTP 200 with all permissions false, and `/v1/images` returned `403 Insufficient permissions: list`; changing the project ID did not change that result. Neither result allows execution. Limits previously reported: 50 concurrent instances, 3600 s max timeout, 12 GiB max layer. Re-check once access is corrected; do not claim spawn permission based on credentials being present. |
 | Key lifetime for judge access | Judge access must last to Dec 15 | **Corrected 2026-09-30.** `whoami`'s `token_expiration` is a *rolling* value: it read exactly 5 minutes after each call (06:56:55 to 07:01:55, then 07:02:41 to 07:07:41), and the key kept working afterwards for Sandboxes `whoami`, inference and Tavily. It is **not** the key's lifetime. The real lifetime of `NEBIUS_API_KEY` is still unknown. Whatever key the hosted demo uses must be valid through Dec 15, 2026, so check the expiry shown for the key in the console when creating it. |
 | Sandboxes billing | Credits budget | Is it drawn from the same credits as inference? Unknown. |
-| `ProcessResources.cost` units | Cost accounting | Field exists; units unknown. |
-| Can the backend run as a Serverless Endpoint on CPU? | Optional AI Cloud deployment (encouraged, not required) | Unknown. Decide in week 3 on cost and simplicity. |
+| `ProcessResources.cost` units | Cost accounting | The SDK returns a cost value; its conversion to billing currency is unknown. Mimi reports the raw value as Contree units. |
+| Can the backend run as a Serverless Endpoint on CPU? | Optional AI Cloud deployment (encouraged, not required) | Not evaluated. The current public demo is a static GitHub Pages replay; no backend is deployed there. |

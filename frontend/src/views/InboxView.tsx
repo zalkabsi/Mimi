@@ -50,7 +50,10 @@ export function InboxView() {
     setSpecError(null);
 
     const spec = packageSpec.trim();
-    if (!spec.includes("@") || spec.split("@", 1)[0].trim() === "") {
+    const versionSeparator = spec.startsWith("@") ? spec.lastIndexOf("@") : spec.indexOf("@");
+    const packageName = versionSeparator >= 0 ? spec.slice(0, versionSeparator).trim() : "";
+    const version = versionSeparator >= 0 ? spec.slice(versionSeparator + 1).trim() : "";
+    if (!packageName || !version || (packageName.startsWith("@") && !packageName.includes("/"))) {
       setSpecError("package_spec must look like package@version (e.g. lodash@4.17.19)");
       return;
     }
@@ -104,7 +107,7 @@ export function InboxView() {
           {USE_MOCK ? (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-5">
               <h2 className="font-mono text-sm font-semibold tracking-wide text-amber-100">
-                Read-only replay demo
+                Sample dossier
               </h2>
               <p className="mt-2 max-w-2xl text-sm text-amber-100/80">
                 This page uses a fixed sample dossier. It makes no provider
@@ -159,6 +162,12 @@ export function InboxView() {
                   placeholder="Paste the vulnerability report body. Report prose and PoC code are not included in advisory search queries; only public identifiers (package, versions, CVE/GHSA IDs) are sent to search."
                   className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm leading-relaxed text-slate-200 placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
                 />
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  Live analysis sends report text to Nebius Token Factory for
+                  inference. Tavily receives only public identifiers, and
+                  generated PoC code is sent to Nebius Sandboxes when execution
+                  is enabled.
+                </p>
               </div>
               <div>
                 <label

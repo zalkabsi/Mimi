@@ -47,16 +47,14 @@ def _scratch_db_cleanup():
 
 @pytest.fixture(autouse=True)
 def _clean_api_state():
-    """Each test starts with no subscribers, no tasks and no finished marks."""
+    """Each test starts with no live subscribers or tasks."""
     with api._event_lock:
         api._event_queues.clear()
         api._tasks.clear()
-        api._finished.clear()
     yield
     with api._event_lock:
         api._event_queues.clear()
         api._tasks.clear()
-        api._finished.clear()
 
 
 @pytest.fixture
@@ -100,19 +98,14 @@ def test_finish_ends_every_stream_and_forgets_the_report():
     assert q2.get_nowait() is None, "sentinel ends stream 2"
     with api._event_lock:
         assert "r1" not in api._event_queues
-        assert "r1" in api._finished
+        assert "r1" not in api._tasks
 
 
 def test_late_subscriber_to_a_finished_run_gets_no_live_queue():
     api._finish("r1")
-    q: queue.Queue = queue.Queue()
-    with api._event_lock:
-        already = "r1" in api._finished
-        if not already:
-            api._event_queues.setdefault("r1", []).append(q)
-    assert already is True
     with api._event_lock:
         assert "r1" not in api._event_queues
+        assert "r1" not in api._tasks
 
 
 def test_events_published_through_the_event_log_reach_subscribers():

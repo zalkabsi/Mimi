@@ -95,7 +95,9 @@ class Settings:
     max_hypotheses: int = 8
     max_parallel_forks: int = 8
     max_runs_per_report: int = 24
-    per_report_cost_cap: float = 5.00  # USD; measured costs only
+    # Best-effort threshold in raw Contree cost units, not USD. Missing cost
+    # telemetry or in-flight work can exceed it; see RunBudget documentation.
+    per_report_cost_cap: float = 5.00
 
     db_path: str = "mimi.db"
 

@@ -12,7 +12,7 @@ Every vulnerability report gets a verdict with receipts: Mimi is designed to rep
 2. **Prove before you doubt.** The pipeline first tries to make the reporter right. A "no" is only issued as quantified coverage.
 3. **Deterministic oracles first.** The LLM proposes hypotheses and interprets ambiguous output; it does not grade a reproduction that a deterministic check can grade.
 4. **Smallest architecture that works.** One backend, one database file, no queue service, no vector store.
-5. **Every claim in the demo is measured.** Cost, latency and accuracy come from logged runs.
+5. **Every claim is evidence-bounded.** Fixture content is labelled as replay data; measured cost, latency, or accuracy claims require logged live runs.
 
 ## Flow
 
@@ -39,9 +39,9 @@ flowchart LR
 | 1 | Extract claim | Nemotron Nano, JSON schema | `{package, versions, vuln_class, cited_symbols[], poc, expected_effect}` | Cheap, high volume. Schema-validated; retry once on invalid. |
 | 2 | Ground in source | Deterministic (git checkout at version, grep/AST for cited files and symbols) + Nano summary | `grounding_evidence[]` | **Evidence only. Never a sole basis for rejection** (SlopCheck contradicts 29.4% of confirmed vulns, and 90% of its contradictions are wrong). It ranks hypotheses. |
 | 3 | Research | Tavily search, Super to synthesise | known advisories, duplicates, fixed version / fix commit | Query builder uses public identifiers only; a redaction test enforces it. |
-| 4 | Hypothesise | Nemotron Ultra, reasoning on, schema-guided JSON | ranked hypotheses, each with test plan and a **predeclared oracle** | The backend invokes controlled Tavily/Sandboxes operations; the model proposes structured plans and never executes an arbitrary tool call. Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style oracles read a trusted post-PoC channel, never the PoC's own stdout. |
-| 5 | Build once | Sandboxes: run install/build with `disposable=false`, keep the result image UUID | base image | Network on for install only. |
-| 6 | Fork per hypothesis | Sandboxes: each PoC run starts from the base image UUID (independent fork), capped concurrency (<= 50, start with 8) | stdout/stderr/exit/timing/`cost` per run | The wrapper refuses to execute a PoC unless `unshare --user --map-root-user --net` succeeds; model output cannot opt into online execution. Hard timeout and output cap. Isolation effectiveness inside Sandboxes is still unverified. |
+| 4 | Hypothesise | Nemotron Ultra, reasoning on, schema-guided JSON | ranked hypotheses, each with test plan and a **predeclared oracle** | The backend invokes controlled Tavily/Sandboxes operations; the model proposes structured plans and never executes an arbitrary tool call. Oracle types: exit code / signal, marker file, output regex, timing threshold for ReDoS, prototype-pollution probe, path traversal file read, network call, custom probe. Probe-style output comes from a separate post-PoC process, not the PoC's stdout, but the shim state file shares a writable VM with the PoC and is not tamper-proof. The dossier discloses this for runs that use a probe oracle. |
+| 5 | Build per image configuration | Sandboxes: run install/setup once for each distinct Node/install/setup configuration and keep each result image UUID | one base image per configuration | Build commands, including package lifecycle scripts, run as the image's unprivileged `node` account. Network is available during the build step. |
+| 6 | Fork per matching hypothesis | Each PoC starts from the image built for its configuration; runs are independent forks with bounded concurrency | stdout/stderr/exit/timing/`cost` per run | The wrapper drops to `node` before creating the child user/network namespace, and emits its isolation marker only inside the mapped namespace that runs the PoC. Staged files replace workspace links atomically. A run is refused or inconclusive if isolation cannot be verified. Hard timeout and output cap. Isolation effectiveness inside Sandboxes is still unverified. |
 | 7 | Differential | Same oracle on the fixed version from stage 3 | flipped true / false / **unknown** | Confirms the oracle measures the bug, not an artifact. Each hypothesis re-runs under its own environment. Any skipped, errored or unreached re-check leaves the flip *unknown*, never false. |
 | 8 | Verdict + dossier | Super; Ultra only when oracles disagree or are inconclusive | tier + coverage statement + exact commands | Tiers below. |
 | 9 | Draft reply | Super | maintainer-ready response | Asks for specific missing info, or acknowledges with repro steps. |
@@ -62,14 +62,14 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 | Layer | Choice | Reason |
 |---|---|---|
 | Backend | Python 3.12, FastAPI, asyncio tasks | `contree-sdk` is Python (sync and async). No Celery/Redis: a report is one async job with bounded concurrency. |
-| Sandboxes | `contree-sdk` (async), image UUIDs as fork points | The core Nebius integration. |
+| Sandboxes | `contree-sdk` (async), image UUIDs as fork points | The core Nebius integration; build once per image-affecting configuration, then fork that image for matching hypotheses. |
 | Inference | OpenAI-compatible client to Token Factory; base URL and Nano/Super/Ultra IDs verified 2026-10-15 | One thin `LLMClient` with per-stage model choice, retry, token and latency logging. Lightning is configured but not evaluated. |
 | Frontend | Vite + React + Tailwind, SSE for live stage events | Polished inbox and timeline matter for the Design criterion. |
 | Storage | SQLite (WAL) | Single file, trivial for judges to run, enough for this scale. |
 | Auth / access | Planned: (1) **demo mode**, no login: seeded inbox with recorded runs, read-only, costs nothing; (2) **judge credential**, published in the testing instructions, with its own reserved budget and no rate limit (Rules require access "free of charge and without any restriction" through Dec 15); (3) public "try your own" behind a per-session budget cap. **Implemented today:** read-only demo plus `MIMI_JUDGE_KEY` checking for submissions and live report reads. Public try-your-own and a hosted credential are not in place. The shared key grants access to every live report, so the shared demo must use public sample reports only. | The tool executes code and spends credits, so anonymous unlimited execution is off. Judges get an unrestricted path via the credential; demo mode keeps the product demonstrable if live credits run out. |
 | Memory / RAG | None | Not needed: research is live search, grounding is direct source access. Add nothing sophisticated for its own sake. |
-| Observability | Structured JSON event per stage (model, tokens, latency, sandbox run ids, cost) stored in SQLite and shown in the UI timeline; the same data feeds the eval report | Cost and latency numbers in the video come from here. |
-| Deployment | Frontend static host; backend as one container; secrets in env. **Must stay up until Dec 15, 12:00 PM PT** at a known monthly ceiling | The Track 2 text encourages Serverless Endpoints (hosting) and Jobs (background work) but says neither is required. A Serverless Endpoint is a plausible, honest home for the backend and would put the app itself on AI Cloud. Decide in week 3 on two facts: CPU-only endpoint availability and cost, and whether it is simpler than a small PaaS. Do not adopt Jobs unless a real workload needs it. |
+| Observability | Structured JSON event per stage (model, tokens, latency, sandbox run ids, cost) stored in SQLite and shown in the UI timeline; the same data feeds the eval report | Replay video values are fixture data and labelled as such; live measurements must come from these events. |
+| Deployment | Static frontend on GitHub Pages; optional backend container with secrets supplied by the host. The public deployment is replay-only; no live backend is hosted. | The read-only replay is public and has no login requirement. Any live service would need a confirmed budget, judge access through Dec 15, and verified Sandbox isolation. Serverless Endpoints/Jobs are encouraged but not required. |
 
 ## Model routing
 
@@ -81,11 +81,12 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 
 - **Threat.** Reporter-supplied PoC may be hostile, and reports may contain prompt injection aimed at our own agent.
 - Untrusted code runs only inside Sandboxes microVMs (own kernel per run). Never on the app host.
+- Package install and setup lifecycle code is also untrusted. It runs as the image's unprivileged `node` account, so it cannot replace the system launchers used later to create runtime namespaces.
 - No secrets, tokens or cloud credentials in any sandbox environment or image.
-- PoC phase: no network (**VERIFY**); if not achievable, document as a known limitation and restrict the hosted demo to seeded cases.
-- Timeouts, output truncation, per-report and per-session cost caps, allowlist of public git hosts and registries.
+- PoC phase: require a child user/network namespace and refuse execution if it cannot be created. The guard remains unverified in a real microVM because Sandboxes access returns HTTP 403; the hosted page is therefore a seeded read-only replay.
+- Timeouts, output truncation, per-report run limits, and allowlists for public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is best-effort, not a guaranteed USD spending cap.
 - Prompt injection: report text is data. Model outputs are parsed into a strict schema; commands executed come from a fixed command set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the report. The PoC file itself is executed but only in the sandbox.
-- Privacy: report text goes to Token Factory (inference) and never to Tavily; the README documents the self-hosting option (own Nebius tenancy).
+- Privacy: report text goes to Token Factory for inference and is excluded from Tavily queries; generated PoC code is sent to Sandboxes when live execution is enabled. The README documents the self-hosting option (own Nebius tenancy).
 - Demo and eval use only vulnerabilities that are already public.
 
 ## Evaluation (protocol fixed before running)
@@ -98,7 +99,7 @@ Nothing below has been run. Numbers will be reported as measured, with sample si
 | E1b Freshness | 20-30 recent advisories published after the model's cutoff, public PoC exists | Is E1 inflated by memorisation? | same as E1 | same |
 | E2 Slop discrimination | real vulnerabilities reworded in report style, plus **synthetic fabricated** reports about real package versions (prompts published, labelled synthetic) | Does it wrongly reject real ones? Does it evidence fabricated ones? | **false-Contradicted rate on real (primary safety metric, with Wilson interval)**, share of fabricated reaching Contradicted with coverage, share routed to Needs human | grounding-only gate (replicates SlopCheck's failure mode) |
 | E3 Routing | subset of E1/E2 | Does routing save cost without losing accuracy? | accuracy, cost, latency: all-Ultra vs routed | all-Ultra, all-Super |
-| E4 Safety | scripted hostile PoCs (network call, fork bomb, huge output, path escape) and injected report text | Are limits enforced? | pass/fail per case | none |
+| E4 Safety | scripted hostile PoCs (network call, fork bomb, huge output, path escape) and injected report text | Are limits enforced? | pass/fail/not_run per case | none |
 
 Limits to state publicly: SecBench.js is npm only; synthetic slop is not real slop; results do not extend to C/C++ memory-safety reports; the curl 557-report set (SlopCheck) is used, if licensing allows, only to test the grounding stage and to illustrate why grounding cannot gate.
 
@@ -113,11 +114,11 @@ Limits to state publicly: SecBench.js is npm only; synthetic slop is not real sl
 
 ## Solo scope (decided 2026-09-30)
 
-One person, four weeks, about $50 of credits. Cuts made up front:
+One person, four weeks. The available credit balance is unverified. Cuts made up front:
 
 - **npm only.** PyPI is out unless every slice above is done early.
 - **One UI flow**: inbox, live timeline, dossier. No accounts system beyond the judge credential.
-- **Evaluation sized to budget.** The week-1 spike measures tokens and Sandboxes cost per case; E1 size is then set from that. E1b (post-cutoff set) and the grounding-on-curl illustration are optional.
+- **Evaluation sized to budget.** Set E1 size only after balances and billing units are verified. E1b (post-cutoff set) and the grounding-on-curl illustration are optional.
 - **No optional infrastructure** (queues, vector stores, Serverless Jobs) unless a measured need appears.
 - The Oct 5 pivot review still applies; being solo makes an early pivot cheaper than a late one.
 
@@ -135,22 +136,22 @@ One person, four weeks, about $50 of credits. Cuts made up front:
 |---|---|---|
 | Technological implementation | Build-once fork-many sandboxes, deterministic oracles, model routing with ablation, safety suite | Environment builds vary; network isolation unverified |
 | Design | Inbox, live timeline, dossier with exact commands and coverage, no dead ends ("Needs human" is a designed state) | Needs a real design pass in week 3 |
-| Potential impact | Maintainer time per report (curl: 30 min to 3 h, several people), measured time and cost per report from our runs | We have no real-maintainer validation yet; seek 1-2 maintainer conversations and quote only what they actually say |
+| Potential impact | Maintainer time per report (curl: 30 min to 3 h, several people); future measured time and cost per report | We have no live per-report measurements or real-maintainer validation yet; quote only evidence gathered directly. |
 | Quality of idea | Negative-result coverage; evidence-not-verdict stance backed by the SlopCheck result | Neighbouring work exists (Elastic internal, HackerOne, SlopCheck); novelty is the combination and the measured rigor |
 
-## Submission deliverables status (2026-10-15)
+## Submission deliverables status (2026-10-17)
 
 | Deliverable | Status | Evidence or remaining work |
 |---|---|---|
 | README, open-source license, changelog | Present | Root README, Apache-2.0 `LICENSE`, and `CHANGELOG.md`; confirm repository About metadata before submission. |
 | Architecture diagram | Source and export present | Mermaid source is in this document; SVG export is at `docs/assets/architecture.svg` and marks the live-access blocker. |
-| Devpost description and Built With | Drafted | `docs/submission-kit.md`; replace the hosted URL placeholder and reconcile claims with final live evidence. |
-| Tagline and thumbnail | Drafted | Tagline and original, illustrative SVG at `docs/assets/mimi-thumbnail.svg`; it is not a product screenshot. |
+| Devpost description and Built With | Drafted | Copy and testing instructions are in `docs/submission-kit.md`; reconcile them after the final code is published. |
+| Tagline and thumbnail | Drafted | Tagline and original illustrative 3:2 PNG at `docs/assets/mimi-project-thumbnail.png`; it is not a product screenshot. |
 | Feedback | Recorded | `docs/feedback-log.md` includes hands-on observations for Token Factory, Sandboxes, NVIDIA Nemotron, and Tavily. AI Cloud has not been used. |
-| Local setup and deployment instructions | Present | Root README and `docs/deployment.md`; backend Docker image and static replay build both built on 2026-10-15. |
-| Hosted URL and judge access | Open | No public URL or deployed backend. Sandboxes currently returns HTTP 403; no judge credential or hosted credit budget is configured. |
-| Screenshots and video under three minutes | Script drafted | Script in `docs/submission-kit.md`; capture real app screens and record only after the final demo flow is decided. |
+| Local setup and deployment instructions | Present | Root README and `docs/deployment.md`; backend Docker image and static replay build were built on 2026-10-16. |
+| Hosted URL and judge access | Replay published | `https://zalkabsi.github.io/Mimi/` serves the read-only replay; no live backend or judge credential is hosted. Sandboxes still returns HTTP 403. |
+| Screenshots and video under three minutes | In progress | A 2:40 replay script and draft video exist. Capture final screenshots, replace the robotic narration, then record/export the final video as the last project deliverable before submission. |
 | End-to-end evaluations and safety evidence | Open | E1/E2/E3/E4 are not run because Sandboxes cannot execute. Keep those cases marked `not_run` until access works. |
-| Repository visibility and history secret review | Partly checked | GitHub reports `zalkabsi/Mimi` is private. Gitleaks' redacted full-history scan found no credential patterns, and no local or committed `.env` path was found. Change visibility in GitHub before submission. |
+| Repository visibility and history secret review | Public, local updates pending | `zalkabsi/Mimi` is public. The reviewed working tree has uncommitted changes that still need to be published; confirm the About description and Apache-2.0 metadata are visible. The redacted Gitleaks history scan on 2026-10-15 found no credential patterns. |
 
 Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning: *"Mimi: every vulnerability report gets a verdict with receipts."*

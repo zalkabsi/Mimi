@@ -1,9 +1,9 @@
 """Tavily research client.
 
-Privacy rule (docs/02-architecture.md): report text and PoC never leave the
-system. Only ``PublicIdentifiers`` are queried, and every query is checked
-with ``redaction.assert_no_leak`` before it is sent. Queries are logged into
-the dossier so the maintainer can see exactly what left the system.
+Privacy rule (docs/02-architecture.md): this client sends only public
+identifiers to Tavily. Report text is used locally for the leak assertion and
+is sent separately to Token Factory for inference. Every query is checked
+with ``redaction.assert_no_leak`` before it is sent and logged into the dossier.
 """
 
 from __future__ import annotations

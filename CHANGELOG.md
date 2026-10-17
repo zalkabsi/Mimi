@@ -4,6 +4,16 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-17 (submission review)
+- Updated project status to reflect the owner-confirmed public GitHub repository and read-only Pages replay; live backend execution and Sandboxes permissions remain unverified.
+- Removed review findings that could let reporter-controlled PoC code replace the post-PoC probe source, and moved the trusted probe and custom snippets to stdin. The isolation marker now comes from the same namespace invocation that runs the PoC.
+- Made oracle result rendering require explicit conclusive evidence, and corrected scoped npm package validation and final SSE dossier refresh behavior in the frontend.
+- Changed E4 safety evaluation so missing execution/oracle evidence is `not_run`, not a pass, and excluded undetermined cases from the completed-case pass-rate denominator.
+- Built affected-version images per image-affecting Node/install/setup configuration and routed each hypothesis to its matching image; setup order now remains part of the image key.
+- Corrected privacy wording: report text is sent to Token Factory for inference, while only public identifiers are sent to Tavily.
+- Documented Sandbox cost as raw Contree units and the per-report threshold as best-effort rather than USD or a hard spending cap; measured build and run costs now share the budget accounting.
+- Updated GitHub Actions to Node 24-compatible action releases and pinned Ubuntu 24.04 to remove the current runtime deprecation and upcoming `ubuntu-latest` migration warnings.
+
 ### 2026-10-16 (submission readiness)
 - Added GitHub Actions CI for Python 3.12/3.13 backend tests plus live and read-only frontend production builds, with read-only repository permissions and no secrets.
 - Rebuilt and started the current backend image in read-only mode; verified the fixture dossier and SSE completion, and confirmed unauthenticated live lookups/submissions return 401/402.
@@ -75,7 +85,7 @@ All work in this repository was created during the hackathon Submission Period (
 - Pivot review (scheduled 2026-10-05) recorded: the three triggers cannot be evaluated while Sandboxes permissions are missing (no spikes ran, so no 10-case pilot). Decision: continue Mimi, build the layers that do not need Sandboxes, re-evaluate triggers the day `spawn` becomes available. See `docs/00-constraints-and-open-items.md`.
 - Built the backend pipeline (no live API calls yet): claim extraction, grounding, research, hypothesis generation, build-once/fork-per-hypothesis execution, differential, tier assignment, reply draft. Deterministic tier logic and oracle checkers are pure functions with unit-testable surfaces; grounding can never reject a report on its own.
 - LLM client with stage routing (Nano/Super/Ultra), reasoning control (`chat_template_kwargs.enable_thinking`) and per-stage token/latency logging into structured events.
-- Tavily client with the public-identifiers-only rule enforced before every query (report text never leaves the system).
+- Tavily client with the public-identifiers-only rule enforced before every query (report prose is excluded from Tavily queries).
 - Executor layer: `SandboxExecutor` (contree-sdk, build once then fork) and `FixtureExecutor` (recorded replay for tests/CI — never presented as real results).
 - FastAPI app (reports, SSE timeline, dossier, whoami) and CLI (`mimi report|whoami|demo`) with three access tiers (demo / judge credential / try-your-own).
 - Week-1 spike scripts staged under `scripts/`: Sandboxes `whoami` probe, Token Factory inference checks (tool calling, reasoning control), Tavily redaction spike. Not run yet — keys are not present in this session's environment.

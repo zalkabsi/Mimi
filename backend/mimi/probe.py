@@ -1,4 +1,4 @@
-"""Trusted post-PoC probe, plus the in-process observation shim.
+"""Post-PoC probe, plus the in-process observation shim.
 
 Two channels, both outside the PoC's own stdout:
 
@@ -13,19 +13,20 @@ Two channels, both outside the PoC's own stdout:
    path traversal) and prints verdict tokens. Those tokens — captured into
    ``RunRecord.probe_output`` — are the only thing probe oracles read.
 
-The PoC's stdout can forge ``__MIMI_*__:`` tokens; it cannot forge this
-channel without also defeating the shim (see the residual-risk note below).
+The PoC's stdout is not used for probe-oracle verdicts. The shim state file is
+still in the same writable VM as the PoC, so hostile code can tamper with it;
+this channel is not tamper-proof and the dossier must disclose that limitation.
 
 Honest limits, stated in the dossier rather than papered over:
 - The shim writes its verdict at process exit. A PoC that removes Node's exit
   listeners suppresses the write; a *missing* verdict file is therefore
   reported as ``__MIMI_PROBE_MISSING__`` and every probe oracle is
   **inconclusive** — never a clean negative.
-- A PoC that removes the exit listeners *and* writes a fake verdict file can
-  forge the channel. That is a residual risk of same-VM observation and is
-  documented; it is strictly better than the previous fresh-process probe,
-  which could never observe in-process state at all and so fabricated
-  negatives for every prototype-pollution report.
+- A PoC can remove the exit listeners and write a fake verdict file, or
+  overwrite the file after the shim writes it. This residual risk of same-VM
+  observation is disclosed in the dossier. A fresh-process-only probe could
+  never observe in-process state, but the shim does not provide tamper-proof
+  evidence against hostile code.
 - The probe scripts live here (trusted, reviewed) and are never taken from a
   report or from a hypothesis. The one exception is ``probe_snippet`` for
   CUSTOM_PROBE: that is hypothesis-declared code, run in the sandbox like any
@@ -43,9 +44,7 @@ PROBE_BEGIN = "__MIMI_PROBE_BEGIN__"
 # Fixed paths inside /work. The PoC runs first, so these names must not collide
 # with the staged PoC file name (which is a validated bare *.js name).
 SHIM_FILE = "/work/.mimi_shim.js"
-PROBE_FILE = "/work/.mimi_probe.js"
 STATE_FILE = "/work/.mimi_probe_state.json"
-CUSTOM_PROBE_FILE = "/work/.mimi_custom_probe.js"
 
 # In-process observation shim: preloaded into the PoC's Node process. It must
 # never throw at load time (that would break every PoC) and must never change
@@ -55,7 +54,7 @@ SHIM_JS = r"""
 // Mimi observation shim. Loads before the untrusted PoC in the SAME process.
 // Records (a) properties added to Object.prototype while the PoC ran and
 // (b) egress APIs the PoC actually called. Writes them at process exit for a
-// fresh trusted process to read. Nothing here is taken from the report.
+// fresh process to read. The PoC shares this VM and can tamper with the file.
 const fs = require('fs');
 const path = require('path');
 
@@ -168,8 +167,8 @@ function safe(fn, fallback) {
 
 const STATE_PATH = process.env.MIMI_STATE_PATH || '/work/.mimi_probe_state.json';
 
-// 1. In-process verdicts (prototype pollution, network attempts) come from
-//    the shim's exit file. Missing or half-written state is NOT a negative.
+// 1. In-process observations (prototype pollution, network attempts) come
+//    from the shim's exit file. Missing or half-written state is NOT a negative.
 let state = null;
 const stateRaw = safe(() => fs.readFileSync(STATE_PATH, 'utf8'), null);
 if (stateRaw === null) {
@@ -222,16 +221,43 @@ if (trav) {
   emit('TRAVERSAL', trav + ':' + (ok ? 'read' : 'blocked'));
 }
 
-// 4. Custom probe snippet (hypothesis-declared code, run in the sandbox like
-//    any other untrusted code). Its output is labelled CUSTOM_* so it can
-//    never masquerade as one of the fixed probes above.
-if (process.env.MIMI_CUSTOM_PROBE_PATH) {
+// 4. Custom probe snippet (hypothesis-declared code, run as untrusted code in
+//    a child user+network namespace). A small fixed loader compiles it with a
+//    virtual filename in /work so ordinary package imports resolve there;
+//    the snippet itself is never written to a PoC-writable file.
+//    Its output is labelled CUSTOM_* so it cannot masquerade as a fixed probe.
+if (process.env.MIMI_CUSTOM_PROBE_B64) {
   try {
-    emit('CUSTOM_PROBE_BEGIN', process.env.MIMI_CUSTOM_PROBE_PATH);
+    emit('CUSTOM_PROBE_BEGIN', 'stdin');
+    const childEnv = { ...process.env };
+    childEnv.HOME = '/home/node';
+    childEnv.USER = 'node';
+    childEnv.LOGNAME = 'node';
+    delete childEnv.NODE_OPTIONS;
+    const loader = [
+      "const Module = require('module');",
+      "const filename = '/work/.mimi_custom_probe.js';",
+      'const mod = new Module(filename);',
+      'mod.filename = filename;',
+      "mod.paths = Module._nodeModulePaths('/work');",
+      "const source = Buffer.from(process.env.MIMI_CUSTOM_PROBE_B64, 'base64').toString('utf8');",
+      'delete process.env.MIMI_CUSTOM_PROBE_B64;',
+      'mod._compile(source, filename);',
+    ].join('\n');
     const out = safe(() => require('child_process').execFileSync(
-      process.execPath, [process.env.MIMI_CUSTOM_PROBE_PATH],
-      { timeout: 10000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
-    ), '');
+      '/usr/sbin/runuser', [
+        '--preserve-environment', '-u', 'node', '--',
+        '/bin/sh', '-c',
+        'test ! -w /usr/bin/unshare && test ! -w /usr/sbin/runuser && ' +
+          'exec /usr/bin/unshare --user --map-root-user --net -- "$1" /dev/stdin',
+        'mimi-custom-probe', process.execPath,
+      ],
+      {
+        input: loader, cwd: '/work', timeout: 10000, encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'], env: childEnv,
+      }
+    ), null);
+    if (out === null) throw new Error('custom probe namespace could not be created');
     process.stdout.write(String(out).slice(0, 64000));
     emit('CUSTOM_PROBE_END', 'ran');
   } catch (e) {
@@ -276,13 +302,12 @@ if (process.env.MIMI_PROBE_EGRESS === '1') {
 
 
 def probe_command() -> str:
-    """Shell command that runs the already-staged trusted probe.
+    """Run trusted probe source supplied directly over stdin.
 
-    The probe and shim are staged into fixed paths by the executor (via stdin,
-    not a heredoc — a PoC file name can never collide with these). This is
-    just the exec, so nothing untrusted is interpolated.
+    The source never resides on the PoC-writable filesystem, so a PoC cannot
+    replace the code that produces the independent probe-output channel.
     """
-    return f"node {PROBE_FILE}"
+    return "node /dev/stdin"
 
 
 def shim_node_options() -> str:

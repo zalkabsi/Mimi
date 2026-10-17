@@ -11,9 +11,10 @@ Errored runs, misconfigured oracles, missing probe verdicts and truncated
 output are inconclusive — they must never be read as "did not fire", or a
 broken execution would masquerade as a quantified negative result.
 
-Probe-style oracles read ``RunRecord.probe_output`` (produced by a trusted
-post-PoC command) rather than the PoC's own stdout, so the code under test
-cannot forge a verdict token.
+Probe-style oracles read run.probe_output from a separate post-PoC process
+rather than the PoC's own stdout. Its source is trusted, but the shim state it
+reads shares a writable VM with the PoC and is not tamper-proof; the dossier
+must disclose that residual risk.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ def _haystack(run: RunRecord) -> tuple[str, bool]:
     return text, run.truncated
 
 
-# Sentinels the trusted probe prints when it could not produce a verdict.
+# Sentinels the fixed-source probe prints when it could not produce a verdict.
 _PROBE_MISSING = "__MIMI_PROBE_MISSING__:"
 _PROBE_ERROR = "__MIMI_PROBE_ERROR__:"
 _CUSTOM_PROBE_ERROR = "__MIMI_CUSTOM_PROBE_ERROR__:"
@@ -76,10 +77,10 @@ def _probe_evidence(run: RunRecord) -> tuple[str, Optional[str]]:
         return "", "probe output was truncated before the oracle could judge it"
     out = run.probe_output or ""
     if _PROBE_ERROR in out:
-        return "", f"trusted probe failed: {out.split(_PROBE_ERROR, 1)[1][:160]}"
+        return "", f"probe failed: {out.split(_PROBE_ERROR, 1)[1][:160]}"
     if _PROBE_MISSING in out:
         return "", (
-            "trusted probe recorded no verdict "
+            "probe recorded no verdict "
             f"({out.split(_PROBE_MISSING, 1)[1][:80].strip()}) — the shim's exit "
             "write is missing, so in-process state cannot be judged"
         )
@@ -170,7 +171,7 @@ def _check(oracle: Oracle, run: RunRecord) -> tuple[bool, str, bool]:
         )
 
     if t is OracleType.MARKER_FILE:
-        # Verdict comes from the trusted probe channel, never the PoC stdout.
+        # Verdict comes from the separate probe output, not the PoC stdout.
         marker = oracle.marker_path or ""
         if not marker:
             return False, "oracle misconfigured: marker_path unset", False

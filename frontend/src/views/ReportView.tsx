@@ -44,6 +44,7 @@ export function ReportView() {
 
   useEffect(() => {
     let cancelled = false;
+    let streamCompleted = false;
     seen.current = new Set();
     setEvents([]);
     setLive(true);
@@ -56,7 +57,21 @@ export function ReportView() {
         if (!cancelled) setFallbackNote(reason);
       },
       () => {
-        if (!cancelled) setLive(false);
+        streamCompleted = true;
+        void getReport(reportId)
+          .then((d) => {
+            if (cancelled) return;
+            setDossier(d);
+            setLoad("ready");
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setFallbackNote("The run finished, but its final report could not be refreshed.");
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setLive(false);
+          });
       },
     );
 
@@ -64,8 +79,12 @@ export function ReportView() {
       try {
         const d = await getReport(reportId);
         if (cancelled) return;
-        setDossier(d);
-        setLoad("ready");
+        // The completion callback may already have fetched the final dossier.
+        // Never let this initial response overwrite that newer state.
+        if (!streamCompleted) {
+          setDossier(d);
+          setLoad("ready");
+        }
       } catch (e) {
         if (cancelled) return;
         stopStream();
@@ -520,7 +539,7 @@ export function ReportView() {
           <FieldRow label="tokens out">
             <Mono>{fmtTokens(d.cost.inference_tokens_out)}</Mono>
           </FieldRow>
-          <FieldRow label="inference cost">
+          <FieldRow label="inference cost estimate">
             {d.cost.inference_cost_usd === null || d.cost.inference_cost_usd === undefined ? (
               <span className="text-slate-500">not measured</span>
             ) : (
@@ -537,12 +556,12 @@ export function ReportView() {
           <FieldRow label="elapsed">
             <Mono>{fmtMs(d.cost.elapsed_ms)}</Mono>
           </FieldRow>
-          <FieldRow label="measured">
+          <FieldRow label="cost data complete">
             {d.cost.measured ? (
               "yes"
             ) : (
               <span className="text-slate-500">
-                no — at least one component is missing, so nothing here is a complete metric
+                no — one or more usage or cost fields are missing; USD is price-table based and Sandbox values are raw units
               </span>
             )}
           </FieldRow>
@@ -748,16 +767,20 @@ function RunRow({ run }: { run: RunRecord }) {
 }
 
 function OracleRow({ result }: { result: OracleResult }) {
+  const conclusive = result.conclusive === true;
+  const label = conclusive ? (result.fired ? "fired" : "not fired") : "inconclusive";
   return (
     <li className="flex flex-wrap items-start gap-2 rounded border border-slate-800 bg-slate-950/50 px-3 py-2">
       <span
         className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${
-          result.fired
+          !conclusive
+            ? "border-amber-500/50 bg-amber-500/10 text-amber-200"
+            : result.fired
             ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
             : "border-slate-700 bg-slate-900 text-slate-400"
         }`}
       >
-        {result.fired ? "fired" : "not fired"}
+        {label}
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-mono text-xs text-slate-300">

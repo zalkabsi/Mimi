@@ -1,9 +1,8 @@
 """Public-identifier extraction and Tavily query building.
 
-Hard rule (docs/02-architecture.md): report text and PoC never leave the
-system toward Tavily. Only package name, versions and advisory ids may be
-queried. The functions here are deterministic so the redaction unit test can
-prove it.
+Hard rule (docs/02-architecture.md): report text and PoC are never sent to
+Tavily. Only package names, versions and advisory ids may be queried. The
+functions here are deterministic so the redaction unit test can prove it.
 """
 
 from __future__ import annotations

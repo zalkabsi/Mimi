@@ -23,7 +23,7 @@ from ..config import Settings
 from ..events import EventLog
 from ..oracles import check_oracle
 from ..probe import probe_env_for
-from ..sandboxes import BuildResult, Executor, RunBudget
+from ..sandboxes import BuildResult, Executor, RunBudget, build_group_key as image_group_key
 from ..schemas import (
     DifferentialResult,
     Hypothesis,
@@ -43,8 +43,7 @@ def build_group_key(h: Hypothesis) -> str:
     file/command/env do not, so hypotheses that differ only in those share one
     fixed-version build while still re-running under their own full config.
     """
-    c = h.config
-    return f"node{c.node_version}|{c.install_command}|setup={','.join(sorted(c.setup_commands))}"
+    return image_group_key(h.config)
 
 
 async def run_differential(
@@ -72,6 +71,9 @@ async def run_differential(
         events.skip("differential", result.detail)
         return result, []
 
+    if budget is None:
+        budget = RunBudget(settings.max_runs_per_report)
+
     fired_ids = [
         r.hypothesis_id
         for r in affected_results
@@ -97,8 +99,16 @@ async def run_differential(
     for h in to_check:
         groups.setdefault(build_group_key(h), []).append(h)
 
+    # Do not build fixed-version images for hypotheses that cannot fit in the
+    # remaining execution allowance. Several hypotheses can still share one
+    # build, so derive the needed groups from the first eligible run slots.
+    buildable_groups = {
+        build_group_key(h) for h in to_check[:budget.remaining]
+    }
     builds: dict[str, "BuildResult"] = {}
     for key, members in groups.items():
+        if key not in buildable_groups or not budget.can_continue():
+            continue
         proto = members[0].config
         config = RunConfig(
             node_version=proto.node_version,
@@ -110,52 +120,77 @@ async def run_differential(
             setup_commands=list(proto.setup_commands),
             offline=True,
         )
+        build_t0 = events.start(
+            "differential", f"build fixed version for {submission.package}@{fixed}",
+            data={"sandbox_operation": "build"},
+        )
         build = await executor.build(
             config,
             package_spec=config.package_spec or f"{submission.package}@{fixed}",
             build_timeout_s=settings.build_timeout_s,
         )
+        budget.charge(build.cost)
         if not build.ok:
             events.error(
                 "differential",
-                t0,
+                build_t0,
                 f"fixed-version build failed for {submission.package}@{fixed}: {build.detail}",
+                cost=build.cost,
+                cost_units=build.cost_units,
+                data={"sandbox_operation": "build"},
+            )
+        else:
+            events.ok(
+                "differential",
+                build_t0,
+                f"fixed-version image ready for {submission.package}@{fixed}",
+                cost=build.cost,
+                cost_units=build.cost_units,
+                data={"sandbox_operation": "build"},
             )
         builds[key] = build
 
     ok_builds = {k: b for k, b in builds.items() if getattr(b, "ok", False)}
     if not ok_builds:
+        budget_blocked = not budget.can_continue() or len(buildable_groups) < len(groups)
+        detail = (
+            f"fixed-version build was skipped or stopped at the measured run budget for "
+            f"{submission.package}@{fixed}"
+            if budget_blocked
+            else f"fixed-version build failed on {submission.package}@{fixed}"
+        )
         result = DifferentialResult(
             fixed_version=fixed,
             ran=False,
-            detail=f"fixed-version build failed on {submission.package}@{fixed}",
+            detail=detail,
         )
-        events.error("differential", t0, result.detail)
+        if budget_blocked:
+            events.skip("differential", result.detail)
+        else:
+            events.error("differential", t0, result.detail)
         return result, []
 
     runs: list[RunRecord] = []
     results: list[OracleResult] = []
-    if budget is None:
-        budget = RunBudget(settings.max_runs_per_report)
     skipped_budget = 0
     skipped_build = 0
     # Deterministic order, and every hypothesis that fired is re-checked — not
     # "the first three to finish". A flip claimed over a subset would be a
     # coverage lie if a later hypothesis still fires on the fixed version.
     for h in to_check:
-        if not budget.take():
-            skipped_budget += 1
-            events.skip(
-                "differential",
-                f"{h.id}: run budget exhausted; fixed-version re-check skipped",
-            )
-            continue
         fixed_build = ok_builds.get(build_group_key(h))
         if fixed_build is None:
             skipped_build += 1
             events.skip(
                 "differential",
                 f"{h.id}: fixed-version build failed for its environment; re-check skipped",
+            )
+            continue
+        if not budget.take():
+            skipped_budget += 1
+            events.skip(
+                "differential",
+                f"{h.id}: run budget exhausted; fixed-version re-check skipped",
             )
             continue
         proto = h.config
@@ -168,6 +203,10 @@ async def run_differential(
             env=dict(proto.env),
             setup_commands=list(proto.setup_commands),
             offline=True,
+        )
+        run_t0 = events.start(
+            "differential", f"fixed-version run {h.id}",
+            data={"sandbox_operation": "run"},
         )
         run = await executor.run_poc(
             fixed_build,
@@ -184,8 +223,28 @@ async def run_differential(
         )
         budget.charge(run.cost)
         run.phase = "fixed"
-        run.sandbox_image_id = build.image_id  # type: ignore[attr-defined]
+        run.sandbox_image_id = fixed_build.image_id  # type: ignore[attr-defined]
         runs.append(run)
+        if run.error:
+            events.error(
+                "differential",
+                run_t0,
+                f"fixed-version run {h.id}: {run.error}",
+                cost=run.cost,
+                cost_units=run.cost_units,
+                sandbox_run_ids=[run.sandbox_run_id] if run.sandbox_run_id else [],
+                data={"sandbox_operation": "run"},
+            )
+        else:
+            events.ok(
+                "differential",
+                run_t0,
+                f"fixed-version run {h.id}: exit={run.exit_code} in {run.elapsed_ms:.0f}ms",
+                cost=run.cost,
+                cost_units=run.cost_units,
+                sandbox_run_ids=[run.sandbox_run_id] if run.sandbox_run_id else [],
+                data={"sandbox_operation": "run"},
+            )
         results.append(
             check_oracle(
                 h.oracle, run, hypothesis_id=h.id, phase="fixed", run_index=len(runs) - 1

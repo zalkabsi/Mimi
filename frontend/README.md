@@ -44,7 +44,7 @@ npm run dev
 ```
 
 ```powershell
-# Develop without any backend: fixture data, header shows "mock mode".
+# Develop without any backend: fixture data, header shows "sample".
 $env:VITE_USE_MOCK = "1"
 npm run dev
 ```

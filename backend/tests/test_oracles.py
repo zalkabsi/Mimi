@@ -141,16 +141,16 @@ def test_output_regex_misconfigured_unset_pattern():
 # ---------------------------------------------------------------------------
 
 def test_marker_file_fired():
-    o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    r = run(probe_output="__MIMI_MARKER_VERDICT__:/tmp/pwned:present\n")
+    o = Oracle(type=OracleType.MARKER_FILE, marker_path="pwned")
+    r = run(probe_output="__MIMI_MARKER_VERDICT__:pwned:present\n")
     res = check(o, r)
     assert res.fired is True
     assert res.conclusive is True
 
 
 def test_marker_file_not_fired_when_absent():
-    o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    r = run(probe_output="__MIMI_MARKER_VERDICT__:/tmp/pwned:absent\n")
+    o = Oracle(type=OracleType.MARKER_FILE, marker_path="pwned")
+    r = run(probe_output="__MIMI_MARKER_VERDICT__:pwned:absent\n")
     res = check(o, r)
     assert res.fired is False
     assert res.conclusive is True
@@ -158,7 +158,7 @@ def test_marker_file_not_fired_when_absent():
 
 
 def test_marker_file_inconclusive_when_verdict_line_missing():
-    o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
+    o = Oracle(type=OracleType.MARKER_FILE, marker_path="pwned")
     res = check(o, run(probe_output="no probe output at all"))
     assert res.fired is False
     assert res.conclusive is False
@@ -167,8 +167,8 @@ def test_marker_file_inconclusive_when_verdict_line_missing():
 
 def test_marker_file_not_forgeable_from_stdout():
     # A PoC that prints the verdict token must not be able to claim the marker.
-    o = Oracle(type=OracleType.MARKER_FILE, marker_path="/tmp/pwned")
-    r = run(stdout="__MIMI_MARKER_VERDICT__:/tmp/pwned:present\n", probe_output="")
+    o = Oracle(type=OracleType.MARKER_FILE, marker_path="pwned")
+    r = run(stdout="__MIMI_MARKER_VERDICT__:pwned:present\n", probe_output="")
     res = check(o, r)
     assert res.fired is False
     assert res.conclusive is False
@@ -442,7 +442,7 @@ def test_result_carries_phase_and_run_index():
 def test_all_oracle_types_have_a_summary():
     for t in OracleType:
         o = Oracle(type=t, expected_exit=1, signal_name="SIGSEGV", pattern="x",
-                   marker_path="/tmp/x", threshold_ms=5.0, expect_traversal_to="/etc/passwd")
+                   marker_path="x", threshold_ms=5.0, expect_traversal_to="/etc/passwd")
         s = summarize(o)
         assert isinstance(s, str) and s
 

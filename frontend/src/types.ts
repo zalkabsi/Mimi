@@ -154,6 +154,7 @@ export interface OracleResult {
   phase: "affected" | "fixed";
   oracle: Oracle;
   fired: boolean;
+  conclusive: boolean;
   detail: string;
   run_index: number;
 }

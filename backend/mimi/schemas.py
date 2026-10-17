@@ -7,6 +7,7 @@ CLI, the API and the eval harness.
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -34,6 +35,29 @@ def split_package_spec(spec: str) -> tuple[str, str]:
         return s, ""
     name, _, version = s.partition("@")
     return name.strip(), version.strip()
+
+
+_NPM_NAME_RE = re.compile(r"(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*")
+_SEMVER_RE = re.compile(
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
+
+
+def validate_package_spec(spec: str) -> tuple[str, str]:
+    """Accept one canonical npm name pinned to an exact semantic version."""
+    value = (spec or "").strip()
+    name, version = split_package_spec(value)
+    if (
+        not name
+        or len(name) > 214
+        or not _NPM_NAME_RE.fullmatch(name)
+        or not _SEMVER_RE.fullmatch(version)
+        or value != f"{name}@{version}"
+    ):
+        raise ValueError("package_spec must be a canonical npm package name pinned to an exact version")
+    return name, version
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +184,24 @@ class Oracle(BaseModel):
     pattern: Optional[str] = None  # regex over combined stdout+stderr
     threshold_ms: Optional[float] = None
     expect_traversal_to: Optional[str] = None  # path that must NOT be readable
-    probe_snippet: Optional[str] = None  # small node snippet for probe oracles
+    probe_snippet: Optional[str] = Field(
+        default=None,
+        max_length=16_384,
+        description="small untrusted Node snippet for isolated custom-probe oracles",
+    )
+
+    @field_validator("marker_path")
+    @classmethod
+    def marker_is_workspace_filename(cls, value: Optional[str]) -> Optional[str]:
+        """Marker checks are confined to a clean file directly under /work."""
+        if value is None:
+            return None
+        if (
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,254}", value)
+            or value.startswith(".mimi_")
+        ):
+            raise ValueError("marker_path must be a simple non-reserved filename in /work")
+        return value
 
 
 class RunConfig(BaseModel):
@@ -201,8 +242,8 @@ class RunRecord(BaseModel):
     signal: Optional[str] = None
     stdout: str = ""
     stderr: str = ""
-    # Trusted probe output, captured from a separate post-PoC command. Probe
-    # oracles read ONLY this field — the PoC's own stdout cannot forge a verdict.
+    # Fixed-source probe output from a separate post-PoC command. Probe oracles
+    # read this field instead of stdout, but shared-VM state is not tamper-proof.
     probe_output: str = ""
     elapsed_ms: float = 0.0
     cost: Optional[float] = None
@@ -262,11 +303,11 @@ class Coverage(BaseModel):
 class CostSummary(BaseModel):
     inference_tokens_in: int = 0
     inference_tokens_out: int = 0
-    inference_cost_usd: Optional[float] = None  # only when we have real prices
+    inference_cost_usd: Optional[float] = None  # current values use an unverified price table
     sandbox_cost: Optional[float] = None
     sandbox_cost_units: Optional[str] = None
     elapsed_ms: float = 0.0
-    measured: bool = False  # False when any part is missing — never invent a metric
+    measured: bool = False  # True when all attempted cost components have complete telemetry
 
 
 # ---------------------------------------------------------------------------
@@ -332,13 +373,7 @@ class ReportSubmission(BaseModel):
     @classmethod
     def _check_spec(cls, v: str) -> str:
         spec = (v or "").strip()
-        if not spec:
-            raise ValueError("package_spec is empty")
-        name, version = split_package_spec(spec)
-        if not name:
-            raise ValueError("package_spec must include a package name, e.g. 'lodash@4.17.20'")
-        if not version:
-            raise ValueError("package_spec must pin a version, e.g. 'lodash@4.17.20'")
+        validate_package_spec(spec)
         return spec
 
     @property
