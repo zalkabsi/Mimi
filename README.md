@@ -12,6 +12,16 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 
 The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
+### Replay screenshots
+
+These captures are from the production read-only build. The report evidence and timeline are fixed fixture data, not live analysis.
+
+![Mimi's read-only inbox with the sample report and verdict definitions](docs/assets/demo-inbox.png)
+
+![The recorded sample dossier and its nine-stage timeline](docs/assets/demo-dossier.png)
+
+![Recorded advisory research and declared test hypotheses in the sample dossier](docs/assets/demo-evidence.png)
+
 The current Token Factory Sandboxes endpoint returned HTTP 200 on a read-only access
 check, with all six permissions enabled. On 2026-10-17, a safe no-op run using node:20 and
 is-number@7.0.0 also built and executed. Mimi confirmed its child network namespace, and
