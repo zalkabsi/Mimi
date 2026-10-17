@@ -63,10 +63,9 @@ def test_package_spec_empty_version_rejected():
         ReportSubmission(report_text="r", package_spec="lodash@")
 
 
-def test_package_spec_name_with_internal_separator():
-    s = ReportSubmission(report_text="r", package_spec="scope/pkg@1.2.3")
-    assert s.package == "scope/pkg"
-    assert s.version == "1.2.3"
+def test_package_spec_unscoped_name_with_separator_rejected():
+    with pytest.raises(ValidationError):
+        ReportSubmission(report_text="r", package_spec="scope/pkg@1.2.3")
 
 
 def test_package_spec_is_stripped():
