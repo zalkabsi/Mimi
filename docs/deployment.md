@@ -68,8 +68,9 @@ Live submissions require `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, and
 judge key. `TAVILY_API_KEY` enables live research. This is one shared key, not
 per-user report isolation: every key holder can read all live reports. Do not
 accept private reports on a shared demo. Keep the live submission endpoint
-unavailable until Sandboxes permissions and per-run network isolation are
-verified. The latest recorded Sandboxes response is HTTP 403; see
+unavailable until a sandbox operation and per-run network isolation are
+verified. A read-only `whoami` check now confirms all Sandboxes permissions on
+the current Token Factory endpoint, but does not verify execution; see
 [`00-constraints-and-open-items.md`](00-constraints-and-open-items.md). A
 judge credential must be configured by the deployment owner and remain
 available through the judging period. No credential is included in this

@@ -40,8 +40,11 @@ NEMOTRON_MODELS = {
 
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 
-# Sandboxes HTTP surface (contree): whoami and images are known-good endpoints.
-SANDBOXES_BASE_URL = os.environ.get("SANDBOXES_BASE_URL", "https://api.sandbox.nebius.ai/v1")
+# ConTree moved into Token Factory Sandboxes in May 2026. Keep the service root
+# here; the SDK and raw REST calls append the versioned ``/v1/...`` routes.
+SANDBOXES_BASE_URL = os.environ.get(
+    "SANDBOXES_BASE_URL", "https://api.tokenfactory.nebius.com/sandboxes"
+)
 
 
 class Stage(str, Enum):

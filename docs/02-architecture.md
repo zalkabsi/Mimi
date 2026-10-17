@@ -1,10 +1,10 @@
 # Mimi: architecture and evaluation protocol
 
-Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Live sandbox execution and execution-dependent evaluations are still blocked by the current access response; see `00-constraints-and-open-items.md`. This document records the intended architecture and evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked **VERIFY** are listed in `00-constraints-and-open-items.md`.
+Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. The current Sandboxes permission check succeeds, but live execution, isolation, and execution-dependent evaluations remain unverified; see `00-constraints-and-open-items.md`. This document records the intended architecture and evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked **VERIFY** are listed in `00-constraints-and-open-items.md`.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the claim in isolated sandboxes at the exact affected version and tell the maintainer what is proven, what is contradicted, and how hard it looked. Live Sandbox execution remains unverified; the latest recorded access check returned HTTP 403. See the status table below.
+Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the claim in isolated sandboxes at the exact affected version and tell the maintainer what is proven, what is contradicted, and how hard it looked. A read-only permission check now succeeds on the current Token Factory endpoint, but live Sandbox execution remains unverified. See the status table below.
 
 ## Principles
 
@@ -83,7 +83,7 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 - Untrusted code runs only inside Sandboxes microVMs (own kernel per run). Never on the app host.
 - Package install and setup lifecycle code is also untrusted. It runs as the image's unprivileged `node` account, so it cannot replace the system launchers used later to create runtime namespaces.
 - No secrets, tokens or cloud credentials in any sandbox environment or image.
-- PoC phase: require a child user/network namespace and refuse execution if it cannot be created. The guard remains unverified in a real microVM; the latest recorded Sandboxes access check returned HTTP 403, so the hosted page is a seeded read-only replay.
+- PoC phase: require a child user/network namespace and refuse execution if it cannot be created. The guard remains unverified in a real microVM; the hosted page is a seeded read-only replay.
 - Timeouts, output truncation, per-report run limits, and allowlists for public git hosts and registries. The Sandbox cost threshold uses raw Contree units and is best-effort, not a guaranteed USD spending cap.
 - Prompt injection: report text is data. Model outputs are parsed into a strict schema; commands executed come from a fixed command set (checkout, install, run-poc-with-oracle, git diff), not free-form strings from the report. The PoC file itself is executed but only in the sandbox.
 - Privacy: report text goes to Token Factory for inference and is excluded from Tavily queries; generated PoC code is sent to Sandboxes when live execution is enabled. The README documents the self-hosting option (own Nebius tenancy).
@@ -149,9 +149,9 @@ One person, four weeks. The available credit balance is unverified. Cuts made up
 | Tagline and thumbnail | Published | Tagline and original illustrative 3:2 JPEG at `docs/assets/mimi-project-thumbnail.jpg`; it is not a product screenshot. |
 | Feedback | Recorded | `docs/feedback-log.md` includes hands-on observations for Token Factory, Sandboxes, NVIDIA Nemotron, and Tavily. AI Cloud has not been used. |
 | Local setup and deployment instructions | Present | Root README and `docs/deployment.md`; backend Docker image and static replay build were built on 2026-10-16. |
-| Hosted URL and judge access | Replay published | `https://zalkabsi.github.io/Mimi/` serves the read-only replay; Pages run 39055999541 deployed the merged frontend successfully on 2026-10-17. No live backend or judge credential is hosted. The latest recorded Sandboxes check returned HTTP 403. |
+| Hosted URL and judge access | Replay published | `https://zalkabsi.github.io/Mimi/` serves the read-only replay; Pages run 39055999541 deployed the merged frontend successfully on 2026-10-17. No live backend or judge credential is hosted. The current Sandboxes endpoint returned all six permissions from a read-only check. |
 | Screenshots and video under three minutes | In progress | A 2:40 replay script and draft video exist. Capture final screenshots, replace the robotic narration, then record/export the final video as the last project deliverable before submission. |
-| End-to-end evaluations and safety evidence | Open | E1/E2/E3/E4 are not run because Sandboxes cannot execute. Keep those cases marked `not_run` until access works. |
+| End-to-end evaluations and safety evidence | Open | E1/E2/E3/E4 remain unrun. Keep those cases marked `not_run` until actual executions and isolation checks are recorded. |
 | Repository visibility and history secret review | Public, published | The README, assets, and source changes were merged to `master` on 2026-10-17. GitHub confirms the repository description and Apache-2.0 metadata. The redacted Gitleaks scan dates to 2026-10-15, before these changes; rerun it before final submission. |
 
 Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning: *"Mimi: every vulnerability report gets a verdict with receipts."*

@@ -112,9 +112,10 @@ recorded evidence satisfies each check. Details are in `evals/cases/_schema.md`.
 ## Budget
 
 There is no verified total credit balance or complete per-case billing figure
-for the evaluation programme. Sandboxes access is currently blocked, and its
-reported Contree cost units have no verified currency conversion. After access
-is restored and the provider balances are confirmed, start with a small
+for the evaluation programme. A read-only `whoami` check confirms Sandboxes
+permissions, but no sandbox operation has been run. Its reported Contree cost
+units have no verified currency conversion. After a small sandbox smoke run
+and provider balance review, start with a small
 `--limit` run, inspect Token Factory token usage and price-table estimates plus
 raw sandbox units, then decide how many cases fit. The corpus is free to
 validate (`--dry-run`). E3 increases inference use; keep it limited until

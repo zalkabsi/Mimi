@@ -734,11 +734,11 @@ class FixtureExecutor:
 
 
 async def whoami(settings) -> dict:
-    """Raw HTTP permission probe (status and permissions only — never keys).
+    """Read Sandboxes permissions from the current Token Factory endpoint.
 
-    ``GET {base}/whoami`` and ``{base}/v1/whoami`` are both tried; the 2026-09-30
-    check used ``/v1/whoami`` and returned every permission as ``false`` on a
-    valid key.
+    The service root is ``https://api.tokenfactory.nebius.com/sandboxes``;
+    the versioned endpoint is ``GET /v1/whoami``. This read-only probe never
+    returns or logs credentials.
     """
     import httpx
 
@@ -750,23 +750,23 @@ async def whoami(settings) -> dict:
     base = settings.sandboxes_base_url.rstrip("/")
     out: dict = {"base": base}
     async with httpx.AsyncClient(timeout=20.0) as client:
-        for path in ("/whoami", "/v1/whoami"):
-            try:
-                r = await client.get(base + path, headers=headers)
-            except httpx.HTTPError as e:
-                out[path] = {"error": str(e)}
-                continue
-            if r.status_code == 200:
-                data = r.json() if "json" in r.headers.get("content-type", "") else {}
-                perms = data.get("permissions") or {
-                    k: v for k, v in data.items() if isinstance(v, bool)
-                }
-                out["ok"] = True
-                out["path"] = path
-                out["permissions"] = perms
-                # token_expiration is a rolling 5-minute value — record but label it.
-                if "token_expiration" in data:
-                    out["token_expiration_is_rolling"] = True
-                return out
-            out[path] = {"status": r.status_code, "body": r.text[:200]}
+        path = "/v1/whoami"
+        try:
+            r = await client.get(base + path, headers=headers)
+        except httpx.HTTPError as e:
+            out[path] = {"error": str(e)}
+            return out
+        if r.status_code == 200:
+            data = r.json() if "json" in r.headers.get("content-type", "") else {}
+            perms = data.get("permissions") or {
+                k: v for k, v in data.items() if isinstance(v, bool)
+            }
+            out["ok"] = True
+            out["path"] = path
+            out["permissions"] = perms
+            # token_expiration is a rolling 5-minute value — record but label it.
+            if "token_expiration" in data:
+                out["token_expiration_is_rolling"] = True
+            return out
+        out[path] = {"status": r.status_code, "body": r.text[:200]}
     return out

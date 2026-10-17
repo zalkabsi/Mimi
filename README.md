@@ -12,7 +12,7 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 
 The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
-Live report analysis needs provider credentials and permissions. The latest Sandboxes access probe returned HTTP 403, so live untrusted-code execution and execution-dependent evaluation results have not been verified. See [constraints and open items](docs/00-constraints-and-open-items.md) for the current record.
+The latest read-only Sandboxes permission check returned HTTP 200 from the current Token Factory endpoint, with all six permissions enabled, including `spawn`. Live untrusted-code execution, per-run isolation, and execution-dependent evaluation results still need an end-to-end run. See [constraints and open items](docs/00-constraints-and-open-items.md) for the current record.
 
 For live analysis, report text is sent to Nebius Token Factory for inference. Tavily receives only public identifiers, not report prose or PoC code. Generated PoC code is sent to Nebius Sandboxes when live execution is enabled.
 
@@ -31,7 +31,7 @@ Open the local URL printed by Vite and select the sample report. Replay mode mak
 1. **Ground the report.** Nemotron Nano structures the claim. Deterministic checks compare cited files, symbols, and versions with the affected package source. Source grounding is supporting evidence; it cannot reject a report on its own.
 2. **Research public advisories.** Tavily searches with public identifiers such as package names, versions, CVE IDs, and GHSA IDs. Report prose and proof-of-concept code are excluded from search queries.
 3. **Plan bounded checks.** Nemotron proposes test hypotheses with predeclared deterministic oracles. The backend validates each operation against an allowlist; the model cannot issue arbitrary tool calls.
-4. **Run in an isolated boundary.** Mimi builds the affected package and is designed to run each hypothesis in a separate Nebius Sandbox. Runs have time and output limits, and provider credentials are not sent into a sandbox. This live path still needs access verification.
+4. **Run in an isolated boundary.** Mimi builds the affected package and is designed to run each hypothesis in a separate Nebius Sandbox. Runs have time and output limits, and provider credentials are not sent into a sandbox. Sandboxes permissions are confirmed; a live operation and isolation check remain to be verified.
 5. **Return a dossier.** Deterministic tier logic reports the verdict, coverage, commands, outputs, and a draft maintainer reply.
 
 Verdicts are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A negative verdict requires executed, conclusive checks and reports which hypotheses and configurations were covered. Failed builds, incomplete runs, and unknown fixed-version results cannot become a clean negative. Every report remains under maintainer control.
@@ -91,7 +91,7 @@ This command uses live providers and Sandboxes. `mimi whoami` checks Sandbox acc
 
 The repository includes an evaluation harness with 27 cases. Cases that cannot run are recorded as `not_run`; missing results are never estimated. See [the evaluation guide](evals/README.md) for suites and commands. The corpus includes public npm vulnerability cases and clearly labelled synthetic reports. Synthetic cases are not real reports, and results do not generalize to C/C++ memory-safety vulnerabilities. The current product scope is npm.
 
-The latest recorded Sandboxes `whoami` probe returned HTTP 403 on October 15, 2026, for both supported endpoint paths, without identifying a missing permission. This review environment cannot confirm whether the project key and ID bindings are available, so no newer probe was run. Real Sandbox execution, the fail-closed child user/network namespace guard, and execution-dependent evaluation suites remain unverified. Mimi makes no claim about reproduction rates, model-routing results, Sandbox costs, or live demo results.
+The October 15, 2026 probe used the old `api.sandbox.nebius.ai` base URL and returned HTTP 403. Nebius moved ConTree into Token Factory Sandboxes in May 2026. After updating the base URL to `https://api.tokenfactory.nebius.com/sandboxes`, a read-only `GET /v1/whoami` check on October 17 returned HTTP 200 with all six permissions enabled. No PoC or sandbox job has been run in this review, so real execution, the fail-closed child user/network namespace guard, and execution-dependent evaluations remain unverified. Mimi makes no claim about reproduction rates, model-routing results, Sandbox costs, or live demo results.
 
 ## Project links
 
@@ -106,4 +106,4 @@ The latest recorded Sandboxes `whoami` probe returned HTTP 403 on October 15, 20
 
 ## Security
 
-Do not run reporter-supplied proof-of-concept code on the application host. Mimi is designed to execute it inside Nebius Sandboxes, but that boundary has not been verified in a live run. Treat live execution of untrusted reports as blocked until Sandbox access and per-run network isolation are confirmed. Package install and setup scripts also run inside the sandbox as its unprivileged `node` account. Probe-style observations use state in the same writable sandbox VM as the PoC and are not tamper-proof against hostile code; the dossier flags this limitation. Review the [architecture and trust boundaries](docs/02-architecture.md) before exposing a live deployment. Never place provider credentials or private report data in a sandbox.
+Do not run reporter-supplied proof-of-concept code on the application host. Mimi is designed to execute it inside Nebius Sandboxes, but that boundary has not been verified in a live run. Treat live execution of untrusted reports as unverified until a sandbox operation and per-run network isolation have been confirmed. Package install and setup scripts also run inside the sandbox as its unprivileged `node` account. Probe-style observations use state in the same writable sandbox VM as the PoC and are not tamper-proof against hostile code; the dossier flags this limitation. Review the [architecture and trust boundaries](docs/02-architecture.md) before exposing a live deployment. Never place provider credentials or private report data in a sandbox.
