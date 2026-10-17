@@ -83,10 +83,9 @@ row as `error` rather than leaving it stuck.
 ## Current deployment status
 
 The static build and `mimi-replay` container image built locally on
-2026-10-16. Deployment run
-[38957108737](https://github.com/zalkabsi/Mimi/actions/runs/38957108737)
-completed both build and deploy successfully. The owner confirmed that the
-public URL loads the inbox and fixed sample dossier on 2026-10-16. A private or
-clean-browser check remains to be done before submission. Local source changes
-must be published and deployed before claiming that the hosted page reflects
-them. The page remains a replay, not a live pipeline result.
+2026-10-16. After the reviewed changes were merged, Pages run
+[39055999541](https://github.com/zalkabsi/Mimi/actions/runs/39055999541)
+completed both build and deploy successfully on 2026-10-17. The owner
+confirmed that the public URL loads the inbox and fixed sample dossier on
+2026-10-16. A private or clean-browser check remains to be done before
+submission. The page remains a replay, not a live pipeline result.
