@@ -1,0 +1,13 @@
+Mimi demo voiceover — conversational read, target length 2:40
+
+Meet Mimi. It's a triage workbench for open-source maintainers. It puts a report's evidence in one place so a person can decide what to do. Mimi never closes a report on its own.
+
+What you're seeing is a labelled replay using fixed sample data. It lets you explore the interface without an account, key, or provider credits. The page makes no provider calls, and none of the timestamps or findings are live.
+
+Here's the sample pipeline: it extracts a claim, grounds the package, checks public advisories, proposes bounded hypotheses, builds an environment, runs isolated forks, compares against a fixed version, and prepares a verdict with a reply draft. These steps and all their timings, model labels, and token counts are fixture data. Missing evidence stays missing; it isn't guessed.
+
+Open the sample dossier and you can follow each recorded stage. It shows the claim, the package and symbols, public advisory references, two test hypotheses, and the zero-trigger result. This is sample data, so it does not prove a real report reproduces. In an actual run, a contradicted result requires completed execution and stated coverage. Grounding by itself never rejects a report. The reply stays a draft for the maintainer.
+
+The architecture uses Nebius Token Factory with Nemotron models for language tasks, and Tavily to look up public identifiers. Untrusted proof-of-concept code is intended to run inside Nebius Sandboxes. A harmless no-op smoke test confirmed Mimi's child network namespace, and its outbound TCP probe was blocked. We haven't verified provider-level isolation against hostile code.
+
+So this is a read-only replay, not a live vulnerability analysis. No real report was reproduced here, and no automated decision is being made. The maintainer decides what happens next; Mimi never auto-closes a report.

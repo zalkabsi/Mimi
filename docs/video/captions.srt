@@ -1,0 +1,110 @@
+1
+00:00:00,000 --> 00:00:05,000
+Meet Mimi: report triage for open-source
+maintainers.
+
+2
+00:00:05,000 --> 00:00:11,000
+It organizes evidence so a person can
+decide what to do.
+
+3
+00:00:11,000 --> 00:00:18,000
+Mimi never closes a report on its own.
+
+4
+00:00:18,000 --> 00:00:23,000
+This labelled replay uses
+fixed sample data.
+
+5
+00:00:23,000 --> 00:00:29,000
+Explore the interface without an account,
+key, or provider credits.
+
+6
+00:00:29,000 --> 00:00:38,000
+No provider calls. Timestamps and findings
+are fixture data, not live.
+
+7
+00:00:38,000 --> 00:00:47,000
+The sample pipeline extracts a claim and
+grounds the package.
+
+8
+00:00:47,000 --> 00:00:57,000
+It checks public advisories and proposes
+bounded test hypotheses.
+
+9
+00:00:57,000 --> 00:01:07,000
+Then it builds an environment and runs
+isolated forks.
+
+10
+00:01:07,000 --> 00:01:15,000
+The dossier compares a fixed version and
+prepares a verdict with a reply draft.
+
+11
+00:01:15,000 --> 00:01:23,000
+Follow each recorded stage in the sample
+dossier.
+
+12
+00:01:23,000 --> 00:01:31,000
+It shows the claim, package, public
+advisory references, and two hypotheses.
+
+13
+00:01:31,000 --> 00:01:39,000
+The zero-trigger result is fixture data.
+
+14
+00:01:39,000 --> 00:01:43,000
+It doesn't prove a real report reproduces.
+
+15
+00:01:43,000 --> 00:01:49,000
+A Contradicted result needs completed
+execution and stated coverage.
+
+16
+00:01:49,000 --> 00:01:55,000
+Grounding alone never rejects. The reply
+remains a draft.
+
+17
+00:01:55,000 --> 00:02:00,000
+Nebius Token Factory and Nemotron
+support language tasks.
+
+18
+00:02:00,000 --> 00:02:04,000
+Tavily looks up public identifiers.
+
+19
+00:02:04,000 --> 00:02:11,000
+Untrusted proof-of-concept code is
+intended to run in Nebius Sandboxes.
+
+20
+00:02:11,000 --> 00:02:18,000
+A harmless no-op confirmed Mimi's child
+namespace; outbound TCP was blocked.
+
+21
+00:02:18,000 --> 00:02:22,000
+Isolation against hostile code is not
+verified.
+
+22
+00:02:22,000 --> 00:02:31,000
+This is a read-only replay, not a live
+vulnerability analysis.
+
+23
+00:02:31,000 --> 00:02:40,000
+No real report was reproduced. The
+maintainer decides what happens next.
