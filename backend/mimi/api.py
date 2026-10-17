@@ -25,6 +25,7 @@ from fastapi.responses import StreamingResponse
 
 from .config import Settings
 from .db import Database
+from .events import now_iso
 from .pipeline import Pipeline
 from .schemas import Dossier, ReportSubmission
 
