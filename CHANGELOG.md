@@ -4,8 +4,11 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-17 (Sandboxes endpoint correction)
+- Updated the Sandboxes base URL to the current Token Factory endpoint documented by Nebius. The previous October 15 check targeted the former host and returned 403; the corrected read-only `whoami` check returned HTTP 200 with all six permissions enabled. No sandbox execution or PoC run has been claimed.
+
 ### 2026-10-17 (submission review)
-- Updated project status to reflect the owner-confirmed public GitHub repository and read-only Pages replay; live backend execution and Sandboxes permissions remain unverified.
+- Updated project status to reflect the owner-confirmed public GitHub repository and read-only Pages replay; live backend execution remains unverified. Sandboxes endpoint permissions were checked later on 2026-10-17 after correcting the API base URL.
 - Removed review findings that could let reporter-controlled PoC code replace the post-PoC probe source, and moved the trusted probe and custom snippets to stdin. The isolation marker now comes from the same namespace invocation that runs the PoC.
 - Made oracle result rendering require explicit conclusive evidence, and corrected scoped npm package validation and final SSE dossier refresh behavior in the frontend.
 - Changed E4 safety evaluation so missing execution/oracle evidence is `not_run`, not a pass, and excluded undetermined cases from the completed-case pass-rate denominator.
@@ -38,7 +41,7 @@ All work in this repository was created during the hackathon Submission Period (
 - Set the Vite dev port to match the API's default CORS allowlist and excluded local credentials, caches, and generated output from Docker build contexts.
 - Ran redacted Gitleaks scans on the current tree and Git history; neither found credential patterns. GitHub metadata reports the source repository is private, so public visibility is still required for submission.
 - Re-ran live Token Factory and Tavily spikes. Nano, Super, and Ultra each completed reasoning on/off calls and a function-tool call; Tavily returned 14 results from five public-identifier-only queries. The Ultra call exposed a case error in the configured model ID (HTTP 404); corrected the ID in model routing and cost accounting, then retried successfully. Recorded per-model observations and the query count in `docs/feedback-log.md`.
-- Re-ran the Sandboxes `whoami` probe. Both supported endpoint paths returned HTTP 403 without a permission payload; updated the status notes to distinguish this from the earlier 2026-09-30 response, which was HTTP 200 with all permissions false. Live sandbox execution remains blocked; no live reproduction or evaluation result is claimed.
+- Re-ran the Sandboxes `whoami` probe against the then-configured host. Both attempted paths returned HTTP 403 without a permission payload; at that point, live sandbox execution remained unverified and no live reproduction or evaluation result was claimed. The endpoint correction is recorded above.
 
 ### 2026-10-07 (week 2: honesty contracts re-verified and pinned)
 - Re-verified the 2026-10-06 honesty round against source and fixed what it still got wrong. 205 tests pass under `backend/tests/`; `mypy backend/mimi` is clean.
