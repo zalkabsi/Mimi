@@ -1,6 +1,11 @@
 name: Deploy read-only demo
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/deploy-demo.yml"
+      - "frontend/**"
   workflow_dispatch:
 
 permissions:

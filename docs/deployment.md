@@ -17,19 +17,20 @@ is a UI replay, not an end-to-end live analysis.
 ### GitHub Pages
 
 The `Deploy read-only demo` workflow publishes the fixture to GitHub Pages
-when run manually. It builds with the repository base path and hash routing,
+when frontend changes are pushed to `master`; it can also be run manually.
+It builds with the repository base path and hash routing,
 so direct links work without server-side SPA fallback. The public URL is
 [`https://zalkabsi.github.io/Mimi/`](https://zalkabsi.github.io/Mimi/). The
 published page is a read-only replay, not a live vulnerability analysis.
 
-The owner has enabled the public repository, Actions, and Pages. To publish
-later changes, push the workflow and frontend updates to the repository, then
-open **Actions → Deploy read-only demo → Run workflow**. The workflow token
-cannot create or enable the Pages site, so the one-time owner setting must
-remain enabled. After each deployment, check the URL in a clean browser and
-open the inbox and sample dossier. Keep the page free of login requirements
-through the judging period. This hosted replay is read-only and must not be
-presented as a live Mimi analysis.
+The owner has enabled the public repository, Actions, and Pages. Merging
+frontend or workflow changes to `master` starts a deployment automatically;
+you can also open **Actions → Deploy read-only demo → Run workflow** to deploy
+manually. The workflow token cannot create or enable the Pages site, so the
+one-time owner setting must remain enabled. After each deployment, check the
+URL in a clean browser and open the inbox and sample dossier. Keep the page
+free of login requirements through the judging period. This hosted replay is
+read-only and must not be presented as a live Mimi analysis.
 
 For a container host, the frontend includes a self-contained static replay
 image. Build it from `frontend/` and route traffic to port `8080`:
