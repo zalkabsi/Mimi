@@ -103,15 +103,15 @@ Switch to Envsmith, or narrow Mimi, if any of these hold after the day-1 spikes 
 - Per-hypothesis fork runs cannot be made offline *and* we judge the residual risk unacceptable for the hosted demo (then the hosted demo becomes replay-only and the live path is documented for self-hosting).
 - Sandboxes cannot fork from a saved image at the concurrency we need (50 operations) without failures.
 
-### Update 2026-10-06: pivot review (was due Oct 5)
+### Update 2026-10-17: pivot review (was due Oct 5)
 
-The three pivot triggers cannot be evaluated as written, because they all depend on the day-1 spikes and the 10-case pilot. Sandboxes `whoami` now reports `spawn: true`, but no operation has been run. Status of each trigger:
+The pivot triggers that depend on the 10-case pilot and concurrency still cannot be evaluated. Since the October 17 access check, a harmless node:20 / is-number@7.0.0 Sandbox smoke has built and executed successfully. Mimi confirmed its child network namespace, and a TCP connection attempt was blocked with ENETUNREACH. This is basic integration evidence, not a vulnerability reproduction or proof of provider-level isolation against hostile code. Status of each trigger:
 
-1. **Fewer than 5 of 10 real npm vulns confirmed** — *undetermined*. No reproduction runs have been possible. The pipeline code, oracle set and eval corpus now exist so the pilot can run the day execution is granted.
-2. **Fork runs cannot be made offline / residual risk unacceptable** — *undetermined*. The executor requires `unshare --user --map-root-user --net`, rejects any config that requests online execution, and fails closed when namespace creation fails. Real sandbox behavior is still unverified; a read-only permission check succeeded on the current endpoint on 2026-10-17.
-3. **Sandboxes cannot fork at the needed concurrency** — *undetermined*.
+1. **Fewer than 5 of 10 real npm vulns confirmed** — *undetermined*. No real vulnerability reproduction runs have been completed.
+2. **Fork runs cannot be made offline / residual risk unacceptable** — *partially checked*. Mimi's child network namespace blocked an outbound connection attempt during a harmless smoke. Hostile-code behavior and provider-level containment remain unverified.
+3. **Sandboxes cannot fork at the needed concurrency** — *undetermined*. No concurrency evaluation has run.
 
-**Decision: continue with Mimi.** No trigger is confirmed; switching to Envsmith now would discard a complete non-execution stack (extraction, grounding, research, hypotheses, tiers, UI, eval harness) on an absence of data. The narrower alternative — hosted demo replay-only — remains the fallback if trigger 2 turns out badly. Re-run this review within 48 hours of `spawn` becoming available, before week-3 evaluation money is spent.
+**Decision: continue with Mimi.** No pivot trigger is confirmed. Run a reviewed, public-case pilot and security assessment before claiming end-to-end triage or exposing live report submissions.
 
 ### Update 2026-09-30: owner confirmations and what the Rules changed
 

@@ -344,21 +344,22 @@ class SandboxExecutor:
             return self._client
         self.settings.require_sandboxes()
         try:
-            from contree import ContreeAsyncClient  # type: ignore
-        except ImportError:
-            try:  # older package layout
-                from contree_sdk import ContreeAsyncClient  # type: ignore
-            except ImportError as e:
-                raise ExecutorError(
-                    "contree-sdk is not installed (pip install contree-sdk)"
-                ) from e
-        # Contree accepts an API key + base URL directly; project id travels as
-        # the Project header (the SDK profile loader can also supply it).
-        self._client = ContreeAsyncClient(
-            api_key=self.settings.nebius_api_key,
-            base_url=self.settings.sandboxes_base_url,
+            from contree_sdk import Contree
+            from contree_sdk.auth import IAMAuth
+            from contree_sdk.config import ContreeConfig
+        except ImportError as e:
+            raise ExecutorError(
+                "contree-sdk is not installed (pip install contree-sdk)"
+            ) from e
+        # contree-sdk 0.3.x exposes an async Contree client. Pass the key,
+        # project, and Token Factory endpoint through IAMAuth so the SDK sends
+        # both the Bearer token and required Project header.
+        auth = IAMAuth(
+            token=self.settings.nebius_api_key,
             project_id=self.settings.nebius_project_id,
+            base_url=self.settings.sandboxes_base_url,
         )
+        self._client = Contree(config=ContreeConfig(auth=auth))
         return self._client
 
     async def build(self, config: RunConfig, *, package_spec: str, build_timeout_s: int) -> BuildResult:
@@ -428,8 +429,10 @@ class SandboxExecutor:
                 detail=f"build failed: {e}",
                 elapsed_ms=(time.monotonic() - t0) * 1000.0,
             )
-        cost = getattr(getattr(result, "resources", None), "cost", None)
-        image_id = getattr(result, "uuid", "") or ""
+        sdk_result = getattr(result, "result", None)
+        cost = getattr(sdk_result, "cost", None)
+        raw_image_id = getattr(result, "uuid", None)
+        image_id = str(raw_image_id) if raw_image_id else ""
         log = str(getattr(result, "stdout", "") or "") + str(getattr(result, "stderr", "") or "")
         exit_code = getattr(result, "exit_code", None)
         # ok is the build's claim that the environment is usable. An image UUID
@@ -511,10 +514,14 @@ class SandboxExecutor:
                 shell=_stage_file_command(f"/work/{config.poc_file_name}"),
                 stdin=poc_code,
                 timeout=30,
+                disposable=False,
             )
             _require_staged(write, "the PoC")
             write = await write.run(
-                shell=_stage_file_command(SHIM_FILE), stdin=SHIM_JS, timeout=30
+                shell=_stage_file_command(SHIM_FILE),
+                stdin=SHIM_JS,
+                timeout=30,
+                disposable=False,
             )
             _require_staged(write, "the observation shim")
             # A package lifecycle script can leave a state file or symlink in
@@ -527,6 +534,7 @@ class SandboxExecutor:
             write = await write.run(
                 shell=f"set -e; {cleanup}; echo {_STAGE_OK_TOKEN}",
                 timeout=30,
+                disposable=False,
             )
             _require_staged(write, "the clean probe state")
             # Run the PoC. The command string is already validated against the
@@ -568,7 +576,12 @@ class SandboxExecutor:
             poc_env["LOGNAME"] = "node"
             poc_env["NODE_OPTIONS"] = shim_node_options()
             poc_env["MIMI_STATE_PATH"] = STATE_FILE
-            result = await write.run(shell=wrapped, timeout=timeout_s, env=poc_env or None)
+            result = await write.run(
+                shell=wrapped,
+                timeout=timeout_s,
+                env=poc_env or None,
+                disposable=False,
+            )
         except Exception as e:
             return RunRecord(
                 hypothesis_id=hypothesis_id,
@@ -631,7 +644,16 @@ class SandboxExecutor:
         stdout, trunc1 = _cap(raw_stdout, self.settings.output_cap_bytes)
         stderr, trunc2 = _cap(raw_stderr, self.settings.output_cap_bytes)
         probe_output, trunc3 = _cap(probe_out, self.settings.output_cap_bytes)
-        cost = getattr(getattr(result, "resources", None), "cost", None)
+        sdk_result = getattr(result, "result", None)
+        cost = getattr(sdk_result, "cost", None)
+        elapsed = getattr(result, "elapsed", None)
+        elapsed_ms = (
+            elapsed.total_seconds() * 1000.0
+            if callable(getattr(elapsed, "total_seconds", None))
+            else (time.monotonic() - t0) * 1000.0
+        )
+        image_id = getattr(result, "uuid", None)
+        run_id = getattr(result, "id", None)
         return RunRecord(
             hypothesis_id=hypothesis_id,
             phase=_norm_phase(phase),
@@ -641,11 +663,11 @@ class SandboxExecutor:
             stdout=stdout,
             stderr=stderr,
             probe_output=probe_output,
-            elapsed_ms=getattr(result, "elapsed_time", None) or (time.monotonic() - t0) * 1000.0,
+            elapsed_ms=elapsed_ms,
             cost=cost,
             cost_units="contree-cost-units" if cost is not None else None,
-            sandbox_image_id=getattr(result, "uuid", None),
-            sandbox_run_id=getattr(result, "id", None) or getattr(result, "uuid", None),
+            sandbox_image_id=str(image_id) if image_id else None,
+            sandbox_run_id=str(run_id) if run_id else None,
             network_isolated=isolated,
             error=run_error,
             truncated=trunc1 or trunc2 or trunc3,
