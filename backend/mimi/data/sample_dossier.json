@@ -269,8 +269,8 @@
     "versions_tested": ["4.17.19", "4.17.20"],
     "statement": "2 hypotheses, 1 config, 0 triggered"
   },
-  "tier": "Contradicted",
-  "tier_rationale": "Mock fixture: both declared hypotheses ran to completion on the claimed affected version and no oracle fired; the fixed-version run behaved the same. Coverage is stated so the negative result is interpretable — this is not a rejection of the report, and it never auto-closes one.",
+  "tier": "Needs human",
+  "tier_rationale": "Mock fixture: 2 hypotheses ran on 1 configuration with 0 triggers. Because a negative result requires at least 3 hypotheses across 2 configurations, this dossier stays Needs human for a person's review.",
   "reply_draft": "Thanks for the report. We ran 2 hypotheses on lodash@4.17.19 in isolated sandboxes (1 config, 2 versions incl. the fixed one) and none of the declared oracles triggered. That does not disprove your finding — our harness is narrow — so the report stays open for human review. Exact commands and outputs are in the attached dossier. (Mock fixture text.)",
   "events": [
     {
@@ -390,7 +390,7 @@
       "sandbox_run_ids": [],
       "cost": null,
       "cost_units": null,
-      "detail": "tier: Contradicted (with coverage)",
+      "detail": "tier: Needs human (1 config; insufficient coverage for a negative result)",
       "data": {}
     },
     {

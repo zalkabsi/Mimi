@@ -1,8 +1,8 @@
 # Hard constraints and open items
 
-Updated 2026-10-17. Team: **solo**. Project name: **Mimi**.
+Updated 2026-10-18. Team: **solo**. Project name: **Mimi**.
 
-## Latest Sandboxes access and smoke check (2026-10-17)
+## Latest Sandboxes access and smoke check (2026-10-18)
 
 The October 15 probe targeted the old `https://api.sandbox.nebius.ai/v1` endpoint and
 returned HTTP 403 without a permissions payload. Nebius's [ConTree migration
@@ -13,15 +13,21 @@ returned HTTP 200 and all six permissions were true (`import`, `spawn`, `spawn_d
 `list`, `cancel`, `set_image_tag`). The project code defaults to this endpoint. A safe no-op
 run on October 17 built node:20 with is-number@7.0.0 and executed successfully. Mimi
 reported its child network namespace active, and an outbound TCP connection attempt returned
-ENETUNREACH. This confirms basic SDK operation and the app-level namespace guard for a
-harmless smoke, not containment of hostile PoC code or provider-level microVM isolation. No
-vulnerability PoC, live report analysis, or execution-dependent evaluation was run. The
-September 30 check against the earlier service returned HTTP 200 with all permissions false;
-it is historical.
+ENETUNREACH. On October 18, the live E1–E4 evaluation suites ran through Token Factory and
+Sandboxes; the harness confirmed spawn permission. E1 had 0/11 fixed-version-confirmed
+reproductions, E2 did not distinguish the five synthetic reports from the five real ones,
+and E4 left one path-read safety check inconclusive. A final E2 rerun completed 10/10 cases,
+but Tavily returned HTTP 432 usage-limit errors for every advisory query, so the run had no
+advisory results or fixed-version data. A separate read-only `mimi whoami` check returned
+`ok: true` and all six permissions. These runs demonstrate the pipeline can execute, not
+reliable vulnerability reproduction, useful slop discrimination, or provider-level microVM
+isolation.
+The September 30 check against the earlier service returned HTTP 200 with all permissions
+false; it is historical.
 
 ## Provenance
 
-The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. I re-read the live [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) on 2026-10-17. The live page still lists the submission deadline as **Oct 30, 2026 at 10:00 AM Pacific**, the judging period as **Dec 1–15, 2026**, and the public-repository, hosted-demo, public YouTube video under three minutes, track-selection, and product-feedback requirements below. Re-read the page immediately before final submission because the rules can be amended (§11). The Official Rules prevail over other Hackathon material, including the Schedule page.
+The Official Rules and the two organiser updates ("How to build a winning project", "Here's how judging works") were pasted in by the owner on 2026-09-30. I re-read the live [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) on 2026-10-18. The live page still lists the submission deadline as **Oct 30, 2026 at 10:00 AM Pacific**, the judging period as **Dec 1–15, 2026**, and the public-repository, hosted-demo, public YouTube video under three minutes, track-selection, and product-feedback requirements below. Re-read the page immediately before final submission because the rules can be amended (§11). The Official Rules prevail over other Hackathon material, including the Schedule page.
 
 ## Dates [Rules §1]
 
@@ -35,20 +41,20 @@ Internal target: submit **Tue Oct 27**. After the deadline the Submission cannot
 
 ## Requirements and current status
 
-| # | Requirement | Source | Status on 2026-10-17 |
+| # | Requirement | Source | Status on 2026-10-18 |
 |---|---|---|---|
-| 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Pipeline inference is implemented; direct runtime smoke calls to Nano, Super, and Ultra succeeded. A live end-to-end Mimi run is not verified. |
-| 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra are configured in stage routing and were used in direct smoke calls. |
+| 1 | Working software that runs on Nebius Token Factory **or** AI Cloud. "Runs on" = makes a **runtime call to the Token Factory inference API**, or is deployed on AI Cloud compute (Serverless Jobs / Endpoints / DevPods) | §4 | Live E1–E4 pipeline runs made runtime calls through Token Factory and Sandboxes. E1 had 0/11 fixed-version-confirmed reproductions; see [evaluation results](evaluation-results.md). There is no hosted live-analysis backend. |
+| 2 | Uses at least one NVIDIA open-source model | §4 | Nemotron 3 Nano / Super / Ultra are configured in stage routing and were used in live E1–E4 pipeline and routing runs. |
 | 3 | One of four tracks | §4 | Track 2, Best Apps and Agents. The Track 2 text asks for Nemotron via Token Factory, Ultra for serious reasoning, Nano/Super for fast everyday calls. Serverless Endpoints/Jobs are "encouraged", explicitly "neither is required". |
-| 4 | Project must function as shown in the video and text | §4 | Final video is pending. Show the functioning read-only replay, identify fixture data, and state that the separate safe no-op Sandbox smoke is not an end-to-end vulnerability analysis. The copy and script are in docs/submission-kit.md. |
-| 5 | Working demo / hosted app / test build URL | §4 | GitHub Pages build and deploy run 39055999541 succeeded on 2026-10-17. The owner confirmed the public URL loads the read-only replay on 2026-10-16: `https://zalkabsi.github.io/Mimi/`. A private-window check is still pending. There is no hosted live-analysis backend. |
-| 6 | Text description of features and functionality | §4 | The description and testing instructions are in `docs/submission-kit.md`, updated and published on 2026-10-17. |
-| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | `zalkabsi/Mimi` is public; the reviewed source, assets, README, and submission kit were merged to `master` on 2026-10-17. |
+| 4 | Project must function as shown in the video and text | §4 | Final video is not present in this workspace. The script must identify the read-only replay as fixture data and disclose the evaluation results and limits in `docs/evaluation-results.md`. |
+| 5 | Working demo / hosted app / test build URL | §4 | GitHub Pages build and deploy run 39055999541 succeeded on 2026-10-17, and the public replay URL returned HTTP 200 on 2026-10-18: `https://zalkabsi.github.io/Mimi/`. A private/clean-browser check is still pending; there is no hosted live-analysis backend or unrestricted judge credential. |
+| 6 | Text description of features and functionality | §4 | The description and testing instructions are in `docs/submission-kit.md`; the evaluation results are in `docs/evaluation-results.md`. The final video URL is still pending. |
+| 7 | Public repo on GitHub/GitLab/Bitbucket, all source, assets and instructions | §4 | `zalkabsi/Mimi` is public. The submission patch contains the backend fixes, corrected replay fixture, evaluation reports, and current submission copy. |
 | 8 | Open-source license file, **detectable and visible at the top of the repo page (About section)** | §4 | GitHub reports the Apache-2.0 license metadata and project description for the public repository (verified 2026-10-17). |
 | 9 | README with setup and run instructions; highlight NVIDIA models, where Token Factory accelerated the workflow, other Nebius services | §4 | Root README has setup, model, provider, current-status, and security notes. |
-| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | A 2:40 draft exists with robotic narration. Replace the voice, verify the final cut, publish it on YouTube, and add its URL to Devpost as the final project deliverable before submission. |
+| 10 | Demo video < 3 min, public on YouTube, shows the project functioning, **no third-party trademarks or copyrighted music/material without permission** | §4 | No video media file is present in this workspace. The timed script and captions are drafts. Create and review a final cut, publish it publicly on YouTube, then add its URL to Devpost. |
 | 11 | Identify the track | §4 | Track 2. |
-| 12 | **Feedback** on Token Factory, AI Cloud and NVIDIA tools/models used (required field) | §4, update | Hands-on Token Factory, Nemotron, Sandboxes, and Tavily notes are in `docs/feedback-log.md`; AI Cloud was not used. |
+| 12 | **Feedback** on Token Factory, AI Cloud and NVIDIA tools/models used (required field) | §4, update | Hands-on Token Factory, Nemotron, Sandboxes, and Tavily notes are in `docs/feedback-log.md`; AI Cloud was not used. Owner attestations are recorded complete. |
 | 13 | If the project existed before Aug 26, explain what was significantly updated | §4 | The repo was empty at start (no commits). Keep `CHANGELOG.md` anyway. |
 | 14 | English | §4 | Yes. |
 | 15 | Original work, solely owned; open-source components allowed if we build meaningful functionality on top and honour licenses | §4 | Third-party licenses tracked below. |
@@ -95,7 +101,8 @@ For each of Token Factory, Sandboxes (AI Cloud is only relevant if we deploy the
 
 ## Eligibility: owner checks [Rules §3]
 
-Confirm all of these yourself; I cannot:
+The owner recorded the eligibility and agreement attestations complete. Review them
+again personally immediately before submission. Confirm all of these yourself; I cannot:
 - You are at least the age of majority where you live.
 - Your residence is not in an excluded jurisdiction (the Rules list Brazil, Quebec, Russia, Crimea, Cuba, Iran, North Korea and OFAC-comprehensively-sanctioned places).
 - Neither you nor anyone in your immediate family or household works for Nebius, Devpost, or a company that employs a judge (NVIDIA, Nebius, Tavily).
@@ -133,7 +140,7 @@ For local development, put them in the ignored `.env` file from `.env.example`. 
 | Per-run network isolation in Sandboxes | Reporter-supplied PoC code is untrusted | The SDK run request has no network field. Mimi requires a child user/network namespace and rejects online PoC configurations. A safe no-op smoke confirmed the namespace marker and observed a TCP connection attempt blocked with ENETUNREACH. This tests Mimi's app-level guard for the harmless run only; it does not establish provider-level microVM security or resistance to hostile code. Probe state remains in the same writable VM and is not tamper-proof. |
 | ~~Token Factory inference base URL and Nemotron model IDs~~ | Code depends on them | Base `https://api.tokenfactory.nebius.com/v1` is OpenAI-compatible. Re-verified 2026-10-15 with `GET /models` and chat calls for Nano, Super and Ultra. Exact IDs from the live model list: `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, `nvidia/nemotron-3-super-120b-a12b`, `nvidia/Nemotron-3-Ultra-550b-a55b`, and `nvidia/Nemotron-3_5-Lightning`. The old code had `NVIDIA` uppercase in the Ultra ID and got HTTP 404; the exact ID from `/models` is now in routing and cost accounting, and a retry succeeded for reasoning-on/off and tool calling. Lightning has not been evaluated. |
 | Reasoning control and tool calling | Routing design | Re-checked 2026-10-15: Nano, Super and Ultra each accepted a function-tool call and reasoning on/off. On one short prompt, Nano with `max_tokens=20` returned empty content; Super and Ultra returned `ready`. Nano returned `completion_tokens_details: null`; Super and Ultra itemised reasoning tokens. These are smoke checks, not structured-output or routing evaluations. |
-| **Sandboxes token permissions and operation** | Sandboxes are Mimi's core | **Access confirmed 2026-10-17:** GET /v1/whoami returned HTTP 200 with all six permissions true. A safe no-op build/run also succeeded with node:20 and is-number@7.0.0; Mimi's network namespace probe observed an external TCP attempt blocked with ENETUNREACH. This does not validate a vulnerability PoC, hostile-code containment, provider-level microVM security, or end-to-end analysis. Previous September 30 result (all permissions false) is historical. The SDK reports raw Contree cost units; currency conversion is unknown. |
+| **Sandboxes token permissions and operation** | Sandboxes are Mimi's core | **Access confirmed 2026-10-17:** GET /v1/whoami returned HTTP 200 with all six permissions true. On 2026-10-18, live E1–E4 runs confirmed spawn access and pipeline execution. The separate safe no-op observed Mimi's network namespace and blocked egress. These checks do not validate provider-level microVM isolation; the E4 path-traversal read check was not run. Previous September 30 result (all permissions false) is historical. The SDK reports raw Contree cost units; currency conversion is unknown. |
 | Key lifetime for judge access | Judge access must last to Dec 15 | **Corrected 2026-09-30.** `whoami`'s `token_expiration` is a *rolling* value: it read exactly 5 minutes after each call (06:56:55 to 07:01:55, then 07:02:41 to 07:07:41), and the key kept working afterwards for Sandboxes `whoami`, inference and Tavily. It is **not** the key's lifetime. The real lifetime of `NEBIUS_API_KEY` is still unknown. Whatever key the hosted demo uses must be valid through Dec 15, 2026, so check the expiry shown for the key in the console when creating it. |
 | Sandboxes billing | Credits budget | Is it drawn from the same credits as inference? Unknown. |
 | `ProcessResources.cost` units | Cost accounting | The SDK returns a cost value; its conversion to billing currency is unknown. Mimi reports the raw value as Contree units. |

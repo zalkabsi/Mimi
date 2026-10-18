@@ -108,23 +108,44 @@ def _tarball_check(
         out.append(GroundingEvidence(kind=EvidenceKind.NOTE, target="tarball", detail="no tarball URL in metadata"))
         return out
 
-    resp = client.get(tarball_url)
-    resp.raise_for_status()
-    blob = resp.content
-    if len(blob) > _TARBALL_CAP:
-        out.append(
-            GroundingEvidence(
-                kind=EvidenceKind.NOTE,
-                target="tarball",
-                detail=f"tarball too large ({len(blob)} bytes), skipped content search",
-            )
-        )
-        return out
+    archive = io.BytesIO()
+    with client.stream("GET", tarball_url) as resp:
+        resp.raise_for_status()
+        content_length = resp.headers.get("Content-Length")
+        if content_length:
+            try:
+                if int(content_length) > _TARBALL_CAP:
+                    out.append(
+                        GroundingEvidence(
+                            kind=EvidenceKind.NOTE,
+                            target="tarball",
+                            detail="tarball exceeds the 8 MiB limit, skipped content search",
+                        )
+                    )
+                    return out
+            except ValueError:
+                # A malformed length is not trusted; enforce the limit while streaming.
+                pass
+
+        downloaded = 0
+        for chunk in resp.iter_bytes(chunk_size=64 * 1024):
+            if downloaded + len(chunk) > _TARBALL_CAP:
+                out.append(
+                    GroundingEvidence(
+                        kind=EvidenceKind.NOTE,
+                        target="tarball",
+                        detail="tarball exceeds the 8 MiB limit, skipped content search",
+                    )
+                )
+                return out
+            archive.write(chunk)
+            downloaded += len(chunk)
 
     file_index: list[str] = []
     content_hits: dict[str, list[str]] = {}
     try:
-        with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tf:
+        archive.seek(0)
+        with tarfile.open(fileobj=archive, mode="r:gz") as tf:
             for member in tf.getmembers():
                 if not member.isfile() or member.size > 512 * 1024:
                     continue

@@ -6,7 +6,7 @@ Date of research: 2026-09-29. Deadline: 2026-10-30 10:00 AM PT (about 4 weeks).
 
 - **Provenance.** Every web fact below came from a search-tool summary. I could not open primary pages (egress blocked) except the `contree-sdk` / `contree-mcp` wheels from PyPI, which I read directly. Treat numbers as "reported by", and re-check the ones we quote publicly.
 - **Scores are judgments, not measurements.** The matrix uses check / partial / cross, with the deciding evidence beside it.
-- **No metric for our own system exists yet.** Nothing here claims a result for the product we have not built.
+- **This research log predates live evaluation.** Current exploratory E1–E4 results are in [`docs/evaluation-results.md`](evaluation-results.md); they do not establish general performance.
 
 ## Evidence log
 
@@ -66,7 +66,7 @@ Legend: yes / partial / no.
 - **Target user.** Open-source maintainers and small security teams who receive reports by GitHub advisory, email or a bounty platform. Secondary: bounty-program triagers.
 - **Existing alternatives.** Elastic internal pipeline (closed, Claude, own product only, E4). HackerOne Hai Triage / Bugcrowd AI Triage (platform SaaS). GitHub Taskflow agent (GitHub-run, limited scope, E3). SlopCheck (static grounding; **wrong on 29.4% of confirmed vulns**, E5). CVE-Genie (research; assumes the CVE is true, E6).
 - **Gap.** No open, self-hostable tool that (1) *executes* the claim against the exact affected version, (2) is safe to run reporter-supplied PoC code, and (3) treats "could not reproduce" as a **quantified negative result** instead of a verdict. E5 shows why (3) matters: a wrong "this is slop" verdict on a real bug is the costly error.
-- **Product.** A maintainer inbox. Paste or forward a report; Mimi returns an **evidence dossier** and a triage tier, never an auto-close. Tiers: Confirmed (PoC works on affected version and stops working on the fixed version), Likely, Needs human (could not build or inconclusive), Contradicted (executed evidence against the claim, with stated hypothesis coverage). It also drafts the reply (ask for the missing info, or acknowledge with the repro).
+- **Product.** A maintainer inbox. Paste or forward a report; Mimi returns an **evidence dossier** and a triage tier, never an auto-close. Tiers: Confirmed (PoC works on affected version and stops working on the fixed version), Likely, Needs human (could not build or inconclusive), Contradicted (at least three conclusive hypotheses across at least two distinct configurations do not trigger, with coverage stated). A single configuration remains Needs human. It also drafts the reply (ask for the missing info, or acknowledge with the repro).
 - **Non-obvious idea.** *Negative-result coverage.* The system enumerates the ways the claim could be true (versions, configs, inputs, code paths), builds one image per image-affecting configuration, forks that image for each matching hypothesis, and reports "0 of N hypotheses triggered the claimed behavior, covering these configurations" instead of "not reproduced." Sandboxes branching supports those repeated runs (E10, E11).
 - **AI architecture.** Routed Nemotron pipeline: Nano for claim extraction and log summarisation, Super for research synthesis / oracle interpretation / reply drafting, Ultra (reasoning on) for hypothesis generation and adjudicating ambiguous evidence. Model output is schema-guided; the backend invokes Tavily and Sandboxes through controlled code paths. Deterministic oracles (exit code, signal, marker file, output regex) decide wherever possible; the LLM does not grade its own reproduction if a deterministic check exists.
 - **NVIDIA role.** Nemotron 3 is the reasoning and tool-using core, with the Nano/Super/Ultra split as a real cost/latency lever (E12). The eval includes an all-Ultra versus routed ablation, so any claim is measured.
@@ -117,6 +117,15 @@ Status of each trigger:
 3. **Sandboxes cannot fork at the needed concurrency** — *undetermined*. No concurrency evaluation has run.
 
 **Decision: continue with Mimi.** No pivot trigger is confirmed. Run a reviewed, public-case pilot and security assessment before claiming end-to-end triage or exposing live report submissions.
+
+### Update 2026-10-18: live evaluation on the final local patch
+
+- **E1 routed reproduction:** 11/11 cases completed; oracle fired on 4/11, but no case was confirmed by a fixed-version differential (0/11; 95% Wilson interval 0–25.9%). This is below the earlier 5-of-10 numerical pilot target. The planned 60–100-case corpus remains far away.
+- **E2 slop discrimination:** 0/5 real reports were falsely contradicted, but 0/5 fabricated reports reached Contradicted and all five were sent to Needs human. The result is cautious but not useful at distinguishing fabricated from real reports.
+- **E3 routing:** expected-tier accuracy was 5/5 for routed, Ultra, and Super on the same five real cases. This is a small tier-routing check, not reproduction accuracy or evidence of a model-quality advantage.
+- **E4 safety:** five cases with complete checks passed; the path-escape case's `no_traversal_read` check was `not_run`. Provider-level hostile-code isolation remains unverified.
+
+The earlier pivot criterion specified Ultra with unrestricted retries. The routed E1 result crosses its numeric cutoff, while the available all-Ultra comparison covers only five cases, so the original criterion has not been tested exactly. Treat the outcome as a warning: do not present Mimi as a proven reproduction engine or slop discriminator. A submission should frame Mimi as an evidence-first prototype and disclose the full results and limits in `docs/evaluation-results.md`.
 
 ### Update 2026-09-30: owner confirmations and what the Rules changed
 

@@ -86,9 +86,13 @@ row as `error` rather than leaving it stuck.
 ## Current deployment status
 
 The static build and `mimi-replay` container image built locally on
-2026-10-16. After the reviewed changes were merged, Pages run
+2026-10-16. The backend image also rebuilt from the current patch on
+2026-10-18; no-credential health, inbox, and sample-dossier checks passed.
+After the reviewed changes were merged, Pages run
 [39055999541](https://github.com/zalkabsi/Mimi/actions/runs/39055999541)
 completed both build and deploy successfully on 2026-10-17. The owner
 confirmed that the public URL loads the inbox and fixed sample dossier on
 2026-10-16. A private or clean-browser check remains to be done before
-submission. The page remains a replay, not a live pipeline result.
+submission. A direct HTTPS request returned HTTP 200 on 2026-10-18; that
+does not replace the pending clean-browser check. The page remains a replay,
+not a live pipeline result.

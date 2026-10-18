@@ -253,10 +253,10 @@ def test_pipeline_report_prose_never_reaches_research(no_network, monkeypatch, f
 
 
 # ---------------------------------------------------------------------------
-# Scenario: 3 hypotheses, 0 triggered -> Contradicted with coverage
+# Scenario: 3 hypotheses in 1 config, 0 triggered -> Needs human
 # ---------------------------------------------------------------------------
 
-def test_pipeline_contradicted_with_coverage(no_network, monkeypatch, fixtures_dir):
+def test_pipeline_single_config_negative_needs_human(no_network, monkeypatch, fixtures_dir):
     findings = ResearchFindings(queries=["lodash 4.17.20 vulnerability"], fixed_version=None, used=True)
     dossier, llm, tavily = run_pipeline(
         monkeypatch,
@@ -264,16 +264,17 @@ def test_pipeline_contradicted_with_coverage(no_network, monkeypatch, fixtures_d
         "contradicted.json",
         hypotheses=[hypothesis("h1"), hypothesis("h2", 2), hypothesis("h3", 3)],
         findings=findings,
+        chat_text="",
     )
     assert_core_properties(dossier)
-    assert dossier.tier is Tier.CONTRADICTED
+    assert dossier.tier is Tier.NEEDS_HUMAN
     # All three hypotheses used the default RunConfig, so they are ONE
-    # environment — "3 configs" would invent diversity that never ran.
+    # environment; a single config is not enough for an automatic negative tier.
     assert dossier.coverage.statement.startswith("3 hypotheses, 1 configs, 0 triggered")
     assert dossier.coverage.hypotheses_tested == 3
     assert dossier.coverage.configs_tested == 1
     assert dossier.coverage.hypotheses_triggered == 0
-    assert "invalid" not in dossier.tier_rationale.lower()
+    assert "at least 2" in dossier.tier_rationale
     assert len(dossier.runs) == 3
 
 
@@ -300,11 +301,16 @@ def test_pipeline_contradicted_rationale_states_negative_result(no_network, monk
     # assign_tier rationale lands in the dossier: a coverage-quantified
     # negative result, never "invalid".
     findings = ResearchFindings(queries=["lodash 4.17.20 vulnerability"], fixed_version=None, used=True)
+    hypotheses = []
+    for i, node in enumerate(("18", "20", "22"), start=1):
+        h = hypothesis(f"h{i}", i)
+        h["node_version"] = node
+        hypotheses.append(h)
     dossier, llm, tavily = run_pipeline(
         monkeypatch,
         fixtures_dir,
         "contradicted.json",
-        hypotheses=[hypothesis("h1"), hypothesis("h2", 2), hypothesis("h3", 3)],
+        hypotheses=hypotheses,
         findings=findings,
         chat_text="",
     )

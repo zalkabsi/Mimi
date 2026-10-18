@@ -121,7 +121,7 @@ def fmt_rate(entry: dict[str, Any]) -> str:
 # Readiness — env flags only; never print key material.
 # ---------------------------------------------------------------------------
 
-def readiness(probe_whoami: bool = False) -> dict[str, Any]:
+async def readiness(probe_whoami: bool = False) -> dict[str, Any]:
     nebius = bool(os.environ.get("NEBIUS_API_KEY"))
     project = bool(os.environ.get("NEBIUS_PROJECT_ID"))
     tavily = bool(os.environ.get("TAVILY_API_KEY"))
@@ -146,7 +146,7 @@ def readiness(probe_whoami: bool = False) -> dict[str, Any]:
             from mimi.config import Settings  # type: ignore
             from mimi.sandboxes import whoami  # type: ignore
 
-            w = asyncio.get_event_loop().run_until_complete(whoami(Settings.from_env()))
+            w = await whoami(Settings.from_env())
             perms = w.get("permissions") or {}
             spawn = bool(perms.get("spawn"))
             info["sandboxes_spawn"] = spawn
@@ -462,7 +462,12 @@ async def run_pipeline_case(case: dict[str, Any], settings: Any) -> dict[str, An
     try:
         pipe = Pipeline(settings)  # db=None: eval runs do not touch the app DB
         dossier = await pipe.run(sub, source="eval", report_id=case["id"])
-        return _extract_record(case, dossier, time.monotonic() - t0, "ok")
+        pipeline_error = next(
+            (item for item in dossier.limitations if item.startswith("pipeline error:")),
+            "",
+        )
+        status = "error" if pipeline_error else "ok"
+        return _extract_record(case, dossier, time.monotonic() - t0, status, pipeline_error)
     except Exception as e:  # noqa: BLE001
         rec = _extract_record(case, None, time.monotonic() - t0, "error", f"{type(e).__name__}: {e}")
         rec["traceback"] = traceback.format_exc(limit=6)
@@ -956,7 +961,7 @@ async def run_suite(args: argparse.Namespace) -> int:
             print("dry-run: validation passed; no cases executed.")
         return 0
 
-    ready = readiness(probe_whoami=args.probe)
+    ready = await readiness(probe_whoami=args.probe)
     reason = blocked_reason(ready)
     settings = build_settings(args.force_model, args.mode)
 

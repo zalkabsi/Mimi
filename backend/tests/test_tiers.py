@@ -3,8 +3,8 @@
 Safety properties pinned here:
 - Confirmed only when an oracle fired on the affected version AND the
   fixed-version differential flipped.
-- Contradicted only with quantified coverage (>= 3 tested, 0 triggered),
-  never as "invalid".
+- Contradicted only with quantified coverage (>= 3 tested across >= 2
+  configurations, 0 triggered), never as "invalid".
 - Grounding evidence alone can NEVER produce Contradicted.
 """
 
@@ -239,20 +239,28 @@ def test_contradicted_when_three_tested_zero_fired():
     d = assign_tier(
         oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 4)],
         differential=DifferentialResult(),
-        runs=[poc_run(f"h{i}") for i in range(1, 4)],
+        runs=[
+            poc_run("h1", config_key="node18"),
+            poc_run("h2", config_key="node20"),
+            poc_run("h3", config_key="node20"),
+        ],
         hypotheses_total=3,
     )
     assert d.tier is Tier.CONTRADICTED
     assert "invalid" not in d.rationale.lower()
     assert "negative result" in d.rationale.lower()
     assert "3 hypotheses" in d.rationale
+    assert "2 configs" in d.coverage.statement
 
 
 def test_contradicted_with_more_than_three():
     d = assign_tier(
         oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 8)],
         differential=DifferentialResult(),
-        runs=[poc_run(f"h{i}") for i in range(1, 8)],
+        runs=[
+            poc_run(f"h{i}", config_key="node18" if i < 4 else "node20")
+            for i in range(1, 8)
+        ],
         hypotheses_total=7,
     )
     assert d.tier is Tier.CONTRADICTED
@@ -264,10 +272,25 @@ def test_contradicted_states_coverage_in_rationale():
     d = assign_tier(
         oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 5)],
         differential=DifferentialResult(),
-        runs=[poc_run(f"h{i}") for i in range(1, 5)],
+        runs=[
+            poc_run(f"h{i}", config_key="node18" if i < 3 else "node20")
+            for i in range(1, 5)
+        ],
         hypotheses_total=4,
     )
     assert d.coverage.statement in d.rationale
+
+
+def test_single_config_negative_result_needs_human():
+    d = assign_tier(
+        oracle_results=[oracle_result(f"h{i}", False) for i in range(1, 8)],
+        differential=DifferentialResult(),
+        runs=[poc_run(f"h{i}", config_key="node18") for i in range(1, 8)],
+        hypotheses_total=7,
+    )
+    assert d.tier is Tier.NEEDS_HUMAN
+    assert "at least 2" in d.rationale
+    assert d.coverage.configs_tested == 1
 
 
 # ---------------------------------------------------------------------------

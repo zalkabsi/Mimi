@@ -9,8 +9,9 @@ Tiers (docs/02-architecture.md):
 - Confirmed:     oracle fired on affected AND did not fire on fixed.
 - Likely:        oracle fired, but no fixed-version differential.
 - Needs human:   build failed, oracles inconclusive, or coverage too low.
-- Contradicted:  N hypotheses tested across K configurations, 0 triggered —
-                 with the coverage stated. Never "invalid".
+- Contradicted:  at least 3 hypotheses tested across at least 2 distinct
+                 configurations, 0 triggered — with the coverage stated.
+                 Never "invalid".
 """
 
 from __future__ import annotations
@@ -86,6 +87,7 @@ def assign_tier(
     hypotheses_total: int,
     coverage: Optional[Coverage] = None,
     min_coverage_to_contradict: int = 3,
+    min_configs_to_contradict: int = 2,
     build_failed: bool = False,
     stopped_reason: str = "",
 ) -> TierDecision:
@@ -157,6 +159,17 @@ def assign_tier(
             (
                 f"Only {cov.hypotheses_tested} hypotheses ran to a judgment (minimum "
                 f"{min_coverage_to_contradict} to call a negative result). "
+                f"Coverage: {cov.statement}."
+            ),
+            cov,
+        )
+
+    if cov.configs_tested < min_configs_to_contradict:
+        return TierDecision(
+            Tier.NEEDS_HUMAN,
+            (
+                f"Only {cov.configs_tested} independent configuration(s) ran; "
+                f"at least {min_configs_to_contradict} are required for a negative result. "
                 f"Coverage: {cov.statement}."
             ),
             cov,

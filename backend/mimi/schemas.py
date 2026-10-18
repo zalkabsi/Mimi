@@ -95,6 +95,15 @@ class Claim(BaseModel):
     notes: Optional[str] = None
     parse_warnings: list[str] = Field(default_factory=list)
 
+    @field_validator("vuln_class", mode="before")
+    @classmethod
+    def _unwrap_singleton_vuln_class(cls, value: Any) -> Any:
+        # Some structured model responses wrap a scalar enum in a one-item
+        # array. Accept that shape without guessing when multiple values appear.
+        if isinstance(value, list) and len(value) == 1:
+            return value[0]
+        return value
+
 
 class PublicIdentifiers(BaseModel):
     """The only report facts allowed to leave the system toward Tavily.

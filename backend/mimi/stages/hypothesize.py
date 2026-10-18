@@ -127,7 +127,7 @@ def hypothesize(
             stage=Stage.HYPOTHESIZE,
             messages=[{"role": "user", "content": prompt}],
             schema_hint=_HINT,
-            max_tokens=3000,
+            max_tokens=5000,
             enable_thinking=True,  # this stage wants reasoning
         )
     except Exception as e:

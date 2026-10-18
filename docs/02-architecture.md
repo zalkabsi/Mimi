@@ -1,21 +1,23 @@
 # Mimi: architecture and evaluation protocol
 
 Status: MVP pipeline, API, CLI, UI, and evaluation harness are implemented. Sandboxes access
-and a safe no-op build/run are confirmed. Mimi's child network namespace and app-level
-egress guard worked in that smoke, but no vulnerability PoC, hostile payload, provider-level
-isolation assessment, or execution-dependent evaluation has been run; see
-00-constraints-and-open-items.md. This document records the intended architecture and
+and a safe no-op build/run are confirmed. Exploratory E1–E4 live runs completed on 2026-10-18;
+E1 had 0/11 fixed-version-confirmed reproductions, E2 did not distinguish real and synthetic
+reports, and one E4 path-read check was inconclusive. These small runs do not establish
+reliable triage or provider-level isolation; see `docs/evaluation-results.md` and
+`docs/00-constraints-and-open-items.md`. This document records the intended architecture and
 evaluation protocol. Project name: **Mimi** (chosen by the owner, matches the repo; name
 conflicts and trademarks not checked). Team: **solo**. Remaining assumptions marked VERIFY
 are listed in 00-constraints-and-open-items.md.
 
 ## One-line pitch
 
-Every vulnerability report gets a verdict with receipts: Mimi is designed to reproduce the
-claim in isolated sandboxes at the exact affected version and tell the maintainer what is
-proven, what is contradicted, and how hard it looked. A safe no-op Sandbox run succeeded and
-Mimi's in-sandbox probe observed blocked outbound TCP. This validates the basic execution
-path only; no real vulnerability analysis or hostile-code isolation has been verified.
+Every vulnerability report gets a verdict with receipts: Mimi is designed to test the claim
+in isolated sandboxes at the exact affected version and tell the maintainer what is proven,
+what is contradicted, and how much was covered. Live E1–E4 runs exercised the pipeline, but
+the 11-case routed reproduction sample had no fixed-version-confirmed result. A safe no-op
+Sandbox run succeeded and Mimi's in-sandbox probe observed blocked outbound TCP; this does
+not establish hostile-code isolation at the provider boundary.
 
 ## Principles
 
@@ -64,7 +66,7 @@ flowchart LR
 | **Confirmed** | Reproduced on affected version and not on fixed version | Oracle fired on affected; *every* fired hypothesis re-checked to a judgment on the fixed version and none fired there (a flip claimed over a subset is not allowed); commands and outputs attached |
 | **Likely** | Oracle fired but no usable fixed-version differential | Oracle output attached. Also the tier when the differential ran but the flip is **unconfirmed** (a re-check skipped, errored or could not build): an unknown flip never upgrades to Confirmed and never downgrades a real reproduction away from Likely. |
 | **Needs human** | Could not build, nothing reached a conclusive oracle, coverage too low to call a negative, or the oracle fired on **both** the affected and the fixed version (so it is not measuring this bug) | What was tried, why it stopped |
-| **Contradicted** | Executed evidence against the claim | N hypotheses tested across K configurations, 0 triggered, plus grounding evidence (e.g. cited symbol absent at that version). States the coverage; never says "invalid" |
+| **Contradicted** | Executed negative evidence with enough independent coverage | At least 3 hypotheses tested across at least 2 distinct configurations, with 0 triggered. A single configuration remains **Needs human**. States the coverage; never says "invalid" |
 
 Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a maintainer can judge how much to trust a Contradicted tier.
 
@@ -85,8 +87,8 @@ Coverage is a number the UI shows ("7 hypotheses, 3 configs, 0 triggered"), so a
 ## Model routing
 
 - Start with a static table (stage to model) and log everything.
-- Ablations (see eval): all-Ultra, all-Super, routed. Report accuracy, cost per report and wall time. Reasoning budget is a separate knob (**VERIFY** it is exposed on Token Factory).
-- Only claim routing benefits if the ablation shows them.
+- Ablations (see eval): all-Ultra, all-Super, routed. Report expected-tier accuracy and wall time. The five-case comparison was 5/5 for each setting, with median times of 74.3s Ultra, 18.9s Super, and 34.4s routed. This sample does not establish a general model-quality or cost advantage. Reasoning budget is a separate knob (**VERIFY** it is exposed on Token Factory).
+- Do not claim routing benefits from the current small ablation.
 
 ## Security model
 
@@ -154,24 +156,24 @@ One person, four weeks. The available credit balance is unverified. Cuts made up
 
 | Criterion | What we show | Where it is weakest today |
 |---|---|---|
-| Technological implementation | Build-once fork-many sandboxes, deterministic oracles, model routing with ablation, safety suite | SDK-compatible safe no-op build/run and Mimi-level egress guard verified; real vulnerability execution, hostile-code containment, provider boundary, and evaluation results remain unverified |
+| Technological implementation | Build-once fork-many sandboxes, deterministic oracles, model routing with ablation, safety suite | E1–E4 live runs completed; E1 had no fixed-version-confirmed reproduction, E2 did not discriminate synthetic reports, and one E4 path-read check was `not_run`. Provider-level isolation remains unverified. |
 | Design | Inbox, live timeline, dossier with exact commands and coverage, no dead ends ("Needs human" is a designed state) | Needs a real design pass in week 3 |
 | Potential impact | Maintainer time per report (curl: 30 min to 3 h, several people); future measured time and cost per report | We have no live per-report measurements or real-maintainer validation yet; quote only evidence gathered directly. |
 | Quality of idea | Negative-result coverage; evidence-not-verdict stance backed by the SlopCheck result | Neighbouring work exists (Elastic internal, HackerOne, SlopCheck); novelty is the combination and the measured rigor |
 
-## Submission deliverables status (2026-10-17)
+## Submission deliverables status (2026-10-18)
 
 | Deliverable | Status | Evidence or remaining work |
 |---|---|---|
 | README, open-source license, changelog | Present | Root README, Apache-2.0 `LICENSE`, and `CHANGELOG.md`; confirm repository About metadata before submission. |
 | Architecture diagram | Source and export present | Mermaid source is in this document; SVG export is at `docs/assets/architecture.svg` and marks the live-access blocker. |
-| Devpost description and Built With | Drafted | Copy and testing instructions are in `docs/submission-kit.md`, published with the reviewed code on 2026-10-17. |
+| Devpost description and Built With | Drafted | Copy and testing instructions are in `docs/submission-kit.md`; the current local patch has not been published. |
 | Tagline and thumbnail | Published | Tagline and original illustrative 3:2 JPEG at `docs/assets/mimi-project-thumbnail.jpg`; it is not a product screenshot. |
 | Feedback | Recorded | `docs/feedback-log.md` includes hands-on observations for Token Factory, Sandboxes, NVIDIA Nemotron, and Tavily. AI Cloud has not been used. |
 | Local setup and deployment instructions | Present | Root README and `docs/deployment.md`; backend Docker image and static replay build were built on 2026-10-16. |
-| Hosted URL and judge access | Replay published | `https://zalkabsi.github.io/Mimi/` serves the read-only replay; Pages run 39055999541 deployed the merged frontend successfully on 2026-10-17. No live backend or judge credential is hosted. The current Sandboxes endpoint returned all six permissions from a read-only check. |
-| Screenshots and video under three minutes | In progress | A 2:40 replay script and draft video exist. Capture final screenshots, replace the robotic narration, then record/export the final video as the last project deliverable before submission. |
-| End-to-end evaluations and safety evidence | Open | E1/E2/E3/E4 remain unrun. Keep those cases marked `not_run` until actual executions and isolation checks are recorded. |
-| Repository visibility and history secret review | Public, published | The README, assets, and source changes were merged to `master` on 2026-10-17. GitHub confirms the repository description and Apache-2.0 metadata. The redacted Gitleaks scan dates to 2026-10-15, before these changes; rerun it before final submission. |
+| Hosted URL and judge access | Replay published; check pending | `https://zalkabsi.github.io/Mimi/` is the public read-only replay. Pages run 39055999541 deployed the frontend on 2026-10-17. A clean-browser check is pending; there is no hosted live backend or unrestricted judge credential. |
+| Screenshots and video under three minutes | Screenshots ready; video blocked | Three production-replay screenshots, a timed script, and captions are present. No video media file exists in this workspace; final narration, export, YouTube playback, and Devpost URL are pending. |
+| End-to-end evaluations and safety evidence | Exploratory results recorded | E1–E4 completed on 2026-10-18; see `docs/evaluation-results.md`. The sample is small, E2 did not discriminate fabricated reports, the E4 path-read check was `not_run`, and provider-level isolation remains unverified. |
+| Repository visibility and history secret review | Public baseline; local patch pending | Public `master` remains at `e404cdd`. Gitleaks tree and history scans of the current local patch returned zero findings on 2026-10-18. The latest patch and evaluation docs are uncommitted and unpublished; CI and Pages deployment predate them. |
 
 Name and tagline: the organisers advise a name that "means something specific to what you actually built". "Mimi" is the owner's choice; the tagline carries the meaning: *"Mimi: every vulnerability report gets a verdict with receipts."*

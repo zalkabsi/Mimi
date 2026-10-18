@@ -12,25 +12,23 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 
 The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
-### Replay screenshots
+### Replay screenshot
 
-These captures are from the production read-only build. The report evidence and timeline are fixed fixture data, not live analysis.
-
-![Mimi's read-only inbox with the sample report and verdict definitions](docs/assets/demo-inbox.png)
-
-![The recorded sample dossier and its nine-stage timeline](docs/assets/demo-dossier.png)
+This capture shows recorded advisory research and declared test hypotheses from the read-only replay. The displayed evidence is fixed fixture data, not live analysis.
 
 ![Recorded advisory research and declared test hypotheses in the sample dossier](docs/assets/demo-evidence.png)
 
 The current Token Factory Sandboxes endpoint returned HTTP 200 on a read-only access
 check, with all six permissions enabled. On 2026-10-17, a safe no-op run using node:20 and
 is-number@7.0.0 also built and executed. Mimi confirmed its child network namespace, and
-an outbound TCP connection attempt was blocked with ENETUNREACH. This validates the basic
-SDK integration and Mimi-level egress guard for this harmless smoke only; it does not
-establish provider-level isolation against hostile code, a real vulnerability
-reproduction, or end-to-end triage. Execution-dependent evaluations remain outstanding.
-Mimi makes no claim about reproduction rates, model-routing results, Sandbox cost
-conversion, or live demo results.
+an outbound TCP connection attempt was blocked with ENETUNREACH. On 2026-10-18, live E1–E4
+pipeline evaluations completed; they are small exploratory runs, not evidence of broad
+accuracy. E1 had 0/11 fixed-version-confirmed reproductions. E2 produced no useful separation
+between real and fabricated reports. E4's path-escape read check was inconclusive, and
+provider-level hostile-code isolation remains unverified. See
+[the evaluation results](docs/evaluation-results.md) for sample sizes and intervals.
+No general reproduction or slop-discrimination claim is made; Sandbox billing conversion
+and live hosted-demo behavior are also unverified.
 
 For live analysis, report text is sent to Nebius Token Factory for inference. Tavily receives only public identifiers, not report prose or PoC code. Generated PoC code is sent to Nebius Sandboxes when live execution is enabled.
 
@@ -57,7 +55,7 @@ Open the local URL printed by Vite and select the sample report. Replay mode mak
    are not sent into a sandbox.
 5. **Return a dossier.** Deterministic tier logic reports the verdict, coverage, commands, outputs, and a draft maintainer reply.
 
-Verdicts are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A negative verdict requires executed, conclusive checks and reports which hypotheses and configurations were covered. Failed builds, incomplete runs, and unknown fixed-version results cannot become a clean negative. Every report remains under maintainer control.
+Verdicts are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A negative verdict requires at least three conclusive hypotheses across at least two distinct configurations, with coverage shown. A single configuration remains **Needs human**. Failed builds and incomplete runs cannot become a clean negative. Every report remains under maintainer control.
 
 ## Run the application locally
 
@@ -112,17 +110,18 @@ This command uses live providers and Sandboxes. `mimi whoami` checks Sandbox acc
 
 ## Evaluation and limits
 
-The repository includes an evaluation harness with 27 cases. Cases that cannot run are recorded as `not_run`; missing results are never estimated. See [the evaluation guide](evals/README.md) for suites and commands. The corpus includes public npm vulnerability cases and clearly labelled synthetic reports. Synthetic cases are not real reports, and results do not generalize to C/C++ memory-safety vulnerabilities. The current product scope is npm.
+The repository includes an evaluation harness with 27 cases. Cases that cannot run are recorded as `not_run`; missing results are never estimated. See [the evaluation guide](evals/README.md) for suites and commands and [the 2026-10-18 results](docs/evaluation-results.md) for the completed exploratory runs. The corpus includes public npm vulnerability cases and clearly labelled synthetic reports. Synthetic cases are not real reports, and results do not generalize to C/C++ memory-safety vulnerabilities. The current product scope is npm.
 
 The October 15, 2026 probe used the old api.sandbox.nebius.ai base URL and returned HTTP
 403. Nebius moved ConTree into Token Factory Sandboxes in May 2026. The current endpoint
 returned HTTP 200 with all six permissions on October 17. A safe no-op run then built
 node:20 with is-number@7.0.0, executed successfully, confirmed Mimi's child network
-namespace, and observed a TCP connection attempt blocked with ENETUNREACH. No
-vulnerability PoC, hostile payload, complete report analysis, or end-to-end evaluation has
-been run. The smoke run's Sandbox cost is recorded only in raw Contree units; currency
-conversion is unknown. Mimi makes no claim about reproduction rates, model-routing
-results, or live demo results.
+namespace, and observed a TCP connection attempt blocked with ENETUNREACH. Exploratory
+E1–E4 live runs followed on October 18; see [their results](docs/evaluation-results.md).
+No fixed-version-confirmed reproduction occurred in the 11-case E1 sample, and E2 did not
+distinguish real from fabricated reports. The E4 path-read check was inconclusive. This
+does not establish reliable triage or provider-level isolation. Sandbox cost is recorded
+only in raw Contree units; currency conversion is unknown.
 
 ## Project links
 
@@ -141,8 +140,9 @@ Do not run reporter-supplied proof-of-concept code on the application host. Mimi
 designed to execute it inside Nebius Sandboxes. A safe no-op smoke confirmed Mimi's
 child network namespace and observed an outbound TCP connection attempt blocked with
 ENETUNREACH, but this does not establish provider-level microVM security against hostile
-PoC code. Treat real untrusted-code execution as unverified until a live vulnerability
-run and a security review of the execution boundary are complete. Package install and
+PoC code. Live public-case evaluations ran; they did not confirm a fixed-version
+reproduction in the 11-case E1 sample. Broader exploit safety and a provider-boundary
+security review remain incomplete. Package install and
 setup scripts also run inside the sandbox as its unprivileged `node` account.
 Probe-style observations use state in the same writable sandbox VM as the PoC and are
 not tamper-proof against hostile code; the dossier flags this limitation. Review the

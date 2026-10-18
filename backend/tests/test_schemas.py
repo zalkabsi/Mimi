@@ -125,6 +125,16 @@ def test_claim_vuln_class_roundtrip_from_string():
     assert json.loads(c.model_dump_json())["vuln_class"] == "prototype_pollution"
 
 
+def test_claim_unwraps_singleton_vuln_class_list():
+    c = Claim(package="p", expected_effect="e", vuln_class=["redos"])
+    assert c.vuln_class is VulnClass.REDOS
+
+
+def test_claim_rejects_multiple_vuln_classes():
+    with pytest.raises(ValidationError):
+        Claim(package="p", expected_effect="e", vuln_class=["redos", "xss"])
+
+
 # ---------------------------------------------------------------------------
 # Dossier JSON round-trip
 # ---------------------------------------------------------------------------

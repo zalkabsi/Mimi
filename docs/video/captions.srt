@@ -101,10 +101,20 @@ verified.
 
 22
 00:02:22,000 --> 00:02:31,000
-This is a read-only replay, not a live
+This replay is fixture data, not a live
 vulnerability analysis.
 
 23
 00:02:31,000 --> 00:02:40,000
-No real report was reproduced. The
-maintainer decides what happens next.
+The 11-case pilot had four oracle fires,
+but zero fixed-version confirmations.
+
+24
+00:02:40,000 --> 00:02:48,000
+None of five fabricated reports was
+contradicted; all went to human review.
+
+25
+00:02:48,000 --> 00:02:58,000
+These small results do not establish reliable
+triage. Provider isolation is unverified.

@@ -42,6 +42,11 @@ class LLMResponse:
     def tokens_out(self) -> int:
         return int(self.usage.get("completion_tokens") or 0)
 
+    @property
+    def finish_reason(self) -> Optional[str]:
+        choices = self.raw.get("choices") or []
+        return choices[0].get("finish_reason") if choices else None
+
 
 class LLMClient:
     def __init__(self, settings: Settings, events: Optional[EventLog] = None, client: Optional[httpx.Client] = None):
@@ -143,24 +148,28 @@ class LLMClient:
         max_retries: int = 1,
         force_model: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Ask for a JSON object and parse it. Retries once with the error
-        appended when parsing fails (stage 1 contract)."""
+        """Ask for a JSON object and parse it.
+
+        If the provider stopped at the output-token limit, retry once with a
+        larger budget and a fresh compactness instruction. Other parse errors
+        keep the original repair behavior.
+        """
         msgs = list(messages)
-        msgs.append(
-            {
-                "role": "system",
-                "content": (
-                    f"Respond with a single JSON object only, matching this schema:\n{schema_hint}\n"
-                    "No markdown fences, no commentary."
-                ),
-            }
-        )
+        schema_message = {
+            "role": "system",
+            "content": (
+                f"Respond with a single JSON object only, matching this schema:\n{schema_hint}\n"
+                "No markdown fences, no commentary."
+            ),
+        }
+        msgs.append(schema_message)
+        attempt_max_tokens = max_tokens
         last_err: Optional[Exception] = None
         for attempt in range(max_retries + 1):
             resp = self.chat(
                 stage=stage,
                 messages=msgs,
-                max_tokens=max_tokens,
+                max_tokens=attempt_max_tokens,
                 enable_thinking=enable_thinking,
                 temperature=temperature,
                 force_model=force_model,
@@ -174,17 +183,25 @@ class LLMClient:
             except (ValueError, json.JSONDecodeError) as e:
                 last_err = e
                 if attempt < max_retries:
-                    msgs = msgs[: len(messages)] + [
-                        {
-                            "role": "system",
-                            "content": (
-                                f"Respond with a single JSON object only, matching this schema:\n{schema_hint}\n"
-                                "No markdown fences, no commentary."
-                            ),
-                        },
-                        {"role": "assistant", "content": resp.content or ""},
-                        {"role": "user", "content": f"That was not valid JSON ({e}). Return only the JSON object."},
-                    ]
+                    if resp.finish_reason == "length":
+                        attempt_max_tokens = min(max(attempt_max_tokens * 2, attempt_max_tokens + 1000), 8192)
+                        msgs = list(messages) + [
+                            schema_message,
+                            {
+                                "role": "user",
+                                "content": (
+                                    "The previous response was cut off by the output-token limit. "
+                                    "Return one complete valid JSON object matching the schema. "
+                                    "Keep variable-length strings concise."
+                                ),
+                            },
+                        ]
+                    else:
+                        msgs = list(messages) + [
+                            schema_message,
+                            {"role": "assistant", "content": resp.content or ""},
+                            {"role": "user", "content": f"That was not valid JSON ({e}). Return only the JSON object."},
+                        ]
         raise LLMError(f"model did not return valid JSON: {last_err}")
 
 

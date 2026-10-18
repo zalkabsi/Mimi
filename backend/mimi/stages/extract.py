@@ -73,6 +73,26 @@ def extract_claim(submission: ReportSubmission, llm: LLMClient, events: EventLog
         events.error("extract", t0, f"extraction failed: {e}")
         raise
 
+    raw_vuln_class = data.get("vuln_class")
+    if isinstance(raw_vuln_class, list):
+        if raw_vuln_class:
+            data["vuln_class"] = raw_vuln_class[0]
+            if len(raw_vuln_class) > 1:
+                warnings = data.get("parse_warnings")
+                if not isinstance(warnings, list):
+                    warnings = []
+                warnings.append(
+                    "Model returned multiple vulnerability classes; the first is used as the primary class."
+                )
+                data["parse_warnings"] = warnings
+        else:
+            data["vuln_class"] = VulnClass.OTHER.value
+            warnings = data.get("parse_warnings")
+            if not isinstance(warnings, list):
+                warnings = []
+            warnings.append("Model returned no vulnerability class; using other.")
+            data["parse_warnings"] = warnings
+
     # Deterministic overrides: the submission's package@version is ground truth
     # for what we will install, whatever the model says.
     data["package"] = submission.package
