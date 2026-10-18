@@ -50,3 +50,9 @@ jobs:
         env:
           VITE_USE_MOCK: "1"
         run: npm run build
+      - name: Install test browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Check replay and live client in Chromium
+        working-directory: frontend
+        run: npm run test:e2e

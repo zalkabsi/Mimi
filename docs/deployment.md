@@ -7,7 +7,7 @@ The repository can produce a static, no-credential demo. Build it from
 
 ```bash
 npm ci
-VITE_USE_MOCK=1 npm run build
+npm run build:demo
 ```
 
 The build embeds the labelled fixture, makes no backend or provider calls,
@@ -40,7 +40,7 @@ docker build -t mimi-replay .
 docker run --rm -p 127.0.0.1:8080:8080 mimi-replay
 ```
 
-The image builds with `VITE_USE_MOCK=1`, serves the single-page app with a
+The image builds with `npm run build:demo`, serves the single-page app with a
 history fallback, runs Nginx as an unprivileged user, and exposes `/healthz`
 for a container health check. It contains no backend, credentials, or live
 submission path. Use the static bundle or this image for a free, read-only
@@ -85,14 +85,20 @@ row as `error` rather than leaving it stuck.
 
 ## Current deployment status
 
-The static build and `mimi-replay` container image built locally on
-2026-10-16. The backend image also rebuilt from the current patch on
-2026-10-18; no-credential health, inbox, and sample-dossier checks passed.
-After the reviewed changes were merged, Pages run
-[39055999541](https://github.com/zalkabsi/Mimi/actions/runs/39055999541)
-completed both build and deploy successfully on 2026-10-17. The owner
-confirmed that the public URL loads the inbox and fixed sample dossier on
-2026-10-16. A private or clean-browser check remains to be done before
-submission. A direct HTTPS request returned HTTP 200 on 2026-10-18; that
-does not replace the pending clean-browser check. The page remains a replay,
-not a live pipeline result.
+On 2026-10-18, both images rebuilt from the readiness changes. The API passed
+health, inbox, sample dossier, recorded events, completed SSE, private-report
+denial (401), and unauthenticated submission denial (402). Chromium opened and
+refreshed the container replay's sample dossier successfully.
+
+The existing public Pages deployment returns HTTP 200. A fresh Chromium context
+loaded its inbox, opened its sample dossier, and refreshed the hash route with
+no page errors or unexpected requests. Direct Chromium HTTPS failed to trust
+the session proxy CA, so these browser requests were forwarded by an HTTP
+client with TLS verification enabled. This verifies the currently published
+replay; it does not claim that the readiness changes have been deployed.
+
+The CLI GitHub token is invalid, but the connected GitHub integration has
+repository push access. The readiness branch is prepared for PR review;
+merge it to `master`, then check Pages and `/Mimi/demo-manifest.json`.
+There is still no hosted live-analysis backend or judge credential. See the
+[readiness review](readiness-review.md) for the remaining submission requirements.

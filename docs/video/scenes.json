@@ -1,0 +1,30 @@
+[
+  {
+    "id": "inbox",
+    "text": "For an open-source maintainer, a vulnerability report can mean hours of investigation. When a check fails, is the report wrong, or did the test miss it? Mimi keeps the evidence and the coverage together, so maintainers can make that decision. Every report stays open for human review."
+  },
+  {
+    "id": "timeline",
+    "text": "This is the working read-only demo. Anyone can open it without an account, key, or credits. All results shown are labelled fixed sample data, and replay makes no provider calls. Open the sample dossier to follow the same evidence layout used by live analysis."
+  },
+  {
+    "id": "verdict",
+    "text": "The timeline records each stage, model calls, and outcomes. The sample ends at Needs human: two hypotheses, one configuration, no triggers. That is too little evidence for a negative verdict. In a live run, Contradicted requires at least three conclusive hypotheses across two distinct configurations."
+  },
+  {
+    "id": "evidence",
+    "text": "The dossier links the original claim to package grounding and public advisory research. Tavily queries contain only public identifiers. Nemotron proposes bounded hypotheses with a declared oracle before execution. You can expand the exact commands and outputs, inspect a fixed-version comparison, and download the full dossier."
+  },
+  {
+    "id": "reply",
+    "text": "The maintainer gets a reply draft they can review and edit, with the limits beside the evidence. No report is auto-closed, and nothing is sent on their behalf. Missing measurements stay missing instead of becoming estimated success."
+  },
+  {
+    "id": "architecture",
+    "text": "Behind the interface, Nebius Token Factory runs NVIDIA Nemotron Nano for extraction, Super for synthesis, and Ultra for deeper hypothesis planning. Proof-of-concept code runs in Nebius Sandboxes rather than the application host. A harmless smoke test observed Mimi's outbound TCP guard blocking a connection; hostile-code containment is still unverified."
+  },
+  {
+    "id": "limits",
+    "text": "The published pilot is small: eleven real cases had no fixed-version-confirmed reproduction. Of five fabricated reports, none was contradicted, and one incorrectly reached Likely. Tavily currently hits its usage limit. Mimi is an evidence-first prototype, with these limitations disclosed. The goal is reviewable triage, with the maintainer making the final decision."
+  }
+]

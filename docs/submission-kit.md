@@ -320,60 +320,62 @@ Factory Sandboxes, NVIDIA Nemotron, Tavily, Python, FastAPI, SQLite, React,
 TypeScript, Vite, Tailwind CSS, Docker, GitHub Actions, GitHub Pages, npm,
 Generative AI, Cybersecurity, Open Source, Vulnerability Management.
 
-## Three-minute demo script
+## Current demo and submission artifacts
 
-Target length: 2:58 with a hard limit of 3:00. Show only a real app screen and
-the actual fixture labels. Do not present fixture timing, cost, or execution
-outputs as measured results.
+The current local export is `docs/video/mimi-demo.mp4`: a 720p screen recording
+with original synthetic narration and burned-in English captions, about 2:38.
+It shows the working production replay, a hypothesis expansion, and the reply,
+then the architecture diagram and the published pilot limits. The first shots
+identify fixed sample data and no provider calls. No fixture timing or result
+is presented as live evidence.
 
-| Time | Shot and narration |
-|---|---|
-| 0:00–0:18 | **Inbox.** “This is Mimi, a vulnerability report triage workbench for open-source maintainers. Its goal is not an automatic rejection. It assembles a reviewable evidence dossier, while the maintainer makes the final decision. Mimi never auto-closes a report.” |
-| 0:18–0:38 | **Open the sample row.** Point out the visible replay label. “This labelled sample is recorded replay data. It lets anyone inspect the interface without credentials, but it is not a live analysis. The public page makes no provider calls. Every timestamp and finding belongs to the fixture.” |
-| 0:38–1:15 | **Timeline.** Scroll through extract, grounding, research, hypotheses, build, forks, differential, verdict, and reply. “Here is the recorded pipeline: claim extraction, package grounding, public advisory research, bounded test hypotheses, environment builds, isolated forks, a fixed-version comparison, a verdict, and a reply draft. Everything shown here is fixture data, including timestamps, model labels, durations, and token counts; these are not live measurements. Missing or incomplete evidence stays visible instead of being turned into an estimate.” |
-| 1:15–1:55 | **Dossier.** Show claim, research, hypotheses, runs, and oracle results. “The dossier starts with the claim, package version, and symbols shown in the sample. Its advisory reference is public, and report prose is not sent to the search provider. Each planned test names a deterministic oracle before execution. This fixture shows two hypotheses, one configuration, and zero triggers; it cannot tell us whether a real report reproduces. In a real run, Contradicted requires at least three conclusive hypotheses across two distinct configurations. Grounding alone can never reject a report. The reply is a draft, and the maintainer decides what happens next.” |
-| 1:55–2:22 | **Architecture.** Show the architecture diagram. “The architecture uses Nebius Token Factory with NVIDIA Nemotron Nano, Super, and Ultra for language-model tasks, and Tavily for research using public identifiers. Nebius Sandboxes is the required boundary for untrusted proof-of-concept code. Deterministic logic packages the evidence dossier and reply for human review. A safe no-op smoke confirmed Mimi's child namespace and observed outbound TCP blocked with ENETUNREACH; provider-level isolation against hostile code remains unverified.” |
-| 2:22–2:58 | **Limits and close.** “This is a read-only replay, not a live vulnerability analysis. In an 11-case live pilot, four oracles fired but none was confirmed against a fixed version. In five fabricated reports, none was contradicted. One falsely reached Likely after an oracle fired; the other four went to human review. Tavily's plan limit blocked advisory lookups, so this sample does not establish useful slop discrimination. The replay is fixture data, and provider-level isolation remains unverified. The maintainer decides what happens next; Mimi never auto-closes a report.” |
+The authoritative narration and shot sources are
+[`scenes.json`](video/scenes.json), [`voiceover-script.txt`](video/voiceover-script.txt),
+and [`captions.srt`](video/captions.srt). See the [video guide](video/README.md)
+for regeneration and publishing instructions. These replace the earlier 2:58
+draft; use the exported video's audio and captions together.
 
-The harmless no-op Sandbox smoke is complete. Keep the walkthrough focused on the
-functioning replay UI and disclose that it is fixture data; do not present the separate
-smoke as a vulnerability analysis. Do not reuse fixture timestamps, IDs, outputs, or
-costs as live evidence.
+| Approximate time | Shot |
+| --- | --- |
+| 0:00–0:21 | Inbox: maintainer problem and evidence-first triage. |
+| 0:21–0:41 | Open the working replay and explain fixed sample data. |
+| 0:41–1:05 | Timeline, Needs human, coverage, and negative-verdict thresholds. |
+| 1:05–1:29 | Hypotheses, declared oracles, and expanded harness code. |
+| 1:29–1:45 | Maintainer reply draft and missing measurements. |
+| 1:45–2:11 | Architecture: Token Factory, Nemotron, Tavily, Sandboxes, trust limits. |
+| 2:11–2:38 | Published pilot results, current Tavily quota limit, human decision. |
 
-After the code, public copy, screenshots, and clean-browser check are settled,
-verify the public video supplied by the owner, [Mimi](https://youtu.be/y4rlh4hlkcw),
-against the current replay and this script. No video or audio media file is
-recorded in this workspace, and this session could not retrieve the video's
-duration or transcript. If the existing video is stale, record and export a
-replacement under three minutes, review playback, and publish it publicly. Add
-the verified current URL to the Devpost draft before submitting the entry.
+`make submission` builds a portable read-only replay and writes
+`artifacts/submission/` with source and demo ZIPs, MP4, SRT, screenshots,
+submission copy, readiness review, and SHA-256 hashes. The demo ZIP needs only
+an HTTP static server; it makes no provider calls. It is a fixture replay.
 
-## Artifact checklist
+The owner-approved submission video remains [Mimi](https://youtu.be/y4rlh4hlkcw),
+as recorded in upstream `0dd530a`. This session did not independently recheck
+YouTube playback. The new local export is an optional updated cut; upload and
+verify a new public URL only if replacing the approved video.
 
-- [x] Public source repository and Apache-2.0 license file are present; GitHub showed the project description and Apache-2.0 license metadata on 2026-10-17.
-- [x] Redacted Gitleaks scans of the current tree and Git history returned zero findings on 2026-10-18.
-- [x] Local no-credential replay instructions are documented.
-- [x] Current frontend production build passed locally on 2026-10-18; the replay image and prior GitHub Actions production builds passed on 2026-10-16/17.
-- [x] Backend test suite passed locally on Python 3.12 after the final code changes (193 tests; one upstream Starlette/httpx deprecation warning). GitHub Actions CI passed on the latest public commit `878709a` for Python 3.12/3.13 and frontend live/replay builds.
-- [x] Backend Docker image rebuilt from the current patch on 2026-10-18; no-credential health, inbox, and sample-dossier checks passed. The previous image also passed events, completed SSE, live-ID access denial (401), and submission denial (402) checks on 2026-10-17.
-- [x] A replay container smoke check on 2026-10-16 confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200.
-- [x] Architecture diagram exported as SVG and updated to distinguish the successful no-op smoke from unverified hostile-PoC containment.
-- [x] 3:2 project thumbnail added at `docs/assets/mimi-project-thumbnail.jpg` (1536 × 1024, under 200 KB), within Devpost's 5 MB limit.
-- [x] Devpost copy and an honest demo script are drafted above.
-- [x] GitHub Actions CI passed on public `master` at `878709a` on 2026-10-18.
-- [x] The previous source snapshot, including deletion of `CLAUDE.md`, was merged to public `master` on 2026-10-17.
-- [x] The read-only Pages workflow built and deployed the app code from `a476de1` on 2026-10-18. Its public URL returns HTTP 200, and a clean local build with the workflow's exact environment produces a byte-identical JavaScript bundle to the one served publicly; the docs-only `878709a` commit does not change the app. The interactive clean-browser check is still pending.
-- [ ] Confirm access in a private/clean browser before final submission; browser-control was unavailable in this cloud session.
-- [x] Confirmed the GitHub About description and Apache-2.0 license metadata are visible through repository metadata on 2026-10-17.
-- [x] Update the Sandboxes base URL to the current Token Factory endpoint and confirm `whoami` returns HTTP 200 with all six permissions.
-- [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
-- [x] Run and report E1/E2/E3/E4 with sample sizes and uncertainty; see `docs/evaluation-results.md`. E1 is 0/11 confirmed with a fixed-version differential; E2 did not distinguish real from fabricated reports, including one fabricated report that reached Likely after an oracle fired; Tavily returned no advisory results due to its usage limit; one E4 path-read check is `not_run`.
-- [ ] Refresh the inbox and dossier screenshots from the corrected fixture before approving the video. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
-- [x] Draft a 2:58 demo script and captions with fixture disclosures and pilot results. Only the research/hypothesis capture remains; the inbox and dossier captures were removed after the fixture verdict correction. No video export exists in this workspace.
-- [ ] Verify [the owner's existing public video](https://youtu.be/y4rlh4hlkcw) against the current script/replay, including visibility, duration, audio, captions, and playback; replace it if stale.
-- [ ] Add the verified current video URL and evaluation summary to the Devpost draft. The owner will submit the entry.
-- [ ] Re-check clean-browser replay access and resolve the absence of a hosted live-analysis backend or judge credential against the Rules' unrestricted-access requirement.
-- [x] Re-read the Official Rules on 2026-10-18; the owner's eligibility and agreement attestations are recorded complete.
+## Current artifact checklist
 
-The boxes above reflect deliverables only; completion of a checkbox does not
-change the documented provider or security limitations.
+- [x] Public repository URL and Apache-2.0 license are present.
+- [x] Cross-platform no-credential replay launch and portable build are documented.
+- [x] 199 backend tests pass on Python 3.12; external test sockets are guarded.
+- [x] Live and replay production builds pass; seven Chromium checks cover core UI behavior and reference URL handling.
+- [x] Frontend npm audit and local Python dependency audit report zero known advisories.
+- [x] Both Docker images build; API access controls, sample SSE completion, and replay navigation pass smoke checks.
+- [x] The existing public replay opens and refreshes in a fresh Chromium context using TLS-verified forwarding; direct browser proxy-CA trust was unavailable.
+- [x] Three current screenshots, architecture diagram, and project thumbnail are present.
+- [x] Narrated, captioned demo MP4 under three minutes is exported locally.
+- [x] Devpost copy, product-feedback fields, evaluation summary, and demo script are prepared.
+- [x] Bounded live Nemotron inference and Sandbox permissions checks pass.
+- [x] E1–E4 pilot results and uncertainty are published without claiming broad accuracy or hostile-PoC containment.
+- [ ] Merge the reviewed readiness PR and verify the new Pages deployment. The connected GitHub integration has push access; the CLI token is invalid.
+- [x] Preserve the owner-approved public YouTube submission link; an optional updated MP4 is prepared locally.
+- [ ] Restore Tavily quota; current live research returns HTTP 432 with no results.
+- [ ] Establish a working live project and free judge access through December 15; a static fixture alone does not establish this.
+- [ ] Recheck the Official Rules, complete the remaining Devpost fields, and submit the entry.
+
+See [the readiness review](readiness-review.md) for every fixed issue, validation
+scope, current provider results, and the remaining owner/account steps. Previous
+CI/deployment evidence belongs to the existing public revision; it does not
+establish deployment of this patch.

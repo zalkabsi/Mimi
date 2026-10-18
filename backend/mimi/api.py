@@ -27,7 +27,7 @@ from .config import Settings
 from .db import Database
 from .events import now_iso
 from .pipeline import Pipeline
-from .schemas import Dossier, ReportSubmission
+from .schemas import Dossier, ReportSubmission, StageEvent, Tier
 
 app = FastAPI(title="Mimi", description="Every vulnerability report gets a verdict with receipts.")
 _cors_origins = [
@@ -209,17 +209,54 @@ async def submit_report(
             detail="demo mode is read-only; use the judge credential or self-host to run live reports",
         )
     report_id = uuid.uuid4().hex[:12]
+    # Make the accepted report readable before its worker starts. Otherwise a
+    # fast redirect or SSE subscription can race the first pipeline write.
+    _db.upsert_report(
+        Dossier(
+            report_id=report_id,
+            created_at=now_iso(),
+            source="api",
+            package_spec=submission.package_spec,
+            report_text=submission.report_text,
+        ),
+        status="running",
+    )
 
     def sink(event: dict) -> None:
         _publish(report_id, event)
 
     pipeline = Pipeline(_settings, db=_db, on_event=sink)
 
+    def run_pipeline() -> None:
+        # The pipeline's inference, registry and research clients are
+        # synchronous. Give the job its own worker/event loop so those calls
+        # cannot freeze HTTP requests or SSE for the duration of a model call.
+        asyncio.run(pipeline.run(submission, source="api", report_id=report_id))
+
     async def _run() -> None:
+        worker = asyncio.create_task(asyncio.to_thread(run_pipeline))
         try:
-            await pipeline.run(submission, source="api", report_id=report_id)
+            await asyncio.shield(worker)
+        except asyncio.CancelledError:
+            # A thread cannot be cancelled. Keep its clients and event queues
+            # alive until it has saved the final dossier before closing SSE.
+            await asyncio.gather(worker, return_exceptions=True)
+            raise
         except Exception as e:
-            _publish(report_id, {"stage": "pipeline", "status": "error", "detail": str(e)})
+            event = StageEvent(
+                ts=now_iso(), report_id=report_id, stage="pipeline", status="error",
+                detail=f"pipeline stopped: {e}", data={"final": True},
+            )
+            dossier = _db.get_report(report_id)
+            if dossier is not None:
+                dossier.tier = Tier.NEEDS_HUMAN
+                dossier.tier_rationale = f"Pipeline stopped before a verdict: {e}"
+                dossier.limitations.append(f"pipeline error: {type(e).__name__}")
+                dossier.events.append(event)
+            _db.update_status(report_id, "error", dossier)
+            payload = event.model_dump(mode="json")
+            _db.add_event(report_id, payload)
+            _publish(report_id, payload)
         finally:
             _finish(report_id)
 

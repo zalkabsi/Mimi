@@ -114,3 +114,43 @@ def test_tarball_check_enforces_cap_when_content_length_is_untrusted(monkeypatch
     assert len(evidence) == 1
     assert evidence[0].kind == EvidenceKind.NOTE
     assert "8 MiB limit" in evidence[0].detail
+
+
+def test_compressed_archive_cannot_exceed_the_expanded_search_budget(monkeypatch):
+    blob = _tarball({"package/index.js": b"a" * 20_000})
+    monkeypatch.setattr(ground, "_UNPACKED_CAP", 1024)
+    submission, claim, events = _inputs()
+    evidence = ground._tarball_check(submission, claim, FakeClient(FakeTarballResponse([blob])), events)
+    assert len(evidence) == 1
+    assert evidence[0].kind == EvidenceKind.NOTE
+    assert "expanded tarball" in evidence[0].detail
+
+
+def test_too_many_entries_make_absence_inconclusive(monkeypatch):
+    blob = _tarball({"package/a.js": b"", "package/b.js": b"", "package/index.js": b""})
+    monkeypatch.setattr(ground, "_MAX_MEMBERS", 2)
+    submission, claim, events = _inputs()
+    evidence = ground._tarball_check(submission, claim, FakeClient(FakeTarballResponse([blob])), events)
+    assert len(evidence) == 1
+    assert evidence[0].kind == EvidenceKind.NOTE
+    assert "2-entry" in evidence[0].detail
+
+
+def test_large_file_is_present_but_unsearched_symbols_are_not_absent(monkeypatch):
+    blob = _tarball({"package/index.js": b"function vulnerableFunction() {}"})
+    monkeypatch.setattr(ground, "_SOURCE_FILE_CAP", 16)
+    submission, claim, events = _inputs()
+    evidence = ground._tarball_check(submission, claim, FakeClient(FakeTarballResponse([blob])), events)
+    assert any(item.kind == EvidenceKind.FILE_FOUND and item.target == "index.js" for item in evidence)
+    assert any(item.kind == EvidenceKind.NOTE and item.target == "vulnerableFunction" for item in evidence)
+    assert not any(item.kind in {EvidenceKind.FILE_ABSENT, EvidenceKind.SYMBOL_ABSENT} for item in evidence)
+
+
+def test_cited_file_must_match_a_complete_path_component():
+    blob = _tarball({"package/not-index.js": b"function vulnerableFunction() {}", "package/.index.js": b""})
+    submission, claim, events = _inputs()
+    claim.cited_files.append("./.index.js")
+    evidence = ground._tarball_check(submission, claim, FakeClient(FakeTarballResponse([blob])), events)
+    assert any(item.kind == EvidenceKind.FILE_ABSENT and item.target == "index.js" for item in evidence)
+    assert not any(item.kind == EvidenceKind.FILE_FOUND and item.target == "index.js" for item in evidence)
+    assert any(item.kind == EvidenceKind.FILE_FOUND and item.target == "./.index.js" for item in evidence)

@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /*
  * Mimi — dark, evidence-first surface. Everything decorative is deliberately

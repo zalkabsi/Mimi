@@ -1,0 +1,2 @@
+# Optional tooling for regenerating synthetic demo narration; not app runtime.
+edge-tts==7.3.1

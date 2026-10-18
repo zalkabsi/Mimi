@@ -108,12 +108,18 @@ export async function listReports(limit = 50): Promise<ReportListItem[]> {
 }
 
 export async function getReport(reportId: string): Promise<Dossier> {
-  if (USE_MOCK) return mockDossier;
+  if (USE_MOCK) {
+    if (reportId !== mockDossier.report_id) throw new ApiError(404, "No such report.");
+    return mockDossier;
+  }
   return request<Dossier>(`/api/reports/${encodeURIComponent(reportId)}`);
 }
 
 export async function getEvents(reportId: string): Promise<StageEvent[]> {
-  if (USE_MOCK) return mockDossier.events;
+  if (USE_MOCK) {
+    if (reportId !== mockDossier.report_id) throw new ApiError(404, "No such report.");
+    return mockDossier.events;
+  }
   return request<StageEvent[]>(
     `/api/reports/${encodeURIComponent(reportId)}/events`,
   );
@@ -153,6 +159,7 @@ export function streamEvents(
   onComplete?: () => void,
 ): () => void {
   if (USE_MOCK) {
+    if (reportId !== mockDossier.report_id) return () => undefined;
     for (const ev of mockDossier.events) onEvent(ev);
     onComplete?.();
     return () => undefined;

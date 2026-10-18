@@ -37,14 +37,18 @@ For live analysis, report text is sent to Nebius Token Factory for inference. Ta
 ```bash
 cd frontend
 npm ci
-VITE_USE_MOCK=1 npm run dev
+npm run demo
 ```
 
-Open the local URL printed by Vite and select the sample report. Replay mode makes no provider calls, hides the access-key field, and disables report submissions. On Windows PowerShell, set `$env:VITE_USE_MOCK = "1"` before running `npm run dev`.
+Open the local URL printed by Vite and choose **Open sample dossier**. This command works on macOS, Linux, and Windows. Replay mode makes no provider calls, hides the access-key field, and disables report submissions. Use **Download dossier** to save the sample evidence as JSON.
+
+The [demo video and regeneration instructions](docs/video/README.md), refreshed [inbox](docs/assets/demo-inbox.png) and [dossier](docs/assets/demo-dossier.png) captures, [submission copy](docs/submission-kit.md), and [readiness review](docs/readiness-review.md) are included. The review distinguishes verified local deliverables from the remaining hosted-access and publishing steps.
+
+To build the submission bundle, run `make submission` from the repository root, or run `npm run build:demo` in `frontend/` followed by `python scripts/prepare_submission.py` at the root. The combined `mimi-submission.zip`, portable replay, source ZIP, and demo assets are written to the ignored `artifacts/submission/` directory. Serve an extracted demo ZIP with `python -m http.server 8080`; hash routes work on any static host.
 
 ## How Mimi works
 
-1. **Ground the report.** Nemotron Nano structures the claim. Deterministic checks compare cited files, symbols, and versions with the affected package source. Source grounding is supporting evidence; it cannot reject a report on its own.
+1. **Ground the report.** Nemotron Nano structures the claim. Deterministic checks compare cited files, symbols, and versions with the affected package source. Archive searches cap compressed downloads at 8 MiB, expanded content at 32 MiB, and entries at 4096. Skipped content stays inconclusive. Source grounding is supporting evidence; it cannot reject a report on its own.
 2. **Research public advisories.** Tavily searches with public identifiers such as package names, versions, CVE IDs, and GHSA IDs. Report prose and proof-of-concept code are excluded from search queries.
 3. **Plan bounded checks.** Nemotron proposes test hypotheses with predeclared deterministic oracles. The backend validates each operation against an allowlist; the model cannot issue arbitrary tool calls.
 4. **Run in an isolated boundary.** Mimi builds the affected package and is designed to
@@ -61,13 +65,14 @@ Verdicts are **Confirmed**, **Likely**, **Needs human**, and **Contradicted**. A
 
 The read-only sample API can run without provider credentials. Live submissions require a Nebius Token Factory key, a Nebius project with Sandboxes permissions, and optionally a Tavily key. Copy `.env.example` to `.env` and keep credentials out of source control.
 
-Prerequisites: Python 3.12 or 3.13, Node.js 18 or 20+, and npm.
+Prerequisites: Python 3.12 or 3.13, Node.js 20.19+ or 22.12+ (Node 22 LTS recommended), and npm.
 
 Start the backend from the repository root:
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ./backend
 uvicorn mimi.api:app --app-dir backend --reload --port 8000
 ```
@@ -81,6 +86,21 @@ npm run dev
 ```
 
 The frontend uses `http://localhost:8000` by default. Without `MIMI_JUDGE_KEY`, the API serves only the bundled read-only dossier. For live report access, set the same judge key in the backend environment and enter it in the UI. The UI keeps it in `sessionStorage` for the current tab; **Clear key** removes it. Anyone holding this shared key can read every report on that deployment, so use only public sample reports on a shared demo. The database defaults to `mimi.db`; set `MIMI_DB_PATH` to use another location.
+
+### Verify the project
+
+```bash
+python -m pip install -e './backend[dev]'
+python -m pytest backend/tests -q
+cd frontend
+npm ci
+npm run build
+npx playwright install chromium
+npm run test:e2e
+npm audit
+```
+
+Browser checks cover the built replay, mobile layout, dossier downloads, missing reports, tab-scoped access keys, and completed event streams. They use public fixtures and stub live HTTP responses, so they spend no credits and execute no PoC. `make setup`, `make browser`, and `make verify` provide the equivalent workflow on systems with Make.
 
 ### CLI
 
