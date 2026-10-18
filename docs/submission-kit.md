@@ -341,9 +341,11 @@ smoke as a vulnerability analysis. Do not reuse fixture timestamps, IDs, outputs
 costs as live evidence.
 
 After the code, public copy, screenshots, and clean-browser check are settled,
-record and export the final video as the last project deliverable. No video or
-audio media file is present in this workspace. Upload the reviewed cut publicly
-to YouTube and add its link to Devpost before submitting the entry.
+verify the public video reported by the owner against the current replay and this
+script. No video or audio media file or video URL is recorded in this workspace.
+If the existing video is stale, record and export a replacement under three
+minutes, review playback, and publish it publicly. Add the verified current URL
+to the Devpost draft before submitting the entry.
 
 ## Artifact checklist
 
@@ -351,27 +353,26 @@ to YouTube and add its link to Devpost before submitting the entry.
 - [x] Redacted Gitleaks scans of the current tree and Git history returned zero findings on 2026-10-18.
 - [x] Local no-credential replay instructions are documented.
 - [x] Current frontend production build passed locally on 2026-10-18; the replay image and prior GitHub Actions production builds passed on 2026-10-16/17.
-- [x] Backend test suite passed locally on Python 3.12 after the final code changes (193 tests; one upstream Starlette/httpx deprecation warning). The 183-test Python 3.12/3.13 CI run on 2026-10-17 predates this patch.
+- [x] Backend test suite passed locally on Python 3.12 after the final code changes (193 tests; one upstream Starlette/httpx deprecation warning). GitHub Actions CI passed on the latest public commit `878709a` for Python 3.12/3.13 and frontend live/replay builds.
 - [x] Backend Docker image rebuilt from the current patch on 2026-10-18; no-credential health, inbox, and sample-dossier checks passed. The previous image also passed events, completed SSE, live-ID access denial (401), and submission denial (402) checks on 2026-10-17.
 - [x] A replay container smoke check on 2026-10-16 confirmed the inbox, direct dossier route, health endpoint, and built JS/CSS assets return HTTP 200.
 - [x] Architecture diagram exported as SVG and updated to distinguish the successful no-op smoke from unverified hostile-PoC containment.
 - [x] 3:2 project thumbnail added at `docs/assets/mimi-project-thumbnail.jpg` (1536 × 1024, under 200 KB), within Devpost's 5 MB limit.
 - [x] Devpost copy and an honest demo script are drafted above.
-- [x] GitHub Actions CI passed on `master` at `a476de1` on 2026-10-18.
+- [x] GitHub Actions CI passed on public `master` at `878709a` on 2026-10-18.
 - [x] The previous source snapshot, including deletion of `CLAUDE.md`, was merged to public `master` on 2026-10-17.
-- [x] The read-only Pages workflow built and deployed `a476de1` on 2026-10-18. Its public URL returns HTTP 200, and a clean local build with the workflow's exact environment produces a byte-identical JavaScript bundle to the one served publicly; the interactive clean-browser check is still pending.
+- [x] The read-only Pages workflow built and deployed the app code from `a476de1` on 2026-10-18. Its public URL returns HTTP 200, and a clean local build with the workflow's exact environment produces a byte-identical JavaScript bundle to the one served publicly; the docs-only `878709a` commit does not change the app. The interactive clean-browser check is still pending.
 - [ ] Confirm access in a private/clean browser before final submission; browser-control was unavailable in this cloud session.
 - [x] Confirmed the GitHub About description and Apache-2.0 license metadata are visible through repository metadata on 2026-10-17.
 - [x] Update the Sandboxes base URL to the current Token Factory endpoint and confirm `whoami` returns HTTP 200 with all six permissions.
 - [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
 - [x] Run and report E1/E2/E3/E4 with sample sizes and uncertainty; see `docs/evaluation-results.md`. E1 is 0/11 confirmed with a fixed-version differential; E2 did not distinguish real from fabricated reports, including one fabricated report that reached Likely after an oracle fired; Tavily returned no advisory results due to its usage limit; one E4 path-read check is `not_run`.
-- [ ] Refresh inbox and dossier screenshots from the corrected fixture before recording the final video. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
+- [ ] Refresh the inbox and dossier screenshots from the corrected fixture before approving the video. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
 - [x] Draft a 2:58 demo script and captions with fixture disclosures and pilot results. Only the research/hypothesis capture remains; the inbox and dossier captures were removed after the fixture verdict correction. No video export exists in this workspace.
-- [ ] Record natural narration, synchronize captions, export a cut under three minutes, and verify playback.
-- [ ] Upload the final video publicly to YouTube and add the URL to Devpost.
+- [ ] Verify the owner's existing public video URL against the current script/replay, including visibility, duration, audio, captions, and playback; replace it if stale.
+- [ ] Add the verified current video URL and evaluation summary to the Devpost draft. The owner will submit the entry.
 - [ ] Re-check clean-browser replay access and resolve the absence of a hosted live-analysis backend or judge credential against the Rules' unrestricted-access requirement.
 - [x] Re-read the Official Rules on 2026-10-18; the owner's eligibility and agreement attestations are recorded complete.
-- [ ] Update the Devpost draft with the final video URL and current evaluation summary, then submit.
 
 The boxes above reflect deliverables only; completion of a checkbox does not
 change the documented provider or security limitations.

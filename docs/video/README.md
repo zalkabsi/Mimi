@@ -5,9 +5,11 @@ These files support the under-three-minute read-only replay demo:
 - `voiceover-script.txt` is the conversational narration draft.
 - `captions.srt` contains timed captions for the current picture edit.
 
-No video or audio media file is present in this workspace. The script and captions are
-drafts; the script includes the exploratory E1/E2 results. The inbox and dossier captures
-were removed after the sample verdict was corrected to meet the current coverage rule.
-Refresh those screenshots from the corrected replay, record narration, sync the captions,
-export a cut under three minutes, and review its playback. Then publish it publicly on
-YouTube and add its URL to Devpost.
+No video or audio media file or public video URL is recorded in this workspace. The owner
+reports an existing public video, but its currentness has not been checked. Compare it
+with the current replay and this script, which includes the exploratory E1/E2 results;
+verify visibility, duration under three minutes, audio, captions, and playback. If it is
+stale, refresh the inbox and dossier captures from the corrected replay, record narration,
+sync the captions, and publish a reviewed replacement publicly on YouTube. Add the
+verified current URL to the Devpost draft. The two pre-threshold captures were removed
+after the sample verdict was corrected to meet the current coverage rule.
