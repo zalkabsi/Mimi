@@ -110,11 +110,13 @@ The 11-case pilot had four oracle fires,
 but zero fixed-version confirmations.
 
 24
-00:02:40,000 --> 00:02:48,000
+00:02:40,000 --> 00:02:49,000
 None of five fabricated reports was
-contradicted; all went to human review.
+Contradicted. Four went to Needs human;
+one falsely reached Likely after a trigger.
 
 25
-00:02:48,000 --> 00:02:58,000
-These small results do not establish reliable
-triage. Provider isolation is unverified.
+00:02:49,000 --> 00:02:58,000
+Tavily's limit blocked advisory lookups; this
+sample does not show useful slop detection.
+Provider-level isolation is unverified.

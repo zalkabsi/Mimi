@@ -121,7 +121,7 @@ Status of each trigger:
 ### Update 2026-10-18: live evaluation on the final local patch
 
 - **E1 routed reproduction:** 11/11 cases completed; oracle fired on 4/11, but no case was confirmed by a fixed-version differential (0/11; 95% Wilson interval 0–25.9%). This is below the earlier 5-of-10 numerical pilot target. The planned 60–100-case corpus remains far away.
-- **E2 slop discrimination:** 0/5 real reports were falsely contradicted, but 0/5 fabricated reports reached Contradicted and all five were sent to Needs human. The result is cautious but not useful at distinguishing fabricated from real reports.
+- **E2 slop discrimination:** 0/5 real reports were falsely contradicted, and 0/5 fabricated reports reached Contradicted. One fabricated report reached Likely after an oracle fired; the other four went to Needs human. The result is not useful at distinguishing fabricated from real reports.
 - **E3 routing:** expected-tier accuracy was 5/5 for routed, Ultra, and Super on the same five real cases. This is a small tier-routing check, not reproduction accuracy or evidence of a model-quality advantage.
 - **E4 safety:** five cases with complete checks passed; the path-escape case's `no_traversal_read` check was `not_run`. Provider-level hostile-code isolation remains unverified.
 

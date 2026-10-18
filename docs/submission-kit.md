@@ -32,8 +32,9 @@ package grounding, public advisory context, bounded tests, deterministic oracle 
 and explicit coverage. It shows what the checks established and leaves the decision with
 a human. The hosted demo is a clearly labelled replay. In a live 11-case pilot, four
 oracles fired but none was confirmed against a fixed version. In E2, none of five
-fabricated reports was contradicted; all were routed to human review. These small results
-do not establish reliable reproduction or hostile-PoC containment.
+fabricated reports was contradicted; one falsely reached Likely after an oracle fired,
+and the other four went to human review. These small results do not establish reliable
+reproduction or hostile-PoC containment.
 
 ### About the project
 
@@ -58,7 +59,8 @@ The hosted demo is a fixed, read-only replay. It makes no provider calls and doe
 run a live vulnerability analysis. Separate E1–E4 live evaluations exercised the pipeline;
 their small-sample results are published in `docs/evaluation-results.md`. E1 had zero
 fixed-version-confirmed reproductions in 11 cases. E2 falsely contradicted 0/5 real
-reports, but also contradicted 0/5 fabricated reports and sent all five to human review.
+reports and contradicted 0/5 fabricated reports; one fabricated report reached Likely
+after an oracle fired, and the other four went to human review.
 A read-only Sandboxes permission check returned HTTP 200 with
 all six permissions enabled. During the final E2 run, npm package grounding resolved
 published tarballs, but Tavily returned HTTP 432 usage-limit errors for every advisory
@@ -331,7 +333,7 @@ outputs as measured results.
 | 0:38–1:15 | **Timeline.** Scroll through extract, grounding, research, hypotheses, build, forks, differential, verdict, and reply. “Here is the recorded pipeline: claim extraction, package grounding, public advisory research, bounded test hypotheses, environment builds, isolated forks, a fixed-version comparison, a verdict, and a reply draft. Everything shown here is fixture data, including timestamps, model labels, durations, and token counts; these are not live measurements. Missing or incomplete evidence stays visible instead of being turned into an estimate.” |
 | 1:15–1:55 | **Dossier.** Show claim, research, hypotheses, runs, and oracle results. “The dossier starts with the claim, package version, and symbols shown in the sample. Its advisory reference is public, and report prose is not sent to the search provider. Each planned test names a deterministic oracle before execution. This fixture shows two hypotheses, one configuration, and zero triggers; it cannot tell us whether a real report reproduces. In a real run, Contradicted requires at least three conclusive hypotheses across two distinct configurations. Grounding alone can never reject a report. The reply is a draft, and the maintainer decides what happens next.” |
 | 1:55–2:22 | **Architecture.** Show the architecture diagram. “The architecture uses Nebius Token Factory with NVIDIA Nemotron Nano, Super, and Ultra for language-model tasks, and Tavily for research using public identifiers. Nebius Sandboxes is the required boundary for untrusted proof-of-concept code. Deterministic logic packages the evidence dossier and reply for human review. A safe no-op smoke confirmed Mimi's child namespace and observed outbound TCP blocked with ENETUNREACH; provider-level isolation against hostile code remains unverified.” |
-| 2:22–2:58 | **Limits and close.** “This is a read-only replay, not a live vulnerability analysis. In an 11-case live pilot, four oracles fired but none was confirmed against a fixed version. In five fabricated reports, none was contradicted and all five went to human review. These small results do not establish reliable reproduction or slop discrimination. The replay is fixture data, and provider-level isolation remains unverified. The maintainer decides what happens next; Mimi never auto-closes a report.” |
+| 2:22–2:58 | **Limits and close.** “This is a read-only replay, not a live vulnerability analysis. In an 11-case live pilot, four oracles fired but none was confirmed against a fixed version. In five fabricated reports, none was contradicted. One falsely reached Likely after an oracle fired; the other four went to human review. Tavily's plan limit blocked advisory lookups, so this sample does not establish useful slop discrimination. The replay is fixture data, and provider-level isolation remains unverified. The maintainer decides what happens next; Mimi never auto-closes a report.” |
 
 The harmless no-op Sandbox smoke is complete. Keep the walkthrough focused on the
 functioning replay UI and disclose that it is fixture data; do not present the separate
@@ -355,16 +357,16 @@ to YouTube and add its link to Devpost before submitting the entry.
 - [x] Architecture diagram exported as SVG and updated to distinguish the successful no-op smoke from unverified hostile-PoC containment.
 - [x] 3:2 project thumbnail added at `docs/assets/mimi-project-thumbnail.jpg` (1536 × 1024, under 200 KB), within Devpost's 5 MB limit.
 - [x] Devpost copy and an honest demo script are drafted above.
-- [x] GitHub Actions CI passed on the merged `master` revision on 2026-10-17.
+- [x] GitHub Actions CI passed on `master` at `a476de1` on 2026-10-18.
 - [x] The previous source snapshot, including deletion of `CLAUDE.md`, was merged to public `master` on 2026-10-17.
-- [x] The read-only Pages workflow built and deployed the static replay on 2026-10-17. Its public URL returned HTTP 200 on 2026-10-18; the current clean-browser check is still pending.
+- [x] The read-only Pages workflow built and deployed `a476de1` on 2026-10-18. Its public URL returns HTTP 200, and a clean local build with the workflow's exact environment produces a byte-identical JavaScript bundle to the one served publicly; the interactive clean-browser check is still pending.
 - [ ] Confirm access in a private/clean browser before final submission; browser-control was unavailable in this cloud session.
 - [x] Confirmed the GitHub About description and Apache-2.0 license metadata are visible through repository metadata on 2026-10-17.
 - [x] Update the Sandboxes base URL to the current Token Factory endpoint and confirm `whoami` returns HTTP 200 with all six permissions.
 - [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
-- [x] Run and report E1/E2/E3/E4 with sample sizes and uncertainty; see `docs/evaluation-results.md`. E1 is 0/11 confirmed with a fixed-version differential; E2 did not distinguish real from fabricated reports and Tavily returned no advisory results due to its usage limit; one E4 path-read check is `not_run`.
+- [x] Run and report E1/E2/E3/E4 with sample sizes and uncertainty; see `docs/evaluation-results.md`. E1 is 0/11 confirmed with a fixed-version differential; E2 did not distinguish real from fabricated reports, including one fabricated report that reached Likely after an oracle fired; Tavily returned no advisory results due to its usage limit; one E4 path-read check is `not_run`.
 - [ ] Refresh inbox and dossier screenshots from the corrected fixture before recording the final video. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
-- [x] Draft a 2:58 demo script and captions with fixture disclosures and the current pilot results; three replay screenshots are present. No video export exists in this workspace.
+- [x] Draft a 2:58 demo script and captions with fixture disclosures and pilot results. Only the research/hypothesis capture remains; the inbox and dossier captures were removed after the fixture verdict correction. No video export exists in this workspace.
 - [ ] Record natural narration, synchronize captions, export a cut under three minutes, and verify playback.
 - [ ] Upload the final video publicly to YouTube and add the URL to Devpost.
 - [ ] Re-check clean-browser replay access and resolve the absence of a hosted live-analysis backend or judge credential against the Rules' unrestricted-access requirement.
