@@ -341,12 +341,10 @@ smoke as a vulnerability analysis. Do not reuse fixture timestamps, IDs, outputs
 costs as live evidence.
 
 After the code, public copy, screenshots, and clean-browser check are settled,
-verify the public video supplied by the owner, [Mimi](https://youtu.be/y4rlh4hlkcw),
-against the current replay and this script. No video or audio media file is
-recorded in this workspace, and this session could not retrieve the video's
-duration or transcript. If the existing video is stale, record and export a
-replacement under three minutes, review playback, and publish it publicly. Add
-the verified current URL to the Devpost draft before submitting the entry.
+The owner reviewed the public video [Mimi](https://youtu.be/y4rlh4hlkcw) and
+confirmed it is ready for submission. The video is hosted on YouTube; no separate
+video or audio media file is stored in this workspace. Add the video URL and
+current evaluation summary to the Devpost draft before submitting the entry.
 
 ## Artifact checklist
 
@@ -368,9 +366,9 @@ the verified current URL to the Devpost draft before submitting the entry.
 - [x] Update the Sandboxes base URL to the current Token Factory endpoint and confirm `whoami` returns HTTP 200 with all six permissions.
 - [x] Run a safe no-op Sandbox operation and verify Mimi's child network namespace plus app-level egress block; hostile-PoC and provider-level isolation remain unverified.
 - [x] Run and report E1/E2/E3/E4 with sample sizes and uncertainty; see `docs/evaluation-results.md`. E1 is 0/11 confirmed with a fixed-version differential; E2 did not distinguish real from fabricated reports, including one fabricated report that reached Likely after an oracle fired; Tavily returned no advisory results due to its usage limit; one E4 path-read check is `not_run`.
-- [ ] Refresh the inbox and dossier screenshots from the corrected fixture before approving the video. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
+- [ ] Optional gallery polish: refresh the inbox and dossier screenshots from the corrected fixture if you want to include them in the Devpost media gallery. The two pre-threshold captures were removed; `docs/assets/demo-evidence.png` remains current because its displayed research and hypotheses were unchanged.
 - [x] Draft a 2:58 demo script and captions with fixture disclosures and pilot results. Only the research/hypothesis capture remains; the inbox and dossier captures were removed after the fixture verdict correction. No video export exists in this workspace.
-- [ ] Verify [the owner's existing public video](https://youtu.be/y4rlh4hlkcw) against the current script/replay, including visibility, duration, audio, captions, and playback; replace it if stale.
+- [x] The owner reviewed [the public video](https://youtu.be/y4rlh4hlkcw) and confirmed it is ready for submission.
 - [ ] Add the verified current video URL and evaluation summary to the Devpost draft. The owner will submit the entry.
 - [ ] Re-check clean-browser replay access and resolve the absence of a hosted live-analysis backend or judge credential against the Rules' unrestricted-access requirement.
 - [x] Re-read the Official Rules on 2026-10-18; the owner's eligibility and agreement attestations are recorded complete.
