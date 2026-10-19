@@ -1,6 +1,6 @@
 # Hackathon submission kit
 
-Updated 2026-10-18 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
+Updated 2026-10-19 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
 [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) were
 last re-read on 2026-10-18. The deadline is October 30, 2026 at 10:00 AM
 Pacific; re-read the rules again immediately before submission.
@@ -379,10 +379,12 @@ verify a new public URL only if replacing the approved video.
 - [x] The active master ruleset blocks force pushes/deletion and requires PRs and all three CI checks, with no bypass actors.
 - [x] Preserve the owner-approved public YouTube submission link; an optional updated MP4 is prepared locally.
 - [x] Tavily funding is restored: a direct search and the actual backend research client both succeed; the account reports a 625-credit paid-usage limit.
+- [x] The combined app is deployed on Render Free at [mimi-judge.onrender.com](https://mimi-judge.onrender.com); hosted assets, sample dossier, events/SSE, authentication, and anonymous-access denials pass HTTP checks.
 - [ ] Establish a working live project and free judge access through December 15; a static fixture alone does not establish this.
 - [ ] Recheck the Official Rules, complete the remaining Devpost fields, and submit the entry.
 
 See [the readiness review](readiness-review.md) for every fixed issue, validation
 scope, current provider results, and the remaining owner/account steps. The
-Pages release is deployed. Live judge hosting still needs a provisioned service,
-hosting secrets, and end-to-end verification; see [judge access](judge-access.md).
+Pages release and the combined Render host are deployed. Render still needs
+the provider API keys and an end-to-end report check; see
+[judge access](judge-access.md).

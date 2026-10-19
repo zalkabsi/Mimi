@@ -14,14 +14,21 @@ download, and route refresh; `/Mimi/demo-manifest.json` identifies the replay.
 
 ## Live access status
 
-**A live judge URL and credential have not been verified yet.** Render is now
-installed, but its deployment tools are not exposed in this chat. Tavily
-funding is restored and its real backend client passes verification.
-`render.yaml` prepares a single Free web service; `Dockerfile.judge` builds the
-real frontend and Python API together. Hosting configuration alone does not
-establish working live access or paid-provider availability through December 15.
+**The combined host is live at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).
+Hosted live analysis is not yet verified.** On October 19, 2026, Render created
+`mimi-judge` (`srv-dbb4beqjnfac73euoa10`) on its Free plan in Frankfurt with one
+instance. Its first deployment serves commit `36405e3` from `master`.
 
-Once deployed, the operator must add the exact live URL and the shared judge
+TLS-verified HTTP checks pass for the frontend and its assets, health, inbox,
+sample dossier, events, and completed SSE. Private report reads require the
+judge key (401), and anonymous submissions are denied (402). The generated
+judge key authenticates, including a 404 for an authenticated missing report.
+The host has `NEBIUS_PROJECT_ID` and `MIMI_JUDGE_KEY`; the operator still needs
+to save `NEBIUS_API_KEY` and `TAVILY_API_KEY` in Render and deploy. No complete
+hosted public-package report has run yet. The local verification also passes
+200 backend tests and all seven Chromium checks.
+
+After the hosted report check, the operator must add the exact live URL and the shared judge
 credential to Devpost's private testing instructions. Do not commit the key or
 put provider credentials in the browser. Judges need no paid account of their
 own. Keep the service and credentials available through **December 15, 2026**.
@@ -77,12 +84,22 @@ check Nebius credits and any expiry in the Token Factory account.
 
 ## Render launch and verification
 
-If a Mimi service already exists, verify that service rather than creating a
-duplicate. Otherwise, use the prepared
+Use the [existing service](https://dashboard.render.com/web/srv-dbb4beqjnfac73euoa10)
+and its [environment settings](https://dashboard.render.com/web/srv-dbb4beqjnfac73euoa10/env);
+do not create a duplicate. The workspace is `tea-dbatv7fbtjjs738jpdug`.
+Add `NEBIUS_API_KEY` and the funded `TAVILY_API_KEY`, then choose **Save,
+rebuild, and deploy**. `NEBIUS_PROJECT_ID` and the generated `MIMI_JUDGE_KEY`
+are already configured. Keep the judge key in Render and copy it only into
+Devpost's private testing instructions when live verification is complete.
+Codex Network secrets are restricted to their provider domains and are not
+portable deployment credentials.
+
+For a separate installation, use the prepared
 [Deploy to Render link](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fzalkabsi%2FMimi)
 to launch this repository's `master` branch using its Blueprint. Confirm
 `plan: free`, one instance, and
-`/api/health` as the health check. Render generates `MIMI_JUDGE_KEY`; enter
+`/api/health` as the health check. Leave `maxShutdownDelaySeconds` unset:
+Render rejects that setting on the Free plan. Render generates `MIMI_JUDGE_KEY`; enter
 `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, and the funded `TAVILY_API_KEY` directly
 in Render's secret settings. Values injected by a development proxy may be
 placeholders and must not be assumed portable to another host.

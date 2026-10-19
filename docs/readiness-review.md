@@ -8,8 +8,9 @@ builds, container smoke checks, browser flows, demo assets, and submission requi
 
 The readiness changes are merged and the updated public Pages replay is
 deployed and verified. Tavily funding is restored and the backend research
-client is verified. Final submission still depends on hosted live judge access
-and the provider-lifetime steps below.
+client is verified. The combined Render host is deployed and its sample/API
+access checks pass. Final submission still depends on saving its provider
+secrets, completing a hosted live report, and the provider-lifetime steps below.
 
 ## Problems fixed
 
@@ -33,7 +34,7 @@ and the provider-lifetime steps below.
 | Medium | SQLite's `.db-wal` and `.db-shm` sidecar files were not ignored and could be accidentally committed with live report data. | Added ignore patterns for both sidecars. |
 | Demo | Current inbox/dossier captures and an exported demo video were missing. | Refreshed three screenshots and prepared a narrated, captioned 720p MP4 under three minutes, with reproducible capture tooling. |
 | Demo | There was no portable submission bundle or dossier export. | Added JSON dossier downloads, a replay build manifest, checked source/replay ZIP packaging, and SHA-256 hashes. Packaging verifies that frontend and backend fixtures match. |
-| Deployment | Pages is a static replay and cannot run live jobs; frontend/API hosting was separate. | Prepared a combined live image with same-origin API requests, a Free Render Blueprint, an access-control regression, and a CI image smoke check. Render is installed; actual provisioning, hosting secrets, and live verification remain pending. |
+| Deployment | Pages is a static replay and cannot run live jobs; frontend/API hosting was separate. | Deployed the combined frontend/API to Render Free. Removed `maxShutdownDelaySeconds` after the API rejected that paid-plan setting. Hosted sample and authentication checks pass; provider secrets and a complete hosted live report remain pending. |
 
 ## Verification
 
@@ -45,7 +46,7 @@ and the provider-lifetime steps below.
 | Frontend | Live production build and dedicated replay build pass. Seven Chromium checks pass, including a 390px mobile viewport. |
 | Dependencies | `npm audit`: zero known advisories. Python environment audit with pip-audit/PyPI: zero known advisories after upgrading pip. |
 | Docker | Both images build. API health, inbox, dossier, events, completed SSE, private-ID denial (401), and submission denial (402) pass. Replay inbox and refreshed dossier route work in Chromium. |
-| Combined judge image | Builds and starts on a custom `PORT` as a non-root user. Chromium verifies the same-origin API inbox, dossier, and hash-route refresh with no page errors or external calls. API health, sample dossier, private-ID denial (401), and submission denial (402) pass. Hosting is not yet provisioned. |
+| Combined judge image | Builds and starts on a custom `PORT` as a non-root user. Local Chromium verifies the same-origin API inbox, dossier, and hash-route refresh with no page errors or external calls. The Render Free deployment of `36405e3` is live at [mimi-judge.onrender.com](https://mimi-judge.onrender.com). TLS-verified hosted HTTP checks pass for assets, health, sample dossier, recorded events, completed SSE, private-ID denial (401), submission denial (402), and the generated judge key. A complete hosted live report is pending provider-secret setup. |
 | Public replay | PR #6 merged as `4c10ee1`, and [Pages deployment 39227968643](https://github.com/zalkabsi/Mimi/actions/runs/39227968643) passed. A fresh signed-out Chromium context verified the updated inbox, sample link, JSON download, hash-route refresh, and replay manifest with no page errors or backend calls. Requests used TLS-verified HTTP forwarding because Chromium did not trust the session proxy CA. |
 | Live providers | A bounded Nemotron Nano inference smoke returned nonempty content (38 input / 45 output tokens). Sandboxes whoami returned all six permissions. On October 19, the owner restored Tavily funding with a 625-credit pay-as-you-go limit: a direct search returned 200, then the real backend client completed four queries and returned three unique advisories without error notes. No new vulnerability-reproduction accuracy claim is made. |
 | Demo | 158.32-second, 1280×720 H.264/AAC MP4: actual replay screen recording, original synthetic narration, and burned-in English captions. Refreshed screenshots and narration/shot sources are included. ffprobe metadata is retained locally in `artifacts/demo-raw/export-metadata.json`. |
@@ -65,15 +66,15 @@ The deadline is **October 30, 2026 at 20:00 Asia/Riyadh** (10:00 AM Pacific).
 The rules were recovered through indexed official-page results on October 18
 after direct retrieval returned 403; recheck the rules before submitting.
 
-1. **Publish and verify free live judge access.** The Render Blueprint and
-   combined frontend/API image are prepared, and Render is installed. Its
-   deployment tools are not exposed in this chat. Use the prepared
-   [Blueprint launch link](judge-access.md#render-launch-and-verification), or
-   verify an existing service, with real hosting secrets and a complete public-package
-   report. No hosted live URL, funded judge credential, or provider-key lifetime
-   through December 15 has been established. Keep Pages as a clearly labelled
-   replay. See [judge access](judge-access.md) for the rollout, private credential
-   handoff, funding, and Free-plan limits.
+1. **Complete hosted live judge verification.** The combined app is deployed
+   on [Render Free](https://mimi-judge.onrender.com), and its generated judge
+   key and sample/API checks pass. Add the two provider API keys in the
+   [existing service](judge-access.md#render-launch-and-verification), deploy,
+   and complete a public-package report with working research and Sandbox
+   execution. Provider funding and key lifetime through December 15 still
+   need owner verification. Keep Pages as a labelled replay. See
+   [judge access](judge-access.md) for the private credential handoff and
+   Free-plan limits.
 2. **Complete the Devpost draft.** Use [the submission kit](submission-kit.md),
    Track 2, the repository URL, the verified hosted-access instructions, the
    approved public video URL, and the Token Factory/Nemotron feedback. The owner
