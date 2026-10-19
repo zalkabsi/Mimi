@@ -12,6 +12,12 @@ Mimi is a project for the **Nebius × NVIDIA Global AI Hackathon 2026**, Track 2
 
 The **[hosted read-only demo](https://zalkabsi.github.io/Mimi/)** is live and needs no account, API key, or provider credits. It opens a fixed sample dossier for exploring the interface; it is not the result of a live vulnerability analysis. See the [deployment guide](docs/deployment.md) for hosting details.
 
+The **[live app](https://mimi-judge.onrender.com)** runs the frontend and API on
+Render Free. Live submissions require the shared judge key. An October 19
+hosted check completed inference, advisory research, eight Sandbox runs, and a
+saved dossier and reply. See [judge access](docs/judge-access.md) for the
+verification and private testing instructions.
+
 ### Replay screenshot
 
 This capture shows recorded advisory research and declared test hypotheses from the read-only replay. The displayed evidence is fixed fixture data, not live analysis.
@@ -27,8 +33,8 @@ accuracy. E1 had 0/11 fixed-version-confirmed reproductions. E2 produced no usef
 between real and fabricated reports. E4's path-escape read check was inconclusive, and
 provider-level hostile-code isolation remains unverified. See
 [the evaluation results](docs/evaluation-results.md) for sample sizes and intervals.
-No general reproduction or slop-discrimination claim is made; Sandbox billing conversion
-and live hosted-demo behavior are also unverified.
+No general reproduction or slop-discrimination claim is made; Sandbox billing
+conversion remains unverified.
 
 For live analysis, report text is sent to Nebius Token Factory for inference. Tavily receives only public identifiers, not report prose or PoC code. Generated PoC code is sent to Nebius Sandboxes when live execution is enabled.
 
@@ -89,8 +95,8 @@ The frontend uses `http://localhost:8000` by default. Without `MIMI_JUDGE_KEY`, 
 
 The combined frontend/API is deployed at
 [mimi-judge.onrender.com](https://mimi-judge.onrender.com) on Render's Free plan.
-Hosted sample and access-control checks pass; live analysis still needs provider
-credentials in Render and an end-to-end hosted report check. See
+Hosted sample, access-control, and complete public-report checks pass. Provider
+credentials and the judge key are stored in Render. See
 [judge access and budget](docs/judge-access.md) for the current verification,
 provider costs, and Free-plan sleep and data-retention limits.
 

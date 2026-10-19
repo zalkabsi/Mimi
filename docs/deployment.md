@@ -127,18 +127,30 @@ Chromium did not trust the session proxy CA.
 
 On October 19, the Render API created `mimi-judge`
 (`srv-dbb4beqjnfac73euoa10`) on the Free plan in Frankfurt, with one instance,
-`master` as its source, and deployment after CI checks pass. The first deployment
-of `36405e3` is live at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).
+`master` as its source, and deployment after CI checks pass. The service is live
+at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).
 TLS-verified HTTP checks pass for the root page, both frontend assets, API health,
 sample inbox, dossier, recorded events, and completed SSE. Private report reads
 without a key return 401; unauthenticated submissions return 402. The generated
 judge key authenticates, and a missing private report returns 404 with it.
 
-`NEBIUS_PROJECT_ID` and a generated `MIMI_JUDGE_KEY` are configured in Render.
-The operator still needs to add `NEBIUS_API_KEY` and `TAVILY_API_KEY` in the
-service's environment settings, deploy, and complete a hosted public-package
-report. Codex's domain-restricted Network secrets must not be copied as hosting
-credentials. Tavily's funded usage limit is 625 credits; the previously verified
-backend research client returned three unique advisories without errors.
+`NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, `TAVILY_API_KEY`, and a generated
+`MIMI_JUDGE_KEY` are configured in Render. The first live smoke exposed two
+research false positives: the guard treated fixed query vocabulary as leaked
+prose and matched partial words in report code. The fix in `f3257fa` passed
+201 backend tests and a real Tavily client check, then was deployed for a
+complete hosted retest.
+
+Hosted report `a846ce7353c7` (`minimist@1.2.5`, public CVE-2021-44906 input)
+completed all stages without errors: five public-identifier queries returned
+17 advisory records, eight Sandbox runs completed, and the verdict and reply
+were saved. Authenticated dossier/event reads and terminal SSE passed; the
+live dossier returned 401 without a key. The result was **Needs human**:
+zero of eight hypotheses triggered in one configuration. This is an integration
+check, not evidence of reproduction accuracy. The public dossier and events
+were downloaded locally before any restart.
+
+Codex's domain-restricted Network secrets must not be copied as hosting
+credentials. Tavily's funded usage limit is 625 credits.
 Provider funding and key lifetime through December 15 remain owner checks. See
 [judge access](judge-access.md) and the [readiness review](readiness-review.md).

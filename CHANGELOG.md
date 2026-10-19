@@ -4,6 +4,22 @@ All work in this repository was created during the hackathon Submission Period (
 
 ## Unreleased
 
+### 2026-10-19 (free live hosting and research regression)
+
+- Deployed the combined frontend/API at https://mimi-judge.onrender.com on
+  Render Free with one Frankfurt instance, provider secrets, and a generated
+  judge credential. Removed the shutdown-delay setting unsupported by Free.
+- Fixed research being skipped when the report contained the template word
+  "vulnerability" or code whose normalized prefix matched part of a query word.
+  Fixed vocabulary remains allowed; query prose and secret guards remain tested.
+- All 201 backend tests pass, including a bundled-report client regression.
+  The hosted retest completed five Tavily queries with 17 advisory records,
+  eight Sandbox runs, and a saved dossier/reply with terminal SSE. Its verdict
+  was Needs human, with zero triggered hypotheses in one configuration; no new
+  reproduction-accuracy or hostile-code containment claim is made.
+- Updated deployment evidence and private judge-testing instructions, preserving
+  the public Pages replay and approved video.
+
 ### 2026-10-17 (Sandboxes SDK smoke and runtime fixes)
 - Replaced the incompatible ContreeAsyncClient usage with the async Contree client and IAMAuth
   configuration exposed by contree-sdk 0.3.6. Made staged image runs persistent for PoC

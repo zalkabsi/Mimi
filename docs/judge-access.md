@@ -14,28 +14,38 @@ download, and route refresh; `/Mimi/demo-manifest.json` identifies the replay.
 
 ## Live access status
 
-**The combined host is live at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).
-Hosted live analysis is not yet verified.** On October 19, 2026, Render created
+**The live app is verified at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).**
+On October 19, 2026, Render created
 `mimi-judge` (`srv-dbb4beqjnfac73euoa10`) on its Free plan in Frankfurt with one
-instance. Its first deployment serves commit `36405e3` from `master`.
+instance. It tracks `master` and automatically deploys after CI checks pass.
 
 TLS-verified HTTP checks pass for the frontend and its assets, health, inbox,
 sample dossier, events, and completed SSE. Private report reads require the
 judge key (401), and anonymous submissions are denied (402). The generated
 judge key authenticates, including a 404 for an authenticated missing report.
-The host has `NEBIUS_PROJECT_ID` and `MIMI_JUDGE_KEY`; the operator still needs
-to save `NEBIUS_API_KEY` and `TAVILY_API_KEY` in Render and deploy. No complete
-hosted public-package report has run yet. The local verification also passes
-200 backend tests and all seven Chromium checks.
+The host has all three provider settings and a generated `MIMI_JUDGE_KEY`.
 
-After the hosted report check, the operator must add the exact live URL and the shared judge
+After fixing a query-guard false positive, runtime commit `f3257fa` completed
+hosted report `a846ce7353c7` for the bundled public `minimist@1.2.5` /
+CVE-2021-44906 input. Five Tavily queries returned 17 advisory records, eight
+Sandbox runs completed, and the verdict and maintainer reply were saved with
+no error-stage events. The final dossier, recorded history, and terminal SSE
+were retrieved with the judge key; the live dossier was denied without it.
+The result was **Needs human**, with zero triggered hypotheses in one
+configuration. This verifies integration, not vulnerability-reproduction
+accuracy. Dossier and event exports are retained locally in
+`artifacts/hosted-verification/after-fix/` because Render Free storage is
+ephemeral. Local verification passes 201 backend tests and seven Chromium
+checks; all three required CI jobs passed for the runtime fix.
+
+The operator must add the exact live URL and the shared judge
 credential to Devpost's private testing instructions. Do not commit the key or
 put provider credentials in the browser. Judges need no paid account of their
 own. Keep the service and credentials available through **December 15, 2026**.
 
 The live walkthrough is:
 
-1. Open the supplied live URL and enter the judge access key.
+1. Open the live URL, enter the judge access key, and choose **Unlock inbox**.
 2. Submit a report about a public npm package and advisory.
 3. Watch the timeline, open the evidence and reply draft, and download the
    dossier before leaving.
@@ -43,6 +53,24 @@ The live walkthrough is:
 Use public samples: this shared key lets all holders read the same live
 reports. Published pilot accuracy and execution-boundary limits still apply.
 The bundled sample remains a fixture even when viewed through the live API.
+
+### Private Devpost testing instructions
+
+Copy the following into the private testing field and replace the key placeholder
+with the value of `MIMI_JUDGE_KEY` from Render. Keep this credential out of the
+public project description:
+
+> Live app: https://mimi-judge.onrender.com
+>
+> Judge access key: [copy MIMI_JUDGE_KEY from Render]
+>
+> Enter the key and choose Unlock inbox. To run a public example, use package
+> `minimist@1.2.5` and paste the
+> [bundled public report](https://github.com/zalkabsi/Mimi/blob/master/backend/mimi/data/sample_report.md),
+> then choose Run triage. Inspect the live timeline, evidence, coverage, verdict,
+> and reply draft; choose Download dossier before leaving. The recorded smoke
+> result was Needs human; live outputs can vary. The Free host may take about a
+> minute to wake and does not retain live reports across restarts.
 
 ## Provider and hosting budget
 
@@ -87,10 +115,10 @@ check Nebius credits and any expiry in the Token Factory account.
 Use the [existing service](https://dashboard.render.com/web/srv-dbb4beqjnfac73euoa10)
 and its [environment settings](https://dashboard.render.com/web/srv-dbb4beqjnfac73euoa10/env);
 do not create a duplicate. The workspace is `tea-dbatv7fbtjjs738jpdug`.
-Add `NEBIUS_API_KEY` and the funded `TAVILY_API_KEY`, then choose **Save,
-rebuild, and deploy**. `NEBIUS_PROJECT_ID` and the generated `MIMI_JUDGE_KEY`
-are already configured. Keep the judge key in Render and copy it only into
-Devpost's private testing instructions when live verification is complete.
+`NEBIUS_API_KEY`, the funded `TAVILY_API_KEY`, `NEBIUS_PROJECT_ID`, and the
+generated `MIMI_JUDGE_KEY` are configured. After changing an environment value,
+choose **Save, rebuild, and deploy**. Keep the judge key in Render and copy it
+only into Devpost's private testing instructions.
 Codex Network secrets are restricted to their provider domains and are not
 portable deployment credentials.
 
