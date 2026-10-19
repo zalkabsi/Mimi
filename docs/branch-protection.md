@@ -1,18 +1,20 @@
 # Protecting master
 
-**Status checked October 19, 2026:** GitHub reports `master` as unprotected and
-the repository ruleset collection is empty. The ruleset in this checkout is
-prepared for import; committing this file does not activate protection.
+**Verified October 19, 2026:** GitHub reports `master` as protected. The owner
+activated [Protect master, ruleset 25390422](https://github.com/zalkabsi/Mimi/rules/25390422).
+The GitHub API confirms active enforcement, the exact target
+`refs/heads/master`, all four rule types below, and an empty bypass list.
+This connection's `current_user_can_bypass` value is `never`.
 
-The connected GitHub tools support repository changes and ruleset reads, but
-do not expose ruleset administration writes. The cloud CLI's request to
-`api.github.com` is denied by the environment's network policy. No repository
-settings were changed during this session.
+The prepared JSON matches the active rules. Committing the JSON alone does
+not activate protection; activation was independently verified through GitHub's
+branch and ruleset responses. No destructive push was used to verify it.
 
-## Activate the prepared ruleset
+## Maintain or recreate the ruleset
 
-1. Open [Mimi's ruleset settings](https://github.com/zalkabsi/Mimi/settings/rules).
-2. Choose **New ruleset → Import a ruleset** and select
+1. Open [Mimi's ruleset settings](https://github.com/zalkabsi/Mimi/settings/rules)
+   and inspect the existing **Protect master** ruleset. Update it there if needed.
+2. Only if the ruleset is missing, choose **New ruleset → Import a ruleset** and select
    [`.github/rulesets/master.json`](../.github/rulesets/master.json). The submission
    bundle also includes a top-level `master-ruleset.json` copy.
 3. Review the rules, keep enforcement **Active**, then click **Create**.
@@ -31,13 +33,13 @@ with `master` and pass these GitHub Actions checks:
 - `Frontend production build` (includes live/replay builds and browser checks)
 
 All three check names and the GitHub Actions app ID (`15368`) were verified
-against successful check runs for readiness PR #6. Keep the names in sync if
+against the active ruleset and successful check runs for readiness PR #6. Keep the names in sync if
 the CI job names or Python matrix change. There are no bypass actors. Required
 approvals are zero so the solo owner can merge a passing PR without a second
 reviewer. This still requires the pull request and passing checks.
 
-An administrator can alternatively apply the JSON from an authenticated machine
-with GitHub API access:
+If recreating a missing ruleset, an administrator can alternatively apply the
+JSON from an authenticated machine with GitHub API access:
 
 ```sh
 gh api --method POST repos/zalkabsi/Mimi/rulesets \

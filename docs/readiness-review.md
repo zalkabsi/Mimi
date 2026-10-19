@@ -37,7 +37,8 @@ depends on the hosted-access, publishing, and provider-account steps below.
 | Check | Result |
 | --- | --- |
 | Backend | 199 tests on Python 3.12; all test sockets are guarded against external connections. One upstream Starlette/httpx deprecation warning remains. |
-| GitHub CI | PR #6 passed backend jobs on Python 3.12 and 3.13 and the frontend production/browser job in [run 39164513323](https://github.com/zalkabsi/Mimi/actions/runs/39164513323). |
+| GitHub CI | PR #6 passed backend jobs on Python 3.12 and 3.13 and the frontend production/browser job in [run 39222750798](https://github.com/zalkabsi/Mimi/actions/runs/39222750798). |
+| Branch protection | The owner activated [Protect master](https://github.com/zalkabsi/Mimi/rules/25390422). GitHub reports `master` protected; the active rules block force pushes/deletion, require PRs and all three CI checks, and have no bypass actors. Verified October 19 through GitHub's branch and ruleset APIs. |
 | Frontend | Live production build and dedicated replay build pass. Seven Chromium checks pass, including a 390px mobile viewport. |
 | Dependencies | `npm audit`: zero known advisories. Python environment audit with pip-audit/PyPI: zero known advisories after upgrading pip. |
 | Docker | Both images build. API health, inbox, dossier, events, completed SSE, private-ID denial (401), and submission denial (402) pass. Replay inbox and refreshed dossier route work in Chromium. |
@@ -60,13 +61,9 @@ The deadline is **October 30, 2026 at 20:00 Asia/Riyadh** (10:00 AM Pacific).
 The rules were recovered through indexed official-page results on October 18
 after direct retrieval returned 403; recheck the rules before submitting.
 
-1. **Activate branch protection, merge the reviewed changes, and verify Pages.**
-   `master` is unprotected and has no rulesets as checked October 19. The prepared
-   [ruleset and activation instructions](branch-protection.md) block force pushes
-   and deletion and require PRs and the three passing CI checks. This session's
-   GitHub tools cannot write ruleset settings, and the cloud CLI cannot reach
-   GitHub's API under the current network policy. Activation remains an owner
-   action. The readiness work is in [draft PR #6](https://github.com/zalkabsi/Mimi/pull/6),
+1. **Merge the reviewed changes and verify Pages.** Branch protection is active
+   and independently verified; see the [configuration details](branch-protection.md).
+   The readiness work is in [draft PR #6](https://github.com/zalkabsi/Mimi/pull/6),
    with all three app CI jobs passing. After merging to `master`, let Pages finish and verify the
    new sample link, JSON download, and `/Mimi/demo-manifest.json` signed out.
 2. **Use the owner-approved public video.** The approved submission link is
