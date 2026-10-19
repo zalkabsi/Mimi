@@ -79,15 +79,17 @@ def main() -> None:
         path = ROOT / "docs" / "video" / name
         if path.is_file():
             (OUTPUT / ("VIDEO-README.md" if name == "README.md" else name)).write_bytes(path.read_bytes())
-    for name in ("submission-kit.md", "readiness-review.md"):
+    for name in ("submission-kit.md", "readiness-review.md", "branch-protection.md"):
         path = ROOT / "docs" / name
         if path.is_file():
             (OUTPUT / name).write_bytes(path.read_bytes())
+    (OUTPUT / "master-ruleset.json").write_bytes((ROOT / ".github/rulesets/master.json").read_bytes())
     for path in (ROOT / "docs" / "assets").glob("demo-*.png"):
         (OUTPUT / path.name).write_bytes(path.read_bytes())
     deliverables = {
         "mimi-demo.zip", "mimi-source.zip", "mimi-demo.mp4", "VIDEO-README.md",
         "captions.srt", "voiceover-script.txt", "submission-kit.md", "readiness-review.md",
+        "branch-protection.md", "master-ruleset.json",
         "demo-inbox.png", "demo-dossier.png", "demo-evidence.png",
     }
     hashes = {

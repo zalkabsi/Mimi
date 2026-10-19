@@ -1,6 +1,6 @@
 # Repository and submission readiness review
 
-Reviewed 2026-10-18 against commit `1f9c5b7` and the working-tree changes.
+Reviewed October 18–19, 2026 against commit `1f9c5b7` and the readiness changes.
 Upstream `0dd530a` records the owner's approval of the existing public video;
 that approval and the existing submission link are preserved.
 Scope: backend and frontend source, test behavior, package audits, production
@@ -37,6 +37,7 @@ depends on the hosted-access, publishing, and provider-account steps below.
 | Check | Result |
 | --- | --- |
 | Backend | 199 tests on Python 3.12; all test sockets are guarded against external connections. One upstream Starlette/httpx deprecation warning remains. |
+| GitHub CI | PR #6 passed backend jobs on Python 3.12 and 3.13 and the frontend production/browser job in [run 39164513323](https://github.com/zalkabsi/Mimi/actions/runs/39164513323). |
 | Frontend | Live production build and dedicated replay build pass. Seven Chromium checks pass, including a 390px mobile viewport. |
 | Dependencies | `npm audit`: zero known advisories. Python environment audit with pip-audit/PyPI: zero known advisories after upgrading pip. |
 | Docker | Both images build. API health, inbox, dossier, events, completed SSE, private-ID denial (401), and submission denial (402) pass. Replay inbox and refreshed dossier route work in Chromium. |
@@ -59,11 +60,14 @@ The deadline is **October 30, 2026 at 20:00 Asia/Riyadh** (10:00 AM Pacific).
 The rules were recovered through indexed official-page results on October 18
 after direct retrieval returned 403; recheck the rules before submitting.
 
-1. **Merge the reviewed source changes and verify Pages.** The CLI GitHub
-   token is invalid, but the connected GitHub integration has repository push
-   access. The readiness work is prepared on
-   [`codex/submission-readiness-2026-10-18`](https://github.com/zalkabsi/Mimi/tree/codex/submission-readiness-2026-10-18)
-   for PR review. After merging to `master`, let Pages finish and verify the
+1. **Activate branch protection, merge the reviewed changes, and verify Pages.**
+   `master` is unprotected and has no rulesets as checked October 19. The prepared
+   [ruleset and activation instructions](branch-protection.md) block force pushes
+   and deletion and require PRs and the three passing CI checks. This session's
+   GitHub tools cannot write ruleset settings, and the cloud CLI cannot reach
+   GitHub's API under the current network policy. Activation remains an owner
+   action. The readiness work is in [draft PR #6](https://github.com/zalkabsi/Mimi/pull/6),
+   with all three app CI jobs passing. After merging to `master`, let Pages finish and verify the
    new sample link, JSON download, and `/Mimi/demo-manifest.json` signed out.
 2. **Use the owner-approved public video.** The approved submission link is
    [Mimi](https://youtu.be/y4rlh4hlkcw), recorded in upstream `0dd530a`. This
