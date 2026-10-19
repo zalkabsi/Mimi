@@ -61,7 +61,7 @@ jobs:
       - name: Check combined judge image
         run: |
           docker run --rm -d --name mimi-judge-ci -e PORT=8765 -p 127.0.0.1:8093:8765 mimi-judge-ci
-          trap 'docker rm -f mimi-judge-ci >/dev/null 2>&1 || true' EXIT
+          trap 'mimi_smoke_status=$?; if [ "$mimi_smoke_status" -ne 0 ]; then docker logs mimi-judge-ci; fi; docker rm -f mimi-judge-ci >/dev/null 2>&1 || true; exit "$mimi_smoke_status"' EXIT
           python3 - <<'PY'
           import json
           import time
@@ -74,7 +74,7 @@ jobs:
                   with urlopen(base + "/api/health", timeout=2) as response:
                       assert json.load(response) == {"ok": True, "service": "mimi"}
                   break
-              except URLError:
+              except (URLError, ConnectionError, TimeoutError):
                   time.sleep(1)
           else:
               raise SystemExit("judge image did not become healthy")
