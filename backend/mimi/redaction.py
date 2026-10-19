@@ -281,7 +281,7 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
     Fails when the query carries **report prose**. Checks, in order:
 
     1. Long report words (blobs, urls) present in the query, unless the word
-       is itself a package name, version or advisory id.
+       is fixed query vocabulary or itself a package name, version or advisory id.
     2. Secret-shaped report words present in the query — never exempt; a
        ``ghp_…`` token is not a public identifier.
     3. Runs of 2+ report words that appear in the query and contain at least
@@ -299,6 +299,9 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
     norm_r = _normalize(report_text)
     if not norm_r or not norm_q:
         return
+    # Match complete normalized words: report code containing "minimist proto"
+    # must not match the template phrase "minimist prototype pollution".
+    padded_query = f" {norm_q} "
 
     q_low = (query or "").lower()
     phrase_public, whole_public = _public_words(query)
@@ -341,8 +344,9 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
         # long-token diagnostic is the more precise one. A long identifier is
         # exempt only when it *is* one of the query's public identifiers (or a
         # spelling of one). A piece of one is not: a blob smuggled as a version
-        # suffix is not the version.
-        if len(raw) >= 12 and not _is_identifier(raw):
+        # suffix is not the version. Fixed vocabulary such as "vulnerability"
+        # was chosen by the query template, even if the report uses it too.
+        if len(raw) >= 12 and low not in _QUERY_VOCAB and not _is_identifier(raw):
             raise AssertionError(f"long report token leaked into query: {raw!r}")
         # 1: secrets of any length. Never exempt: ``ghp_…`` is not an
         # identifier, whatever shape it has.
@@ -362,5 +366,5 @@ def assert_no_leak(query: str, report_text: str, min_run: int = 12) -> None:
             phrase = " ".join(run)
             if len(phrase) < min_run:
                 continue
-            if phrase in norm_q:
+            if f" {phrase} " in padded_query:
                 raise AssertionError(f"report text leaked into Tavily query: {phrase!r}")
