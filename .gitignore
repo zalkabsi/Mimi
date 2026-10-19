@@ -20,9 +20,13 @@ venv/
 node_modules/
 dist/
 .vite/
+playwright-report/
+test-results/
 
 # Local data and eval artifacts
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

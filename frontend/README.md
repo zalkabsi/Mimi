@@ -11,7 +11,7 @@ commands and outputs. Text names only — no third-party logos.
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -49,7 +49,7 @@ $env:VITE_USE_MOCK = "1"
 npm run dev
 ```
 
-On bash-like shells: `VITE_USE_MOCK=1 npm run dev`.
+Run `npm run demo` on any supported shell. It selects the fixed replay and hash routing without requiring environment-variable syntax. `npm run build:demo` creates a portable production replay, including a `demo-manifest.json` that identifies its fixture and mode.
 
 ## Scripts
 

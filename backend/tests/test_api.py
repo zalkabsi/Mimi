@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import queue
 import sys
+import threading
 import uuid
 from pathlib import Path
 
@@ -133,6 +134,93 @@ def test_health(client):
     assert r.json() == {"ok": True, "service": "mimi"}
 
 
+def test_live_job_keeps_http_responsive_and_is_readable_before_completion(monkeypatch):
+    """A blocking model call must not freeze the API or the first report read."""
+    entered = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
+
+    class BlockingPipeline:
+        def __init__(self, settings, *, db, on_event):
+            self.db = db
+            self.on_event = on_event
+
+        async def run(self, submission, *, source, report_id):
+            entered.set()
+            try:
+                # Represents the synchronous HTTP clients used in extraction,
+                # grounding and research. No real provider calls in this test.
+                assert release.wait(timeout=5), "test never released the model call"
+                dossier = self.db.get_report(report_id)
+                assert dossier is not None
+                self.db.upsert_report(dossier, status="complete")
+            finally:
+                finished.set()
+
+    monkeypatch.setattr(api, "Pipeline", BlockingPipeline)
+    headers = {"X-Mimi-Key": "judge-secret"}
+    rid = None
+    try:
+        with TestClient(api.app) as live_client:
+            response = live_client.post(
+                "/api/reports",
+                headers=headers,
+                json={"report_text": "A public test report", "package_spec": "lodash@4.17.20"},
+            )
+            assert response.status_code == 200
+            rid = response.json()["report_id"]
+            assert entered.wait(timeout=2)
+            assert not finished.is_set(), "the response waited for the blocking model call"
+            assert live_client.get("/api/health").status_code == 200
+            initial = live_client.get(f"/api/reports/{rid}", headers=headers)
+            assert initial.status_code == 200
+            assert initial.json()["package_spec"] == "lodash@4.17.20"
+            assert api._db.get_status(rid) == "running"
+            release.set()
+            assert finished.wait(timeout=2)
+            with live_client.stream("GET", f"/api/reports/{rid}/stream", headers=headers) as stream:
+                assert "event: done" in stream.read().decode()
+    finally:
+        release.set()
+        if rid:
+            api._db.delete_report(rid)
+
+
+def test_unexpected_worker_failure_saves_a_readable_error_and_ends_the_stream(monkeypatch):
+    monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
+
+    class ExplodingPipeline:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self, *args, **kwargs):
+            raise RuntimeError("simulated worker failure")
+
+    monkeypatch.setattr(api, "Pipeline", ExplodingPipeline)
+    headers = {"X-Mimi-Key": "judge-secret"}
+    rid = None
+    try:
+        with TestClient(api.app) as live_client:
+            response = live_client.post(
+                "/api/reports", headers=headers,
+                json={"report_text": "Public test report", "package_spec": "lodash@4.17.20"},
+            )
+            rid = response.json()["report_id"]
+            with live_client.stream("GET", f"/api/reports/{rid}/stream", headers=headers) as stream:
+                assert "event: done" in stream.read().decode()
+            dossier = live_client.get(f"/api/reports/{rid}", headers=headers).json()
+            assert dossier["tier"] == "Needs human"
+            assert "simulated worker failure" in dossier["tier_rationale"]
+            events = live_client.get(f"/api/reports/{rid}/events", headers=headers).json()
+            assert events[-1]["data"]["final"] is True
+            assert events[-1]["status"] == "error"
+            assert api._db.get_status(rid) == "error"
+    finally:
+        if rid:
+            api._db.delete_report(rid)
+
+
 def test_unknown_report_id_is_hidden_until_authenticated(client, monkeypatch):
     monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
     assert client.get("/api/reports/does-not-exist").status_code == 401
@@ -229,9 +317,17 @@ def test_stream_for_run_still_running_terminates_after_finish(client, monkeypatc
 
 def test_submit_and_get_report_roundtrip_shape(client, monkeypatch):
     monkeypatch.setenv("MIMI_JUDGE_KEY", "judge-secret")
-    # Submitting starts a real Pipeline; with no keys it cannot reach anything
-    # external, but it WILL try to run. We only assert the response contract
-    # here and stop the task immediately so no work happens.
+    # The worker may start immediately, including when the developer has live
+    # credentials configured. Stub it rather than relying on cancellation to
+    # prevent this HTTP-contract test from spending credits.
+    class NoProviderPipeline:
+        def __init__(self, settings, *, db, on_event):
+            self.db = db
+
+        async def run(self, submission, *, source, report_id):
+            self.db.update_status(report_id, "complete")
+
+    monkeypatch.setattr(api, "Pipeline", NoProviderPipeline)
     r = client.post(
         "/api/reports",
         headers={"X-Mimi-Key": "judge-secret"},

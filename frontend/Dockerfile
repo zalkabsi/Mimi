@@ -12,8 +12,7 @@ RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false 
     fi
 
 COPY . .
-ENV VITE_USE_MOCK=1
-RUN npm run build
+RUN npm run build:demo
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 

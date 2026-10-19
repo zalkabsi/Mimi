@@ -10,3 +10,12 @@ venv
 frontend/node_modules
 frontend/dist
 evals/out
+artifacts
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
+frontend/playwright-report
+frontend/test-results

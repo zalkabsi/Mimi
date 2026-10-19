@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ApiError,
   USE_MOCK,
@@ -115,6 +115,14 @@ export function InboxView() {
                 Open the sample report in the inbox below to explore its
                 recorded timeline and evidence.
               </p>
+              {rows[0] ? (
+                <Link
+                  to={`/reports/${rows[0].id}`}
+                  className="mt-4 inline-flex rounded bg-sky-600 px-4 py-2 font-mono text-sm font-semibold text-white hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                >
+                  Open sample dossier →
+                </Link>
+              ) : null}
             </div>
           ) : (
           <div className="rounded-lg border border-slate-800 bg-slate-900/70">
@@ -233,7 +241,7 @@ export function InboxView() {
             <ul className="mt-3 space-y-3 text-xs text-slate-400">
               <li className="flex items-start gap-2">
                 <TierBadge tier="Confirmed" size="sm" />
-                <span>Reproduced on the claimed version, with an oracle firing.</span>
+                <span>Oracle fired on the affected version and stopped firing on the fixed version.</span>
               </li>
               <li className="flex items-start gap-2">
                 <TierBadge tier="Likely" size="sm" />
@@ -249,8 +257,8 @@ export function InboxView() {
               <li className="flex items-start gap-2">
                 <TierBadge tier="Contradicted" size="sm" />
                 <span>
-                  Negative result with coverage stated: N hypotheses tested, K
-                  triggered.
+                  No triggers across at least three conclusive hypotheses and
+                  two distinct configurations, with coverage stated.
                 </span>
               </li>
             </ul>
@@ -351,7 +359,13 @@ export function InboxView() {
                     className="cursor-pointer border-b border-slate-800/70 bg-slate-950/40 hover:bg-slate-800/50"
                   >
                     <td className="px-4 py-2.5 font-mono text-sm text-sky-300">
-                      {r.id}
+                      <Link
+                        to={`/reports/${r.id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="rounded underline decoration-sky-700 underline-offset-4 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                      >
+                        {r.id}
+                      </Link>
                     </td>
                     <td className="px-4 py-2.5 font-mono text-sm text-slate-300">
                       {dash(r.package_spec)}

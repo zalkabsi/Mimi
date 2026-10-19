@@ -19,9 +19,11 @@ RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false 
       else \
         cat /etc/ssl/certs/ca-certificates.crt /run/secrets/proxy_ca > /tmp/mimi-ca.pem; \
       fi; \
+      PIP_CERT=/tmp/mimi-ca.pem pip install --no-cache-dir --upgrade pip && \
       PIP_CERT=/tmp/mimi-ca.pem pip install --no-cache-dir ./backend; \
       rm -f /tmp/mimi-ca.pem; \
     else \
+      pip install --no-cache-dir --upgrade pip && \
       pip install --no-cache-dir ./backend; \
     fi \
     && useradd --system --no-create-home --shell /usr/sbin/nologin mimi \

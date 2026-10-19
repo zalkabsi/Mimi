@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import re
 import tarfile
+import zlib
 from typing import Optional
 
 import httpx
@@ -24,6 +25,9 @@ from ..schemas import Claim, EvidenceKind, GroundingEvidence, ReportSubmission
 
 NPM_REGISTRY = "https://registry.npmjs.org"
 _TARBALL_CAP = 8 * 1024 * 1024  # refuse to fetch absurd tarballs
+_UNPACKED_CAP = 32 * 1024 * 1024
+_MAX_MEMBERS = 4096
+_SOURCE_FILE_CAP = 512 * 1024
 
 
 def ground_claim(
@@ -143,30 +147,59 @@ def _tarball_check(
 
     file_index: list[str] = []
     content_hits: dict[str, list[str]] = {}
+    skipped_sources = 0
     try:
-        archive.seek(0)
-        with tarfile.open(fileobj=archive, mode="r:gz") as tf:
-            for member in tf.getmembers():
-                if not member.isfile() or member.size > 512 * 1024:
+        # Bound decompression before tarfile parses headers or builds an index.
+        # An 8 MiB compressed download can otherwise expand far beyond RAM.
+        inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
+        unpacked = inflater.decompress(archive.getvalue(), _UNPACKED_CAP + 1)
+        if len(unpacked) > _UNPACKED_CAP or inflater.unconsumed_tail:
+            return [GroundingEvidence(
+                kind=EvidenceKind.NOTE,
+                target="tarball",
+                detail="expanded tarball exceeds the content-search size limit; file and symbol absence not established",
+            )]
+        if not inflater.eof or inflater.unused_data:
+            return [GroundingEvidence(
+                kind=EvidenceKind.NOTE,
+                target="tarball",
+                detail="incomplete or multi-member gzip archive; file and symbol absence not established",
+            )]
+        with tarfile.open(fileobj=io.BytesIO(unpacked), mode="r:") as tf:
+            for index, member in enumerate(tf):
+                if index >= _MAX_MEMBERS:
+                    return [GroundingEvidence(
+                        kind=EvidenceKind.NOTE,
+                        target="tarball",
+                        detail=f"archive exceeds the {_MAX_MEMBERS}-entry search limit; file and symbol absence not established",
+                    )]
+                if not member.isfile():
                     continue
                 name = member.name
+                # A large file still exists, even when its contents are not
+                # searched. Do not turn a scan limit into FILE_ABSENT.
                 file_index.append(name)
-                want_content = bool(claim.cited_symbols) and name.endswith((".js", ".mjs", ".cjs", ".ts", ".json"))
+                want_content = bool(claim.cited_symbols) and name.endswith((".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".json"))
                 if want_content:
+                    if member.size > _SOURCE_FILE_CAP:
+                        skipped_sources += 1
+                        continue
                     f = tf.extractfile(member)
                     if f is None:
+                        skipped_sources += 1
                         continue
-                    text = f.read(512 * 1024).decode("utf-8", "ignore")
+                    with f:
+                        text = f.read(_SOURCE_FILE_CAP).decode("utf-8", "ignore")
                     for sym in claim.cited_symbols:
                         if re.search(rf"\b{re.escape(sym)}\b", text):
                             content_hits.setdefault(sym, []).append(name)
-    except tarfile.TarError as e:
+    except (tarfile.TarError, zlib.error) as e:
         out.append(GroundingEvidence(kind=EvidenceKind.NOTE, target="tarball", detail=f"could not read tarball: {e}"))
         return out
 
     for cited in claim.cited_files:
-        suffix = cited.lstrip("./")
-        hit = next((n for n in file_index if n.endswith(suffix) or suffix in n), None)
+        suffix = cited.removeprefix("./").lstrip("/")
+        hit = next((n for n in file_index if n == suffix or n.endswith("/" + suffix)), None)
         if hit:
             out.append(
                 GroundingEvidence(kind=EvidenceKind.FILE_FOUND, target=cited, detail=hit, source_ref=hit)
@@ -191,12 +224,20 @@ def _tarball_check(
                     source_ref=hits[0],
                 )
             )
+        elif skipped_sources:
+            out.append(
+                GroundingEvidence(
+                    kind=EvidenceKind.NOTE,
+                    target=sym,
+                    detail=f"{skipped_sources} source file(s) exceeded the content limit or were unreadable; symbol absence not established",
+                )
+            )
         else:
             out.append(
                 GroundingEvidence(
                     kind=EvidenceKind.SYMBOL_ABSENT,
                     target=sym,
-                    detail="symbol not found in tarball sources at this version",
+                    detail="symbol not found in scanned JavaScript/TypeScript/JSON sources at this version",
                 )
             )
     return out

@@ -1,122 +1,168 @@
 1
-00:00:00,000 --> 00:00:05,000
-Meet Mimi: report triage for open-source
-maintainers.
+00:00:00,600 --> 00:00:04,575
+For an open-source maintainer a vulnerability
+report can mean hours
 
 2
-00:00:05,000 --> 00:00:11,000
-It organizes evidence so a person can
-decide what to do.
+00:00:04,588 --> 00:00:08,750
+of investigation When a check fails is the report
+wrong
 
 3
-00:00:11,000 --> 00:00:18,000
-Mimi never closes a report on its own.
+00:00:08,950 --> 00:00:12,388
+or did the test miss it Mimi keeps the evidence
 
 4
-00:00:18,000 --> 00:00:23,000
-This labelled replay uses
-fixed sample data.
+00:00:12,400 --> 00:00:15,950
+and the coverage together so maintainers can make
+that decision
 
 5
-00:00:23,000 --> 00:00:29,000
-Explore the interface without an account,
-key, or provider credits.
+00:00:16,812 --> 00:00:19,262
+Every report stays open for human review
 
 6
-00:00:29,000 --> 00:00:38,000
-No provider calls. Timestamps and findings
-are fixture data, not live.
+00:00:21,432 --> 00:00:25,394
+This is the working read-only demo Anyone can
+open it
 
 7
-00:00:38,000 --> 00:00:47,000
-The sample pipeline extracts a claim and
-grounds the package.
+00:00:25,407 --> 00:00:29,944
+without an account key or credits All results
+shown are
 
 8
-00:00:47,000 --> 00:00:57,000
-It checks public advisories and proposes
-bounded test hypotheses.
+00:00:29,957 --> 00:00:33,920
+labelled fixed sample data and replay makes no
+provider calls
 
 9
-00:00:57,000 --> 00:01:07,000
-Then it builds an environment and runs
-isolated forks.
+00:00:34,782 --> 00:00:37,957
+Open the sample dossier to follow the same
+evidence layout
 
 10
-00:01:07,000 --> 00:01:15,000
-The dossier compares a fixed version and
-prepares a verdict with a reply draft.
+00:00:37,970 --> 00:00:39,482
+used by live analysis
 
 11
-00:01:15,000 --> 00:01:23,000
-Follow each recorded stage in the sample
-dossier.
+00:00:41,664 --> 00:00:46,626
+The timeline records each stage model calls and
+outcomes The
 
 12
-00:01:23,000 --> 00:01:31,000
-It shows the claim, package, public
-advisory references, and two hypotheses.
+00:00:46,639 --> 00:00:51,164
+sample ends at Needs human two hypotheses one
+configuration no
 
 13
-00:01:31,000 --> 00:01:39,000
-The zero-trigger result is fixture data.
+00:00:51,176 --> 00:00:55,326
+triggers That is too little evidence for a
+negative verdict
 
 14
-00:01:39,000 --> 00:01:43,000
-It doesn't prove a real report reproduces.
+00:00:56,189 --> 00:01:00,039
+In a live run Contradicted requires at least
+three conclusive
 
 15
-00:01:43,000 --> 00:01:49,000
-A Contradicted result needs completed
-execution and stated coverage.
+00:01:00,052 --> 00:01:03,152
+hypotheses across two distinct configurations
 
 16
-00:01:49,000 --> 00:01:55,000
-Grounding alone never rejects. The reply
-remains a draft.
+00:01:05,328 --> 00:01:08,490
+The dossier links the original claim to package
+grounding and
 
 17
-00:01:55,000 --> 00:02:00,000
-Nebius Token Factory and Nemotron
-support language tasks.
+00:01:08,503 --> 00:01:15,528
+public advisory research Tavily queries contain
+only public identifiers Nemotron
 
 18
-00:02:00,000 --> 00:02:04,000
-Tavily looks up public identifiers.
+00:01:15,540 --> 00:01:20,740
+proposes bounded hypotheses with a declared
+oracle before execution You
 
 19
-00:02:04,000 --> 00:02:11,000
-Untrusted proof-of-concept code is
-intended to run in Nebius Sandboxes.
+00:01:20,753 --> 00:01:24,703
+can expand the exact commands and outputs inspect
+a fixed-version
 
 20
-00:02:11,000 --> 00:02:18,000
-A harmless no-op confirmed Mimi's child
-namespace; outbound TCP was blocked.
+00:01:24,716 --> 00:01:27,316
+comparison and download the full dossier
 
 21
-00:02:18,000 --> 00:02:22,000
-Isolation against hostile code is not
-verified.
+00:01:29,496 --> 00:01:32,108
+The maintainer gets a reply draft they can review
+and
 
 22
-00:02:22,000 --> 00:02:31,000
-This replay is fixture data, not a live
-vulnerability analysis.
+00:01:32,121 --> 00:01:36,234
+edit with the limits beside the evidence No
+report is
 
 23
-00:02:31,000 --> 00:02:40,000
-The 11-case pilot had four oracle fires,
-but zero fixed-version confirmations.
+00:01:36,246 --> 00:01:40,746
+auto-closed and nothing is sent on their behalf
+Missing measurements
 
 24
-00:02:40,000 --> 00:02:49,000
-None of five fabricated reports was
-Contradicted. Four went to Needs human;
-one falsely reached Likely after a trigger.
+00:01:40,758 --> 00:01:43,721
+stay missing instead of becoming estimated
+success
 
 25
-00:02:49,000 --> 00:02:58,000
-Tavily's limit blocked advisory lookups; this
-sample does not show useful slop detection.
-Provider-level isolation is unverified.
+00:01:45,888 --> 00:01:50,550
+Behind the interface Nebius Token Factory runs
+NVIDIA Nemotron Nano
+
+26
+00:01:50,563 --> 00:01:54,950
+for extraction Super for synthesis and Ultra for
+deeper hypothesis
+
+27
+00:01:54,963 --> 00:01:59,826
+planning Proof-of-concept code runs in Nebius
+Sandboxes rather than the
+
+28
+00:01:59,838 --> 00:02:05,250
+application host A harmless smoke test observed
+Mimi's outbound TCP
+
+29
+00:02:05,263 --> 00:02:09,438
+guard blocking a connection hostile-code
+containment is still unverified
+
+30
+00:02:11,616 --> 00:02:15,028
+The published pilot is small eleven real cases
+had no
+
+31
+00:02:15,041 --> 00:02:21,391
+fixed-version-confirmed reproduction Of five
+fabricated reports none was contradicted and
+
+32
+00:02:21,404 --> 00:02:26,354
+one incorrectly reached Likely Tavily currently
+hits its usage limit
+
+33
+00:02:27,228 --> 00:02:32,391
+Mimi is an evidence-first prototype with these
+limitations disclosed The
+
+34
+00:02:32,404 --> 00:02:36,028
+goal is reviewable triage with the maintainer
+making the final
+
+35
+00:02:36,041 --> 00:02:36,628
+decision

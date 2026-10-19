@@ -21,12 +21,17 @@ import {
 import { Collapsible } from "../components/Collapsible";
 import { CopyableText, PreBlock } from "../components/PreBlock";
 import { Timeline } from "../components/Timeline";
+import { ReferenceLink } from "../components/ReferenceLink";
 import { dash, dashNum, fmtCost, fmtMs, fmtTokens, fmtTs } from "../lib/format";
 
 type LoadState = "loading" | "ready" | "error";
 
 export function ReportView() {
   const { reportId = "" } = useParams();
+  return <ReportDetails key={reportId} reportId={reportId} />;
+}
+
+function ReportDetails({ reportId }: { reportId: string }) {
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [load, setLoad] = useState<LoadState>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -164,6 +169,13 @@ export function ReportView() {
         <span className="font-mono text-xs text-slate-500">
           {dash(d.package_spec)} · source {dash(d.source)} · {fmtTs(d.created_at)}
         </span>
+        <button
+          type="button"
+          onClick={() => downloadDossier(d)}
+          className="ml-auto rounded border border-slate-700 px-3 py-1.5 font-mono text-xs text-sky-300 hover:bg-slate-800"
+        >
+          Download dossier
+        </button>
         {running ? (
           <span className="inline-flex items-center gap-1.5 rounded border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] text-sky-300">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
@@ -339,14 +351,7 @@ export function ReportView() {
                     >
                       <p className="text-sm text-slate-200">{dash(a.title)}</p>
                       {a.url ? (
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 inline-block break-all font-mono text-xs text-sky-300 hover:underline"
-                        >
-                          {a.url}
-                        </a>
+                        <div className="mt-1"><ReferenceLink url={a.url} /></div>
                       ) : null}
                       {a.snippet ? (
                         <p className="mt-1 text-xs text-slate-400">{a.snippet}</p>
@@ -374,14 +379,7 @@ export function ReportView() {
               </FieldRow>
               <FieldRow label="fix url">
                 {d.research.fix_url ? (
-                  <a
-                    href={d.research.fix_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="break-all font-mono text-xs text-sky-300 hover:underline"
-                  >
-                    {d.research.fix_url}
-                  </a>
+                  <ReferenceLink url={d.research.fix_url} />
                 ) : (
                   <Dash />
                 )}
@@ -594,6 +592,17 @@ function BackLink() {
       ← inbox
     </Link>
   );
+}
+
+function downloadDossier(dossier: Dossier) {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(dossier, null, 2)], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `mimi-${dossier.report_id.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function Dash() {

@@ -27,7 +27,7 @@ def fixtures_dir() -> Path:
     return FIXTURES_DIR
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     """Fail loudly if anything resolves a remote name or opens a remote socket.
 

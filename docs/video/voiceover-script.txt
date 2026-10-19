@@ -1,13 +1,15 @@
-Mimi demo voiceover — conversational read, target length 2:58 (hard limit: 3:00)
+Mimi demo — original script; synthetic narration (en-US-AriaNeural).
 
-Meet Mimi. It's a triage workbench for open-source maintainers. It puts a report's evidence in one place so a person can decide what to do. Mimi never closes a report on its own.
+For an open-source maintainer, a vulnerability report can mean hours of investigation. When a check fails, is the report wrong, or did the test miss it? Mimi keeps the evidence and the coverage together, so maintainers can make that decision. Every report stays open for human review.
 
-What you're seeing is a labelled replay using fixed sample data. It lets you explore the interface without an account, key, or provider credits. The page makes no provider calls, and none of the timestamps or findings are live.
+This is the working read-only demo. Anyone can open it without an account, key, or credits. All results shown are labelled fixed sample data, and replay makes no provider calls. Open the sample dossier to follow the same evidence layout used by live analysis.
 
-Here's the sample pipeline: it extracts a claim, grounds the package, checks public advisories, proposes bounded hypotheses, builds an environment, runs isolated forks, compares against a fixed version, and prepares a verdict with a reply draft. These steps and all their timings, model labels, and token counts are fixture data. Missing evidence stays missing; it isn't guessed.
+The timeline records each stage, model calls, and outcomes. The sample ends at Needs human: two hypotheses, one configuration, no triggers. That is too little evidence for a negative verdict. In a live run, Contradicted requires at least three conclusive hypotheses across two distinct configurations.
 
-Open the sample dossier and you can follow each recorded stage. It shows the claim, the package and symbols, public advisory references, two test hypotheses, and the zero-trigger result. This is sample data, so it does not prove a real report reproduces. In an actual run, Contradicted requires at least three conclusive hypotheses across two distinct configurations. Grounding by itself never rejects a report. The reply stays a draft for the maintainer.
+The dossier links the original claim to package grounding and public advisory research. Tavily queries contain only public identifiers. Nemotron proposes bounded hypotheses with a declared oracle before execution. You can expand the exact commands and outputs, inspect a fixed-version comparison, and download the full dossier.
 
-The architecture uses Nebius Token Factory with Nemotron models for language tasks, and Tavily to look up public identifiers. Untrusted proof-of-concept code is intended to run inside Nebius Sandboxes. A harmless no-op smoke test confirmed Mimi's child network namespace, and its outbound TCP probe was blocked. We haven't verified provider-level isolation against hostile code.
+The maintainer gets a reply draft they can review and edit, with the limits beside the evidence. No report is auto-closed, and nothing is sent on their behalf. Missing measurements stay missing instead of becoming estimated success.
 
-This is a read-only replay, not a live vulnerability analysis. In an 11-case live pilot, four oracles fired but none was confirmed against a fixed version. In five fabricated reports, none was contradicted. One falsely reached Likely after an oracle fired; the other four went to human review. Tavily's plan limit blocked advisory lookups, so this sample does not establish useful slop discrimination. The replay is fixture data, and provider-level isolation remains unverified. The maintainer decides what happens next; Mimi never auto-closes a report.
+Behind the interface, Nebius Token Factory runs NVIDIA Nemotron Nano for extraction, Super for synthesis, and Ultra for deeper hypothesis planning. Proof-of-concept code runs in Nebius Sandboxes rather than the application host. A harmless smoke test observed Mimi's outbound TCP guard blocking a connection; hostile-code containment is still unverified.
+
+The published pilot is small: eleven real cases had no fixed-version-confirmed reproduction. Of five fabricated reports, none was contradicted, and one incorrectly reached Likely. Tavily currently hits its usage limit. Mimi is an evidence-first prototype, with these limitations disclosed. The goal is reviewable triage, with the maintainer making the final decision.
