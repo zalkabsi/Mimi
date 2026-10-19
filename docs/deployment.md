@@ -97,6 +97,10 @@ credential placeholders are not portable hosting secrets. See
 [judge access and budget](judge-access.md) for current status, provider costs,
 the verification walkthrough, and Free-plan sleep/data-retention limits.
 
+The Free plan does not support `maxShutdownDelaySeconds`; leave that setting
+unset. A process restart can interrupt an active report, which the API marks
+as an error when it next reads the orphaned job.
+
 For a local image smoke check without provider access:
 
 ```bash
@@ -121,11 +125,32 @@ hash route without page errors or backend requests. Its replay manifest also
 passed validation. Browser requests used TLS-verified HTTP forwarding because
 Chromium did not trust the session proxy CA.
 
-Live-analysis hosting is prepared for Render; its plugin is installed, but
-deployment commands are not exposed in this chat and no live URL has been
-verified. The owner restored Tavily funding: the API reports a 625-credit paid
-usage limit, a direct search returns HTTP 200, and the real backend research
-client completes four queries with three unique advisory records and no errors.
-No funded provider lifetime through December 15 or live judge credential has
-been established. See [judge access](judge-access.md) and the
-[readiness review](readiness-review.md) for the remaining requirements.
+On October 19, the Render API created `mimi-judge`
+(`srv-dbb4beqjnfac73euoa10`) on the Free plan in Frankfurt, with one instance,
+`master` as its source, and deployment after CI checks pass. The service is live
+at [mimi-judge.onrender.com](https://mimi-judge.onrender.com).
+TLS-verified HTTP checks pass for the root page, both frontend assets, API health,
+sample inbox, dossier, recorded events, and completed SSE. Private report reads
+without a key return 401; unauthenticated submissions return 402. The generated
+judge key authenticates, and a missing private report returns 404 with it.
+
+`NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, `TAVILY_API_KEY`, and a generated
+`MIMI_JUDGE_KEY` are configured in Render. The first live smoke exposed two
+research false positives: the guard treated fixed query vocabulary as leaked
+prose and matched partial words in report code. The fix in `f3257fa` passed
+201 backend tests and a real Tavily client check, then was deployed for a
+complete hosted retest.
+
+Hosted report `a846ce7353c7` (`minimist@1.2.5`, public CVE-2021-44906 input)
+completed all stages without errors: five public-identifier queries returned
+17 advisory records, eight Sandbox runs completed, and the verdict and reply
+were saved. Authenticated dossier/event reads and terminal SSE passed; the
+live dossier returned 401 without a key. The result was **Needs human**:
+zero of eight hypotheses triggered in one configuration. This is an integration
+check, not evidence of reproduction accuracy. The public dossier and events
+were downloaded locally before any restart.
+
+Codex's domain-restricted Network secrets must not be copied as hosting
+credentials. Tavily's funded usage limit is 625 credits.
+Provider funding and key lifetime through December 15 remain owner checks. See
+[judge access](judge-access.md) and the [readiness review](readiness-review.md).

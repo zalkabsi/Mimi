@@ -11,7 +11,6 @@ services:
     autoDeployTrigger: checksPass
     healthCheckPath: /api/health
     numInstances: 1
-    maxShutdownDelaySeconds: 300
     envVars:
       - key: PORT
         value: "8000"

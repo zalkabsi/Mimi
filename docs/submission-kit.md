@@ -1,6 +1,6 @@
 # Hackathon submission kit
 
-Updated 2026-10-18 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
+Updated 2026-10-19 for the Nebius × NVIDIA Global AI Hackathon 2026. The live
 [Official Rules](https://nebiusglobalaihackathon.devpost.com/rules) were
 last re-read on 2026-10-18. The deadline is October 30, 2026 at 10:00 AM
 Pacific; re-read the rules again immediately before submission.
@@ -30,7 +30,7 @@ auto-closes a report.
 Mimi gives open-source maintainers an evidence dossier for npm vulnerability reports:
 package grounding, public advisory context, bounded tests, deterministic oracle results,
 and explicit coverage. It shows what the checks established and leaves the decision with
-a human. The hosted demo is a clearly labelled replay. In a live 11-case pilot, four
+a human. The public Pages demo is a clearly labelled replay. In a live 11-case pilot, four
 oracles fired but none was confirmed against a fixed version. In E2, none of five
 fabricated reports was contradicted; one falsely reached Likely after an oracle fired,
 and the other four went to human review. These small results do not establish reliable
@@ -55,7 +55,7 @@ predeclared deterministic oracles. The dossier is designed to show commands,
 outputs, and coverage alongside a draft maintainer response. Mimi never
 auto-closes a report.
 
-The hosted demo is a fixed, read-only replay. It makes no provider calls and does not
+The public Pages demo is a fixed, read-only replay. It makes no provider calls and does not
 run a live vulnerability analysis. Separate E1–E4 live evaluations exercised the pipeline;
 their small-sample results are published in `docs/evaluation-results.md`. E1 had zero
 fixed-version-confirmed reproductions in 11 cases. E2 falsely contradicted 0/5 real
@@ -187,7 +187,7 @@ results do not validate reliable vulnerability triage or provider-level security
 Yes. The live backend integrates a Tavily client in Mimi's research stage and
 makes runtime `/search` requests using public package and advisory identifiers.
 A live API smoke run returned 14 results from five identifier-only queries.
-The hosted demo is a fixed read-only replay and makes no Tavily calls. The
+The public Pages demo is a fixed read-only replay and makes no Tavily calls. The
 final E2 run received HTTP 432 usage-limit errors for all Tavily queries; its report
 contains no advisory results or fixed versions. The current Sandboxes endpoint returned
 all permissions in a read-only check. Live E1–E4
@@ -197,7 +197,17 @@ On October 19, the owner restored Tavily funding. The configured key then
 returned a successful direct search, and Mimi's actual backend client completed
 four public-identifier queries with three unique advisory records and no error
 notes. The account reports a 625-credit pay-as-you-go limit. This recovery does
-not change the historical E2 measurements or establish a hosted live service.
+not change the historical E2 measurements.
+
+Later on October 19, the combined frontend/API was deployed to
+[Render Free](https://mimi-judge.onrender.com) with a shared judge credential.
+After fixing two query-guard false positives, a hosted public minimist report
+completed five Tavily queries (17 advisory records), eight Sandbox runs, and a
+saved Needs human dossier and reply without stage errors. It triggered no
+hypotheses in one configuration; this is an integration check, not a new
+accuracy benchmark. The URL and key belong in Devpost's private testing field;
+copy the [prepared judge instructions](judge-access.md#private-devpost-testing-instructions)
+and obtain the key directly from Render.
 
 ### Nebius platform capabilities used
 
@@ -216,7 +226,7 @@ successfully; Mimi's child namespace probe observed outbound TCP blocked with
 ENETUNREACH. This confirms the basic SDK integration and app-level network guard. E1–E4
 live pipeline runs completed, but their small samples do not establish reliable
 vulnerability triage, and provider-level containment of hostile code remains
-unverified. The hosted demo is a fixed replay and makes no Nebius API calls.
+unverified. The public Pages demo is a fixed replay and makes no Nebius API calls.
 
 ### Recommendation rating
 
@@ -280,7 +290,7 @@ Each model completed an individual integration smoke call. A five-case live rout
 matched expected tiers for routed, Ultra, and Super; broader model-routing performance has
 not been established. Sandboxes access and a harmless no-op build/run were confirmed;
 Mimi's child namespace probe observed blocked outbound TCP. E1/E2 results remain weak,
-and the hosted demo is a fixed replay that makes no model calls.
+and the public Pages demo is a fixed replay that makes no model calls.
 
 ### Nemotron output quality rating
 
@@ -365,7 +375,7 @@ verify a new public URL only if replacing the approved video.
 
 - [x] Public repository URL and Apache-2.0 license are present.
 - [x] Cross-platform no-credential replay launch and portable build are documented.
-- [x] 200 backend tests pass on Python 3.12, including the combined web-entrypoint access check; ordinary test sockets are guarded and the isolated web smoke has no provider credentials.
+- [x] 201 backend tests pass on Python 3.12, including hosted access and the bundled-report research regression; ordinary test sockets are guarded and the isolated web smoke has no provider credentials.
 - [x] Live and replay production builds pass; seven Chromium checks cover core UI behavior and reference URL handling.
 - [x] Frontend npm audit and local Python dependency audit report zero known advisories.
 - [x] API/replay images and the combined judge image build; access controls, sample SSE completion, replay navigation, same-origin routing, and the custom host port pass their smoke checks.
@@ -379,10 +389,13 @@ verify a new public URL only if replacing the approved video.
 - [x] The active master ruleset blocks force pushes/deletion and requires PRs and all three CI checks, with no bypass actors.
 - [x] Preserve the owner-approved public YouTube submission link; an optional updated MP4 is prepared locally.
 - [x] Tavily funding is restored: a direct search and the actual backend research client both succeed; the account reports a 625-credit paid-usage limit.
-- [ ] Establish a working live project and free judge access through December 15; a static fixture alone does not establish this.
+- [x] The combined app is deployed on Render Free at [mimi-judge.onrender.com](https://mimi-judge.onrender.com); hosted assets, sample dossier, events/SSE, authentication, and anonymous-access denials pass HTTP checks.
+- [x] A complete hosted public-package report passes inference, advisory research, Sandbox execution, dossier/reply persistence, authenticated event history, and SSE completion without stage errors.
+- [ ] Copy the generated judge key into Devpost's private testing instructions and maintain provider funding and credentials through December 15.
 - [ ] Recheck the Official Rules, complete the remaining Devpost fields, and submit the entry.
 
 See [the readiness review](readiness-review.md) for every fixed issue, validation
 scope, current provider results, and the remaining owner/account steps. The
-Pages release is deployed. Live judge hosting still needs a provisioned service,
-hosting secrets, and end-to-end verification; see [judge access](judge-access.md).
+Pages release and the combined Render host are deployed, and the live pipeline
+is verified. See [judge access](judge-access.md) for the evidence, private
+credential handoff, and hosting limits.
