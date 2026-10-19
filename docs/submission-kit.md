@@ -187,7 +187,7 @@ results do not validate reliable vulnerability triage or provider-level security
 Yes. The live backend integrates a Tavily client in Mimi's research stage and
 makes runtime `/search` requests using public package and advisory identifiers.
 A live API smoke run returned 14 results from five identifier-only queries.
-The hosted demo is a fixed read-only replay and makes no Tavily calls. The
+The public Pages demo is a fixed read-only replay and makes no Tavily calls. The
 final E2 run received HTTP 432 usage-limit errors for all Tavily queries; its report
 contains no advisory results or fixed versions. The current Sandboxes endpoint returned
 all permissions in a read-only check. Live E1–E4
@@ -290,7 +290,7 @@ Each model completed an individual integration smoke call. A five-case live rout
 matched expected tiers for routed, Ultra, and Super; broader model-routing performance has
 not been established. Sandboxes access and a harmless no-op build/run were confirmed;
 Mimi's child namespace probe observed blocked outbound TCP. E1/E2 results remain weak,
-and the hosted demo is a fixed replay that makes no model calls.
+and the public Pages demo is a fixed replay that makes no model calls.
 
 ### Nemotron output quality rating
 
