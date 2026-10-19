@@ -193,6 +193,12 @@ contains no advisory results or fixed versions. The current Sandboxes endpoint r
 all permissions in a read-only check. Live E1–E4
 pipeline runs have since completed; results and limits are in `docs/evaluation-results.md`.
 
+On October 19, the owner restored Tavily funding. The configured key then
+returned a successful direct search, and Mimi's actual backend client completed
+four public-identifier queries with three unique advisory records and no error
+notes. The account reports a 625-credit pay-as-you-go limit. This recovery does
+not change the historical E2 measurements or establish a hosted live service.
+
 ### Nebius platform capabilities used
 
 The most valuable capability was managed inference through Nebius Token
@@ -343,7 +349,7 @@ draft; use the exported video's audio and captions together.
 | 1:05–1:29 | Hypotheses, declared oracles, and expanded harness code. |
 | 1:29–1:45 | Maintainer reply draft and missing measurements. |
 | 1:45–2:11 | Architecture: Token Factory, Nemotron, Tavily, Sandboxes, trust limits. |
-| 2:11–2:38 | Published pilot results, current Tavily quota limit, human decision. |
+| 2:11–2:38 | Published pilot results, the quota limit at recording time, human decision. See the later Tavily recovery above. |
 
 `make submission` builds a portable read-only replay and writes
 `artifacts/submission/` with source and demo ZIPs, MP4, SRT, screenshots,
@@ -359,23 +365,24 @@ verify a new public URL only if replacing the approved video.
 
 - [x] Public repository URL and Apache-2.0 license are present.
 - [x] Cross-platform no-credential replay launch and portable build are documented.
-- [x] 199 backend tests pass on Python 3.12; external test sockets are guarded.
+- [x] 200 backend tests pass on Python 3.12, including the combined web-entrypoint access check; ordinary test sockets are guarded and the isolated web smoke has no provider credentials.
 - [x] Live and replay production builds pass; seven Chromium checks cover core UI behavior and reference URL handling.
 - [x] Frontend npm audit and local Python dependency audit report zero known advisories.
-- [x] Both Docker images build; API access controls, sample SSE completion, and replay navigation pass smoke checks.
-- [x] The existing public replay opens and refreshes in a fresh Chromium context using TLS-verified forwarding; direct browser proxy-CA trust was unavailable.
+- [x] API/replay images and the combined judge image build; access controls, sample SSE completion, replay navigation, same-origin routing, and the custom host port pass their smoke checks.
+- [x] The updated public Pages replay opens, downloads its dossier, and refreshes in a fresh signed-out Chromium context using TLS-verified forwarding; direct browser proxy-CA trust was unavailable.
 - [x] Three current screenshots, architecture diagram, and project thumbnail are present.
 - [x] Narrated, captioned demo MP4 under three minutes is exported locally.
 - [x] Devpost copy, product-feedback fields, evaluation summary, and demo script are prepared.
 - [x] Bounded live Nemotron inference and Sandbox permissions checks pass.
 - [x] E1–E4 pilot results and uncertainty are published without claiming broad accuracy or hostile-PoC containment.
-- [ ] Merge the reviewed readiness PR and verify the new Pages deployment. The connected GitHub integration has push access; the CLI token is invalid.
+- [x] Readiness PR #6 and hosting PR #7 are merged with passing required CI; the updated Pages deployment is verified.
+- [x] The active master ruleset blocks force pushes/deletion and requires PRs and all three CI checks, with no bypass actors.
 - [x] Preserve the owner-approved public YouTube submission link; an optional updated MP4 is prepared locally.
-- [ ] Restore Tavily quota; current live research returns HTTP 432 with no results.
+- [x] Tavily funding is restored: a direct search and the actual backend research client both succeed; the account reports a 625-credit paid-usage limit.
 - [ ] Establish a working live project and free judge access through December 15; a static fixture alone does not establish this.
 - [ ] Recheck the Official Rules, complete the remaining Devpost fields, and submit the entry.
 
 See [the readiness review](readiness-review.md) for every fixed issue, validation
-scope, current provider results, and the remaining owner/account steps. Previous
-CI/deployment evidence belongs to the existing public revision; it does not
-establish deployment of this patch.
+scope, current provider results, and the remaining owner/account steps. The
+Pages release is deployed. Live judge hosting still needs a provisioned service,
+hosting secrets, and end-to-end verification; see [judge access](judge-access.md).

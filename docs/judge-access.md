@@ -14,11 +14,12 @@ download, and route refresh; `/Mimi/demo-manifest.json` identifies the replay.
 
 ## Live access status
 
-**A live judge URL and credential have not been issued yet.** The Render
-connection and provider funding are still pending. `render.yaml` prepares a
-single Free web service; `Dockerfile.judge` builds the real frontend and Python
-API together. Hosting configuration alone does not establish working live
-access or paid-provider availability through December 15.
+**A live judge URL and credential have not been verified yet.** Render is now
+installed, but its deployment tools are not exposed in this chat. Tavily
+funding is restored and its real backend client passes verification.
+`render.yaml` prepares a single Free web service; `Dockerfile.judge` builds the
+real frontend and Python API together. Hosting configuration alone does not
+establish working live access or paid-provider availability through December 15.
 
 Once deployed, the operator must add the exact live URL and the shared judge
 credential to Devpost's private testing instructions. Do not commit the key or
@@ -38,11 +39,13 @@ The bundled sample remains a fixture even when viewed through the live API.
 
 ## Provider and hosting budget
 
-On October 19, Tavily's usage endpoint returned a Researcher account with
-**1,000 / 1,000 credits used**. A bounded public-identifier search returned HTTP
-432. Restoring quota requires the owner's account billing access; changing
-source code or generating another key in the same account will not replenish
-the account's monthly credits.
+**Verified October 19: Tavily is restored.** After the free allowance reached
+1,000 / 1,000 credits and searches returned HTTP 432, the owner enabled $5 of
+funded usage. The API now reports a **625-credit pay-as-you-go limit**. A direct
+basic search returned HTTP 200. Mimi's actual `TavilyClient.search` then ran
+four public-identifier queries for lodash / CVE-2021-23337, returned three
+unique advisory records, and produced no error notes. These checks do not
+claim a new vulnerability-reproduction accuracy result.
 
 Mimi makes at most six basic Tavily searches per report. Each costs one credit;
 pay-as-you-go costs $0.008 per credit. Therefore the Tavily portion is at most
@@ -55,16 +58,17 @@ pay-as-you-go costs $0.008 per credit. Therefore the Tavily portion is at most
 | 100 | 600 | $4.80 |
 
 A $5 Tavily budget covers roughly 100 report research stages at the current
-maximum query count, with a small allowance for service checks. This is a
-usage estimate, not an automatically enforced dollar cap. The replay, video,
-and automated test suite consume zero Tavily credits. Tavily's free allowance
+maximum query count, with a small allowance for service checks. This estimates
+the Tavily portion of a run; the provider account separately reports the
+625-credit paid-usage limit. The replay, video, and automated test suite
+consume zero Tavily credits. Tavily's free allowance
 resets monthly; its pricing page states the reset is the first of each month.
 
 Render's selected hosting compute plan is Free. Nebius inference and Sandbox
 charges are separate. The current Sandbox cost telemetry is in raw units
 whose dollar conversion has not been established; do not treat the app's raw
-cost threshold as a USD spending limit. No top-up, paid subscription, or
-automatic billing change was made by this session.
+cost threshold as a USD spending limit. The owner funded Tavily; the assistant
+made no billing changes.
 
 See [Tavily pricing](https://www.tavily.com/pricing),
 [search credit costs](https://docs.tavily.com/documentation/api-credits), and
@@ -73,8 +77,11 @@ check Nebius credits and any expiry in the Token Factory account.
 
 ## Render launch and verification
 
-After the Render connection is available, deploy this repository's `master`
-branch using its Blueprint. Confirm `plan: free`, one instance, and
+If a Mimi service already exists, verify that service rather than creating a
+duplicate. Otherwise, use the prepared
+[Deploy to Render link](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fzalkabsi%2FMimi)
+to launch this repository's `master` branch using its Blueprint. Confirm
+`plan: free`, one instance, and
 `/api/health` as the health check. Render generates `MIMI_JUDGE_KEY`; enter
 `NEBIUS_API_KEY`, `NEBIUS_PROJECT_ID`, and the funded `TAVILY_API_KEY` directly
 in Render's secret settings. Values injected by a development proxy may be

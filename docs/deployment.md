@@ -121,8 +121,11 @@ hash route without page errors or backend requests. Its replay manifest also
 passed validation. Browser requests used TLS-verified HTTP forwarding because
 Chromium did not trust the session proxy CA.
 
-Live-analysis hosting is prepared for Render but is not yet published. Tavily's
-account is at 1,000 of 1,000 credits and a fresh search still returns HTTP 432.
+Live-analysis hosting is prepared for Render; its plugin is installed, but
+deployment commands are not exposed in this chat and no live URL has been
+verified. The owner restored Tavily funding: the API reports a 625-credit paid
+usage limit, a direct search returns HTTP 200, and the real backend research
+client completes four queries with three unique advisory records and no errors.
 No funded provider lifetime through December 15 or live judge credential has
 been established. See [judge access](judge-access.md) and the
 [readiness review](readiness-review.md) for the remaining requirements.

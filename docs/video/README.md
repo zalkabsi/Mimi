@@ -12,6 +12,11 @@ Tavily usage limit, and unverified hostile-code containment. No fixture result
 is presented as live analysis. There is no background music or third-party logo.
 Narration uses the synthetic `en-US-AriaNeural` voice from Edge TTS.
 
+The quota statement reflects the October 18 recording. On October 19, the
+owner restored Tavily funding and live research verification passed; see the
+[current judge-access status](../judge-access.md). The recorded fixture and
+published pilot results remain historical evidence.
+
 - `scenes.json` is the narration and shot source.
 - `voiceover-script.txt` is the generated narration text.
 - `captions.srt` is timed to the generated speech and can also be uploaded to YouTube.
