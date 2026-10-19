@@ -83,6 +83,30 @@ multiple Uvicorn workers would not share the active job registry or SSE queues.
 If the process restarts during a job, the inbox marks its orphaned `running`
 row as `error` rather than leaving it stuck.
 
+## Combined live judge service on Render
+
+`render.yaml` defines one Free web service built with `Dockerfile.judge`.
+The image serves the live React app and the API from one origin through
+`mimi.web:app`. The frontend uses hash routing and an empty API base, so it
+requires neither a separate frontend deployment nor cross-origin requests.
+The existing replay and API-only containers remain available separately.
+
+Render generates the judge access key and prompts for the three provider
+settings. Put real deployment credentials in its secret manager. Session-proxy
+credential placeholders are not portable hosting secrets. See
+[judge access and budget](judge-access.md) for current status, provider costs,
+the verification walkthrough, and Free-plan sleep/data-retention limits.
+
+For a local image smoke check without provider access:
+
+```bash
+docker build -f Dockerfile.judge -t mimi-judge .
+docker run --rm -p 127.0.0.1:8000:8000 mimi-judge
+```
+
+Open `http://localhost:8000`; without a judge key, live submissions remain
+unavailable. The image honors the host's `PORT` and runs one Uvicorn worker.
+
 ## Current deployment status
 
 On 2026-10-18, both images rebuilt from the readiness changes. The API passed
@@ -90,15 +114,15 @@ health, inbox, sample dossier, recorded events, completed SSE, private-report
 denial (401), and unauthenticated submission denial (402). Chromium opened and
 refreshed the container replay's sample dossier successfully.
 
-The existing public Pages deployment returns HTTP 200. A fresh Chromium context
-loaded its inbox, opened its sample dossier, and refreshed the hash route with
-no page errors or unexpected requests. Direct Chromium HTTPS failed to trust
-the session proxy CA, so these browser requests were forwarded by an HTTP
-client with TLS verification enabled. This verifies the currently published
-replay; it does not claim that the readiness changes have been deployed.
+PR #6 merged as `4c10ee1` on October 19. The Pages deployment and post-merge CI
+both passed. A fresh signed-out Chromium context opened the updated public
+replay, used **Open sample dossier**, downloaded the JSON, and refreshed the
+hash route without page errors or backend requests. Its replay manifest also
+passed validation. Browser requests used TLS-verified HTTP forwarding because
+Chromium did not trust the session proxy CA.
 
-The CLI GitHub token is invalid, but the connected GitHub integration has
-repository push access. The readiness branch is prepared for PR review;
-merge it to `master`, then check Pages and `/Mimi/demo-manifest.json`.
-There is still no hosted live-analysis backend or judge credential. See the
-[readiness review](readiness-review.md) for the remaining submission requirements.
+Live-analysis hosting is prepared for Render but is not yet published. Tavily's
+account is at 1,000 of 1,000 credits and a fresh search still returns HTTP 432.
+No funded provider lifetime through December 15 or live judge credential has
+been established. See [judge access](judge-access.md) and the
+[readiness review](readiness-review.md) for the remaining requirements.

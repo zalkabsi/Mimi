@@ -87,6 +87,11 @@ npm run dev
 
 The frontend uses `http://localhost:8000` by default. Without `MIMI_JUDGE_KEY`, the API serves only the bundled read-only dossier. For live report access, set the same judge key in the backend environment and enter it in the UI. The UI keeps it in `sessionStorage` for the current tab; **Clear key** removes it. Anyone holding this shared key can read every report on that deployment, so use only public sample reports on a shared demo. The database defaults to `mimi.db`; set `MIMI_DB_PATH` to use another location.
 
+For a combined hosted frontend/API, `Dockerfile.judge` and `render.yaml`
+prepare a single Free Render web service. See [judge access and budget](docs/judge-access.md)
+for the verified Pages release, pending live-host credentials, provider costs,
+and Free-plan sleep and data-retention limits.
+
 ### Verify the project
 
 ```bash
@@ -148,6 +153,7 @@ only in raw Contree units; currency conversion is unknown.
 - [Architecture and evaluation protocol](docs/02-architecture.md)
 - [Architecture diagram](docs/assets/architecture.svg)
 - [Deployment guide](docs/deployment.md)
+- [Judge access and provider budget](docs/judge-access.md)
 - [Constraints and open items](docs/00-constraints-and-open-items.md)
 - [Product feedback log](docs/feedback-log.md)
 - [Hackathon submission copy and demo script](docs/submission-kit.md)

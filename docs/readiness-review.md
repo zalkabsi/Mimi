@@ -6,8 +6,9 @@ that approval and the existing submission link are preserved.
 Scope: backend and frontend source, test behavior, package audits, production
 builds, container smoke checks, browser flows, demo assets, and submission requirements.
 
-The local project and replay artifacts are prepared. Final submission still
-depends on the hosted-access, publishing, and provider-account steps below.
+The readiness changes are merged and the updated public Pages replay is
+deployed and verified. Final submission still depends on funded live judge
+access and provider-account steps below.
 
 ## Problems fixed
 
@@ -31,19 +32,21 @@ depends on the hosted-access, publishing, and provider-account steps below.
 | Medium | SQLite's `.db-wal` and `.db-shm` sidecar files were not ignored and could be accidentally committed with live report data. | Added ignore patterns for both sidecars. |
 | Demo | Current inbox/dossier captures and an exported demo video were missing. | Refreshed three screenshots and prepared a narrated, captioned 720p MP4 under three minutes, with reproducible capture tooling. |
 | Demo | There was no portable submission bundle or dossier export. | Added JSON dossier downloads, a replay build manifest, checked source/replay ZIP packaging, and SHA-256 hashes. Packaging verifies that frontend and backend fixtures match. |
+| Deployment | Pages is a static replay and cannot run live jobs; frontend/API hosting was separate. | Prepared a combined live image with same-origin API requests, a Free Render Blueprint, an access-control regression, and a CI image smoke check. Actual hosting still needs the Render connection and funded provider credentials. |
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| Backend | 199 tests on Python 3.12; all test sockets are guarded against external connections. One upstream Starlette/httpx deprecation warning remains. |
-| GitHub CI | PR #6 passed backend jobs on Python 3.12 and 3.13 and the frontend production/browser job in [run 39222750798](https://github.com/zalkabsi/Mimi/actions/runs/39222750798). |
+| Backend | 200 tests on Python 3.12, including the combined host's static/API routing and access checks. Backend test sockets are guarded against external connections; the isolated web smoke removes provider credentials and makes no provider calls. One upstream Starlette/httpx deprecation warning remains. |
+| GitHub CI | Merged readiness PR #6 and post-merge Python 3.12/3.13 and frontend jobs passed in [run 39227969084](https://github.com/zalkabsi/Mimi/actions/runs/39227969084). |
 | Branch protection | The owner activated [Protect master](https://github.com/zalkabsi/Mimi/rules/25390422). GitHub reports `master` protected; the active rules block force pushes/deletion, require PRs and all three CI checks, and have no bypass actors. Verified October 19 through GitHub's branch and ruleset APIs. |
 | Frontend | Live production build and dedicated replay build pass. Seven Chromium checks pass, including a 390px mobile viewport. |
 | Dependencies | `npm audit`: zero known advisories. Python environment audit with pip-audit/PyPI: zero known advisories after upgrading pip. |
 | Docker | Both images build. API health, inbox, dossier, events, completed SSE, private-ID denial (401), and submission denial (402) pass. Replay inbox and refreshed dossier route work in Chromium. |
-| Public replay | Existing Pages deployment returns 200; its inbox, dossier, and refreshed hash route work in a fresh Chromium context with no page errors or unexpected requests. Requests used TLS-verified HTTP forwarding because Chromium did not trust the session proxy CA. This was the existing public version. |
-| Live providers | A bounded Nemotron Nano inference smoke returned nonempty content (38 input / 45 output tokens). Sandboxes whoami returned all six permissions. Tavily returned HTTP 432 with no results. No new vulnerability-reproduction accuracy claim is made. |
+| Combined judge image | Builds and starts on a custom `PORT` as a non-root user. Chromium verifies the same-origin API inbox, dossier, and hash-route refresh with no page errors or external calls. API health, sample dossier, private-ID denial (401), and submission denial (402) pass. Hosting is not yet provisioned. |
+| Public replay | PR #6 merged as `4c10ee1`, and [Pages deployment 39227968643](https://github.com/zalkabsi/Mimi/actions/runs/39227968643) passed. A fresh signed-out Chromium context verified the updated inbox, sample link, JSON download, hash-route refresh, and replay manifest with no page errors or backend calls. Requests used TLS-verified HTTP forwarding because Chromium did not trust the session proxy CA. |
+| Live providers | A bounded Nemotron Nano inference smoke returned nonempty content (38 input / 45 output tokens). Sandboxes whoami returned all six permissions. On October 19, Tavily usage returned 1,000 / 1,000 account credits used and a fresh public-identifier search returned HTTP 432. No new vulnerability-reproduction accuracy claim is made. |
 | Demo | 158.32-second, 1280×720 H.264/AAC MP4: actual replay screen recording, original synthetic narration, and burned-in English captions. Refreshed screenshots and narration/shot sources are included. ffprobe metadata is retained locally in `artifacts/demo-raw/export-metadata.json`. |
 | Media and packaging | Chromium playback and seeking near the ending pass; full FFmpeg decoding reports no errors. ZIP CRCs and inner SHA-256 hashes pass. The extracted portable replay opens and refreshes under a nested static-host path without API requests. |
 
@@ -61,30 +64,28 @@ The deadline is **October 30, 2026 at 20:00 Asia/Riyadh** (10:00 AM Pacific).
 The rules were recovered through indexed official-page results on October 18
 after direct retrieval returned 403; recheck the rules before submitting.
 
-1. **Merge the reviewed changes and verify Pages.** Branch protection is active
-   and independently verified; see the [configuration details](branch-protection.md).
-   The readiness work is in [draft PR #6](https://github.com/zalkabsi/Mimi/pull/6),
-   with all three app CI jobs passing. After merging to `master`, let Pages finish and verify the
-   new sample link, JSON download, and `/Mimi/demo-manifest.json` signed out.
-2. **Use the owner-approved public video.** The approved submission link is
-   [Mimi](https://youtu.be/y4rlh4hlkcw), recorded in upstream `0dd530a`. This
-   session did not independently recheck YouTube playback. An additional
-   `docs/video/mimi-demo.mp4` is prepared locally; uploading it publicly is
-   optional if an updated cut is preferred. Verify its public URL before
-   replacing the approved link in Devpost.
-3. **Resolve working-project access for judges.** Pages hosts a read-only UI
-   fixture. No hosted live backend, funded judge credential, or provider-key
-   lifetime through December 15 has been established. A local setup requiring
-   judges to bring credits does not establish the required free access. See
-   [deployment instructions](deployment.md) for the one-worker API setup and
-   execution-boundary limitations before enabling live submissions.
-4. **Restore Tavily quota.** The configured account currently rejects research
-   requests with HTTP 432. Fix the plan/credits and retry a public-identifier
-   query before claiming a working advisory-research integration.
-5. **Complete the Devpost draft.** Use [the submission kit](submission-kit.md),
+1. **Restore Tavily quota.** The configured account is at its 1,000-credit
+   limit and rejects research with HTTP 432. The owner needs to enable funded
+   usage in Tavily. The [budget estimate](judge-access.md) is at most $0.048 in
+   Tavily searches per report, or $4.80 for 100 reports. Retry a public-identifier
+   query after restoring credits; a source change cannot replenish the account.
+2. **Publish and verify free live judge access.** The Render Blueprint and
+   combined frontend/API image are prepared. The Render connection and real
+   hosting secrets are still needed, followed by a complete live public-package
+   report. No hosted live URL, funded judge credential, or provider-key lifetime
+   through December 15 has been established. Keep Pages as a clearly labelled
+   replay. See [judge access](judge-access.md) for the rollout, private credential
+   handoff, funding, and Free-plan limits.
+3. **Complete the Devpost draft.** Use [the submission kit](submission-kit.md),
    Track 2, the repository URL, the verified hosted-access instructions, the
    approved public video URL, and the Token Factory/Nemotron feedback. The owner
    completes the final submission and attestations.
+
+The approved public video remains [Mimi](https://youtu.be/y4rlh4hlkcw), recorded
+in upstream `0dd530a`. This session did not independently recheck YouTube
+playback. Uploading the optional updated local MP4 is not required to retain
+the approved link. Branch protection, the readiness merge, and Pages
+verification are complete.
 
 ## Product limits to keep visible
 

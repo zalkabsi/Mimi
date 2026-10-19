@@ -56,3 +56,36 @@ jobs:
       - name: Check replay and live client in Chromium
         working-directory: frontend
         run: npm run test:e2e
+      - name: Build combined judge image
+        run: docker build -f Dockerfile.judge -t mimi-judge-ci .
+      - name: Check combined judge image
+        run: |
+          docker run --rm -d --name mimi-judge-ci -e PORT=8765 -p 127.0.0.1:8093:8765 mimi-judge-ci
+          trap 'mimi_smoke_status=$?; if [ "$mimi_smoke_status" -ne 0 ]; then docker logs mimi-judge-ci; fi; docker rm -f mimi-judge-ci >/dev/null 2>&1 || true; exit "$mimi_smoke_status"' EXIT
+          python3 - <<'PY'
+          import json
+          import time
+          from urllib.error import HTTPError, URLError
+          from urllib.request import urlopen
+
+          base = "http://127.0.0.1:8093"
+          for attempt in range(30):
+              try:
+                  with urlopen(base + "/api/health", timeout=2) as response:
+                      assert json.load(response) == {"ok": True, "service": "mimi"}
+                  break
+              except (URLError, ConnectionError, TimeoutError):
+                  time.sleep(1)
+          else:
+              raise SystemExit("judge image did not become healthy")
+          with urlopen(base + "/", timeout=5) as response:
+              assert b'<div id="root"></div>' in response.read()
+          with urlopen(base + "/api/reports/mock0000demo", timeout=5) as response:
+              assert json.load(response)["report_id"] == "mock0000demo"
+          try:
+              urlopen(base + "/api/reports/private-report", timeout=5)
+          except HTTPError as error:
+              assert error.code == 401
+          else:
+              raise SystemExit("private report route was not protected")
+          PY
